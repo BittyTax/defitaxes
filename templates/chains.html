@@ -9,24 +9,8 @@
         <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
         <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/additional-methods.min.js"></script>
         <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
-
-        <!-- Global site tag (gtag.js) - Google Analytics -->
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-5CVKBBZ0F6"></script>
-        <script>
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-
-          gtag('config', 'G-5CVKBBZ0F6');
-        </script>
-
-
-
-
-
-        <title>{{ title }}</title>
+        <title>Blockchain transactions to US tax form</title>
     </head>
-
     <body>
         <div class='header'>
             <h1><a id='home' href='/'>DeFi Taxes</a></h1>
@@ -35,7 +19,15 @@
         <div id='chain_support_content'>
             <h2>Blockchain Support and Data Sources</h2>
             <table id='chain_support'>
-                <tr><th>Chain</th><th>Level of support</th><th>Data source</th><th>Counterparty names availability</th><th>ERC1155 support</th><th>Balance check for tokens</th><th>Balance check for NFTs</th></tr>
+                <tr>
+                    <th>Chain</th>
+                    <th>Level of support</th>
+                    <th>Data source</th>
+                    <th>Counterparty names availability</th>
+                    <th>ERC1155 support</th>
+                    <th>Balance check for tokens</th>
+                    <th>Balance check for NFTs</th>
+                </tr>
                 {% for chain in chains %}
                 <tr class='support_{{ chain['support_level'] }}'>
                     <td>{{ chain['name'] }}</td>
@@ -46,7 +38,6 @@
                     <td>{{ chain['balance_token_support'] }}</td>
                     <td>{{ chain['balance_nft_support'] }}</td>
                 </tr>
-
                 {% endfor %}
             </table>
             <h2>Additional Data Sources</h2>
@@ -61,16 +52,11 @@
             </table>
         </div>
     </body>
-
     <div class='footer'>
         <div class='social'>
-<!--            <a href='services.html'>We can do your taxes</a>-->
             <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a>
             <a id='twitter_link' href='https://twitter.com/defitaxes' target='_blank'>Twitter</a>
-<!--            <a id='email' href='mailto: iraykhel@gmail.com' target='_blank'>Email</a>-->
             <a id='github' href='https://github.com/iraykhel/defitaxes' target='_blank'>Github</a>
         </div>
-<!--        <div id='made_by'>Made by <a href='https://www.linkedin.com/in/ilya-raykhel/' target='_blank'>Ilya Raykhel</a></div>-->
     </div>
-
 </html>
