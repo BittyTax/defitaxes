@@ -33,7 +33,7 @@ from collections import defaultdict
 import atexit
 from dotenv import load_dotenv
 
-FLASK_ENV = 'production'
+FLASK_ENV = os.environ.get("FLASK_ENV")
 
 app = Flask(__name__)
 
@@ -1459,14 +1459,14 @@ def download():
 
         if type == 'transactions_json':
             path = 'data/users/'+address+'/transactions.json'
-            return send_file(path, as_attachment=True, cache_timeout=0)
+            return send_file(path, as_attachment=True, max_age=0)
 
         if type == 'transactions_csv':
             user = User(address)
             user.json_to_csv()
             user.done()
             path = 'data/users/' + address + '/transactions.csv'
-            return send_file(path, as_attachment=True, cache_timeout=0)
+            return send_file(path, as_attachment=True, max_age=0)
 
         if type == 'tax_forms':
             year = request.args.get('year')
@@ -1478,7 +1478,7 @@ def download():
             calculator.make_forms(year)
             user.done()
             path = 'data/users/'+address+'/tax_forms_'+str(year)+'.zip'
-            return send_file(path, as_attachment=True, cache_timeout=0)
+            return send_file(path, as_attachment=True, max_age=0)
 
         if type == 'turbotax':
             year = request.args.get('year')
@@ -1493,7 +1493,7 @@ def download():
                 path = 'data/users/'+address+'/turbotax_8949_'+str(year)+'.zip'
             else:
                 path = 'data/users/'+address+'/turbotax_8949_'+str(year)+'.csv'
-            return send_file(path, as_attachment=True, cache_timeout=0)
+            return send_file(path, as_attachment=True, max_age=0)
     except:
         log_error("EXCEPTION in download", address, request.args)
         log("EXCEPTION in download", traceback.format_exc())
