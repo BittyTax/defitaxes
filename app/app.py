@@ -11,21 +11,21 @@ import os
 import traceback
 import time
 import json
-from code.coingecko import Coingecko
-from code.signatures import Signatures
-from code.chain import Chain
-from code.solana import Solana
-from code.util import log, ProgressBar, persist, sql_in, normalize_address, is_ethereum, log_error
-from code.sqlite import SQLite
-from code.fiat_rates import Twelve
-# from code.category import Typing
-from code.user import User, Import
-from code.tax_calc import Calculator
+from .coingecko import Coingecko
+from .signatures import Signatures
+from .chain import Chain
+from .solana import Solana
+from .util import log, ProgressBar, persist, sql_in, normalize_address, is_ethereum, log_error
+from .sqlite import SQLite
+from .fiat_rates import Twelve
+# from .category import Typing
+from .user import User, Import
+from .tax_calc import Calculator
 import pickle
 import html
 import sys,pip
 import redis
-from code.redis_wrap import Redis
+from .redis_wrap import Redis
 import secrets
 import threading
 import copy

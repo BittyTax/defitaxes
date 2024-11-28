@@ -1,4 +1,4 @@
-from code.sqlite import SQLite
+from .sqlite import SQLite
 
 class Category:
     FEE = -1
