@@ -1,43 +1,54 @@
-
-import os
-import traceback
-import time
-import json
 import copy
-import uuid
-from code.coingecko import Coingecko
-from code.chain import Chain
-from code.solana import Solana
-from code.util import log
-from code.sqlite import *
+import json
+import os
 import pickle
-from datetime import datetime
-from code.signatures import *
-from code.user import User
-from code.tax_calc import Calculator
-from code.fiat_rates import Twelve
+import time
+import traceback
+import uuid
+from code.chain import Chain
+from code.coingecko import Coingecko
 from code.dex_rates import *
+from code.fiat_rates import Twelve
+from code.signatures import *
+from code.solana import Solana
+from code.sqlite import *
+from code.tax_calc import Calculator
+from code.user import User
+from code.util import log
+from datetime import datetime
+
 from dotenv import load_dotenv
+
 
 def update_rates_db():
     C = Coingecko()
-    C.download_all_coingecko_rates(reset=False) #reset true on first run, false on runs to correct errors
+    C.download_all_coingecko_rates(
+        reset=False
+    )  # reset true on first run, false on runs to correct errors
     exit(0)
+
 
 def update_signatures():
     S = Signatures()
-    S.download_signatures_to_db(start_page=588,endid = 448521) #endid is biggest id currently in db
+    S.download_signatures_to_db(start_page=588, endid=448521)  # endid is biggest id currently in db
     exit(0)
 
+
 def add_chain_to_addresses(chain_name):
-    address_db = SQLite('addresses_prod')
-    chain_name = chain_name.upper().replace(" ","_")
-    address_db.create_table(chain_name+"_addresses","address PRIMARY KEY, tag, ancestor_address, entity,inclusion_reason",drop=False)
+    address_db = SQLite("addresses_prod")
+    chain_name = chain_name.upper().replace(" ", "_")
+    address_db.create_table(
+        chain_name + "_addresses",
+        "address PRIMARY KEY, tag, ancestor_address, entity,inclusion_reason",
+        drop=False,
+    )
     address_db.create_table(chain_name + "_labels", "address, label", drop=False)
-    address_db.create_index(chain_name+"_addresses_idx_1",chain_name+"_addresses","entity")
+    address_db.create_index(chain_name + "_addresses_idx_1", chain_name + "_addresses", "entity")
     address_db.create_index(chain_name + "_labels_idx_1", chain_name + "_labels", "address,label")
     address_db.create_index(chain_name + "_adr_idx_1", chain_name + "_addresses", "address")
-    address_db.create_index(chain_name + "_adr_idx_2", chain_name + "_addresses", "ancestor_address")
+    address_db.create_index(
+        chain_name + "_adr_idx_2", chain_name + "_addresses", "ancestor_address"
+    )
     address_db.commit()
     address_db.disconnect()
 
@@ -54,60 +65,66 @@ def process(address, chain_name, do_import=True, do_calc=True, do_lookups=True):
     # chain_names = Chain.list()
     chains = {}
     for chain_name in chain_names:
-        chains[chain_name] = {'chain': user.chain_factory(chain_name), 'current_tokens':{}, 'is_upload':False}
+        chains[chain_name] = {
+            "chain": user.chain_factory(chain_name),
+            "current_tokens": {},
+            "is_upload": False,
+        }
 
     user.get_custom_rates()
 
-
-    address_db = SQLite('addresses')
+    address_db = SQLite("addresses")
     for chain_name, chain in chains.items():
-        chain['chain'].init_addresses(address_db)
+        chain["chain"].init_addresses(address_db)
 
     if do_import:
         user.start_import(chains)
         for chain_name, chain_data in chains.items():
-            chain_data['import_addresses'] = [address]
-            chain = chain_data['chain']
+            chain_data["import_addresses"] = [address]
+            chain = chain_data["chain"]
             transactions = chain.get_transactions(user, address, 0)  # alloc 20
-            chain_data['transactions'] = transactions
+            chain_data["transactions"] = transactions
             chain.correct_transactions(address, transactions, 0)  # alloc 5
             current_tokens = chain.get_current_tokens(address)
-            chain_data['current_tokens'][address] = current_tokens
+            chain_data["current_tokens"][address] = current_tokens
             chain.covalent_download(chain_data)
             chain.covalent_correction(chain_data)
 
         user.get_thirdparty_data(chains)
         for chain_name, chain_data in chains.items():
-            chain = chain_data['chain']
+            chain = chain_data["chain"]
             chain.balance_provider_correction(chain_data)
 
         for chain_name, chain_data in chains.items():
-            chain = chain_data['chain']
-            print("Storing transactions",chain,len(chain_data['transactions']))
-            user.store_transactions(chain_data['chain'], chain_data['transactions'], address,C)
-            user.store_current_tokens(chain_data['chain'], chain_data['current_tokens'])
+            chain = chain_data["chain"]
+            print("Storing transactions", chain, len(chain_data["transactions"]))
+            user.store_transactions(chain_data["chain"], chain_data["transactions"], address, C)
+            user.store_current_tokens(chain_data["chain"], chain_data["current_tokens"])
 
     user.load_addresses()
     user.load_tx_counts()
-
 
     transactions, _ = user.load_transactions(chains)
     print("Loaded transactions", len(transactions))
     contract_dict, counterparty_by_chain, input_list = user.get_contracts(transactions)
     if do_lookups:
-        print('contract_dict', contract_dict)
-        print('counterparty_by_chain', counterparty_by_chain)
+        print("contract_dict", contract_dict)
+        print("counterparty_by_chain", counterparty_by_chain)
         for chain_name, chain_data in chains.items():
-            chain = chain_data['chain']
-            filtered_counterparty_list = chain.filter_progenitors(list(counterparty_by_chain[chain_name]))
-            print(chain_name, 'counterparty_list', filtered_counterparty_list)
+            chain = chain_data["chain"]
+            filtered_counterparty_list = chain.filter_progenitors(
+                list(counterparty_by_chain[chain_name])
+            )
+            print(chain_name, "counterparty_list", filtered_counterparty_list)
             if len(filtered_counterparty_list) > 0:
-                chain_data['progenitor_db_writes'] = chain.update_progenitors(filtered_counterparty_list, 0)  # alloc 30
+                chain_data["progenitor_db_writes"] = chain.update_progenitors(
+                    filtered_counterparty_list, 0
+                )  # alloc 30
 
         all_db_writes = []
         for chain_name, chain_data in chains.items():
-            if 'progenitor_db_writes' in chain_data:
-                all_db_writes.extend(chain_data['progenitor_db_writes'])
+            if "progenitor_db_writes" in chain_data:
+                all_db_writes.extend(chain_data["progenitor_db_writes"])
 
         if len(all_db_writes):
             insert_cnt = 0
@@ -115,14 +132,17 @@ def process(address, chain_name, do_import=True, do_calc=True, do_lookups=True):
                 chain_name, values = write
                 entity = values[-2]
                 address_to_add = values[0]
-                rc = address_db.insert_kw(chain_name + '_addresses', values=values, ignore=(entity == 'unknown'))
+                rc = address_db.insert_kw(
+                    chain_name + "_addresses", values=values, ignore=(entity == "unknown")
+                )
                 if rc > 0:
-                    address_db.insert_kw(chain_name + '_labels', values=[address_to_add, 'auto'], ignore=True)
+                    address_db.insert_kw(
+                        chain_name + "_labels", values=[address_to_add, "auto"], ignore=True
+                    )
                     insert_cnt += 1
             if insert_cnt > 0:
                 address_db.commit()
-                log('New addresses added', insert_cnt, filename='address_lookups.txt')
-
+                log("New addresses added", insert_cnt, filename="address_lookups.txt")
 
     S.init_from_db(input_list)
     needed_token_times = user.get_needed_token_times(transactions)
@@ -134,26 +154,26 @@ def process(address, chain_name, do_import=True, do_calc=True, do_lookups=True):
     address_db.disconnect()
 
     transactions_js = user.transactions_to_log(C, S, transactions, store_derived=True)  # alloc 20
-    print("do_calc",do_calc)
+    print("do_calc", do_calc)
     if do_calc:
         custom_types = user.load_custom_types()
-        calculator = Calculator(user,C)
-        calculator.process_transactions(transactions_js,user)
+        calculator = Calculator(user, C)
+        calculator.process_transactions(transactions_js, user)
         calculator.matchup()
         calculator.cache()
 
-        log("Calculator summary",calculator.CA_short)
+        log("Calculator summary", calculator.CA_short)
+
 
 if __name__ == "__main__":
-    os.environ['debug'] = '2'
-    os.environ['version'] = '1.42'
+    os.environ["debug"] = "2"
+    os.environ["version"] = "1.42"
     load_dotenv()
-    address = '0x032b7d93aeed91127baa55ad570d88fd2f15d589'  # hodl
-    process(address, 'Arbitrum', do_import=True, do_lookups=True)
+    address = "0x032b7d93aeed91127baa55ad570d88fd2f15d589"  # hodl
+    process(address, "Arbitrum", do_import=True, do_lookups=True)
     exit(0)
 
-
-    #dex
+    # dex
     # dex = DEX()
     # pair = dex.locate_pair('0x0da67235dd5787d67955420c84ca1cecd4e5bb3b','Avalanche')
     # # pair = dex.locate_pair('0x136acd46c134e8269052c62a67042d6bdedde3c9', 'Avalanche')
@@ -164,9 +184,7 @@ if __name__ == "__main__":
     # #     pair.get_cmc_id()
     # exit(0)
 
-
-
-    #twelve
+    # twelve
     # url = "https://api.twelvedata.com/forex_pairs"
     # resp = requests.get(url)
     # data = resp.json()
@@ -185,7 +203,6 @@ if __name__ == "__main__":
     # T = Twelve('USD')
     # T.download_all_rates()
     # exit(0)
-
 
     # s = Solana()
     # json_template = {"method": "getTransaction", "jsonrpc": "2.0", "params": [None, {"encoding": "jsonParsed", "commitment": "confirmed", "maxSupportedTransactionVersion": 0}]}
@@ -220,7 +237,6 @@ if __name__ == "__main__":
     # #
     # exit(0)
 
-
     # covalent
     # session = requests.session()
     # session.auth = ("", "")
@@ -234,10 +250,6 @@ if __name__ == "__main__":
     # # entries = data['data']['items']
     # # pprint.pprint(entries)
     # exit(0)
-
-
-
-
 
     # # debank pro
     # session = requests.session()
@@ -257,7 +269,6 @@ if __name__ == "__main__":
     # pprint.pprint(data)
     # # print(len(data['history_list']))
     # exit(0)
-
 
     # ids = []
     # total = 0
@@ -312,7 +323,7 @@ if __name__ == "__main__":
     #
     # print('total',total)
 
-    #ankr
+    # ankr
     # session = requests.session()
     # url = 'https://rpc.ankr.com/multichain/'
     # # url = 'https://rpc.ankr.com/arbitrum/'
@@ -458,11 +469,10 @@ if __name__ == "__main__":
     # C = Coingecko()
     # # C.download_symbols_to_db()
     # C.download_all_coingecko_rates()
-    address = '0xd603a49886c9b500f96c0d798aed10068d73bf7c'
+    address = "0xd603a49886c9b500f96c0d798aed10068d73bf7c"
     # address = '0xD69F1F0c7c40d119C3BfEc0E89553aC8f40284F2'
-    address = '95iZStZPdxWoKUfinEtxq8X7SfTn496D1tKDiUuyNeqC' #solana
-    address = '9HdPeqZGJDTtoHoGz4x6vNoPBxhnQLazjmfzYAjAiZVK'
-
+    address = "95iZStZPdxWoKUfinEtxq8X7SfTn496D1tKDiUuyNeqC"  # solana
+    address = "9HdPeqZGJDTtoHoGz4x6vNoPBxhnQLazjmfzYAjAiZVK"
 
     # chain = Chain('ETH', 'https://api.etherscan.io/api', 'ETH', '',
     #               outbound_bridges=['0XA0C68C638235EE32657E8F720A23CEC1BFC77C77',  # polygon
@@ -479,7 +489,7 @@ if __name__ == "__main__":
     # address = '0x3401ea5a8d91c5e3944962c0148b08ac4a77f153' #so many nfts
     # address = '0x641c2fef13fb417db01ef955a54904a6400f8b07' #delso
     # address = '0x6f69f79cea418024b9e0acfd18bd8de26f9bbe39'  #cap
-    address = '0x032b7d93aeed91127baa55ad570d88fd2f15d589' #hodl
+    address = "0x032b7d93aeed91127baa55ad570d88fd2f15d589"  # hodl
     # address = '0xd96fbf82f4445be4833f87006c597e1732aea739'
     # address = '0x6cf9aa65ebad7028536e353393630e2340ca6049' #swissborg 4, a giant bank
     # address = '0x134926384758acb7c95cd8ebbf84d655a19138ec' #ancestor retrieval problem on Avalanche
@@ -513,10 +523,6 @@ if __name__ == "__main__":
     # address = '0x0e8b0cdf27b9dd2ddec656ed31bb086b8aed495c' #fantom, also coingecko rates get loaded every time
     # address = '0xeebb57a49de7631a04eecea0c37f211e342421e9' #shitcoin heaven
 
-
-
-
-
     # ranges = [[100,200],[300,500],[600,800]]
     # range_test = [[0,50],[0,150],[0,250],[0,400],[0,550],[0,700],[0,900]]
     # range_test = [[150, 170], [150, 250], [150, 400], [150, 550], [150, 700], [150, 900]]
@@ -529,6 +535,3 @@ if __name__ == "__main__":
     # exit(0)
 
     # rv = chain.get_ancestor('0xc2edad668740f1aa35e4d8f227fb8e17dca888cd')
-
-
-

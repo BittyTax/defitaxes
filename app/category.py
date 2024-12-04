@@ -1,5 +1,6 @@
 from .sqlite import SQLite
 
+
 class Category:
     FEE = -1
     SWAP = 0
@@ -32,8 +33,6 @@ class Category:
     INCOME = 27
     SPAM = 28
 
-
-
     CLAIM = 99
     NFT = 100
 
@@ -53,27 +52,34 @@ class Category:
         UNWRAP: "unwrap",
         ADD_LIQUIDITY_NO_RECEIPT: "deposit",
         REMOVE_LIQUIDITY_NO_RECEIPT: "withdraw",
-        EXIT_VAULT:"exit vault",
+        EXIT_VAULT: "exit vault",
         # NFT: "NFT-related",
         CLAIM: "claim reward",
         BORROW: "borrow",
         REPAY: "repay",
         MINT_NFT: "mint NFT",
-        ERROR:"execution error",
-        COMPOUND:"compound",
-        SELF:"interaction between your accounts",
-        MULTISWAP:"multi-transactional swap",
-        BALANCE_ADJUSTMENT:"balance adjustment",
-        DEDUCTIBLE_LOSS:"deductible loss",
-        LOAN_INTEREST:"loan interest",
-        BUSINESS_EXPENSE:"business expense",
-        PNL_CHANGE:"realized profit or loss",
-        INCOME:"income",
-        SPAM:"spam"
+        ERROR: "execution error",
+        COMPOUND: "compound",
+        SELF: "interaction between your accounts",
+        MULTISWAP: "multi-transactional swap",
+        BALANCE_ADJUSTMENT: "balance adjustment",
+        DEDUCTIBLE_LOSS: "deductible loss",
+        LOAN_INTEREST: "loan interest",
+        BUSINESS_EXPENSE: "business expense",
+        PNL_CHANGE: "realized profit or loss",
+        INCOME: "income",
+        SPAM: "spam",
     }
 
-
-    def __init__(self,category=0, claim_reward=False, nft=False, certainty=10, custom_type=None,protocol=None):
+    def __init__(
+        self,
+        category=0,
+        claim_reward=False,
+        nft=False,
+        certainty=10,
+        custom_type=None,
+        protocol=None,
+    ):
         self.category = category
         self.claim = claim_reward
         self.certainty = certainty
@@ -82,7 +88,6 @@ class Category:
         self.nft = nft
         self.custom_type = custom_type
         self.protocol = protocol
-
 
     def __str__(self):
         if self.custom_type != None:
@@ -99,9 +104,8 @@ class Category:
         if self.nft:
             rv += " (NFT-related)"
         if self.protocol:
-            rv += " ON "+self.protocol
+            rv += " ON " + self.protocol
         return rv
 
     def __repr__(self):
         return self.__str__()
-
