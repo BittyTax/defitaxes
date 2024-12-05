@@ -1,4 +1,4 @@
-# from .chain import Chain
+# -*- coding: utf-8 -*-
 import time
 
 import redis
@@ -8,16 +8,10 @@ from .util import log, log_error
 
 class Redis:
     def __init__(self, address):
-        # log("init redis",address)
         self.R = redis.StrictRedis(host="localhost", decode_responses=True)
         self.address = address
         self.queue = "queue"
         self.pushed = False
-        # address, chain_name, uid = get_session_vars()
-        # log("session vars for redis", address, uid)
-        # if uid is not None:
-        #     self.uid = uid
-        # else:
         self.uid = self.address
 
     def enq(self, reset=False):
@@ -37,7 +31,6 @@ class Redis:
 
     def waitself(self, sleep=1):
         rv = False
-
         running = self.get("running")
 
         if running is not None:
@@ -46,20 +39,11 @@ class Redis:
                 self.wait()
 
         while running is not None:
-            # top = R.lindex(self.queue, 0)
-            # if top != self.uid:
-            #     top_progress = min(100, round(float(R.get(top + "_progress")), 2))
-            #     self.set('progress_entry', R.get(top+"_progress_entry"))
-            #     self.set('progress', R.get(top+"_progress"))
-
             time.sleep(sleep)
             running = self.get("running")
         return rv
 
     def wait(self, sleep=1, pb=0):
-        # if self.address.lower() != '0xd603a49886c9B500f96C0d798aed10068D73bF7C'.lower():
-        #     return
-
         R = self.R
         wait_start = int(time.time())
         last_update_change = wait_start
@@ -127,24 +111,18 @@ class Redis:
     def set(self, key, val):
         R = self.R
         key = self.uid + "_" + str(key)
-        # log("setting redis", key, val)
         R.set(key, val)
 
     def get(self, key):
         R = self.R
         key = self.uid + "_" + str(key)
         val = R.get(key)
-        # log("getting redis", key, val)
         return val
 
     def unset(self, key):
         R = self.R
         key = self.uid + "_" + str(key)
         R.delete(key)
-        # try:
-        #     R.delete(key)
-        # except:
-        #     pass
 
     def start(self):
         self.set("running", "1")
@@ -172,7 +150,7 @@ class Redis:
             else:
                 to_stay_queued.append(uid)
         log("deleting redis keys", to_delete)
-        if len(to_delete):
+        if to_delete:
             R.delete(*to_delete)
 
         els = R.lrange("queue", 0, -1)
@@ -180,11 +158,3 @@ class Redis:
             if el not in to_stay_queued:
                 log("unqueueing ", el)
                 R.lrem("queue", 0, el)
-
-        # chains = Chain.list()
-        # for chain in chains:
-        #     els = R.lrange("queue_"+chain,0,-1)
-        #     for el in els:
-        #         if el not in to_stay_queued:
-        #             log("unqueueing ",el,"from",chain,"queue")
-        #             R.lrem("queue_"+chain,0,el)

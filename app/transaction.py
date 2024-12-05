@@ -1,5 +1,6 @@
-import ast
-import pprint
+# -*- coding: utf-8 -*-
+import sys
+import time
 import traceback
 from collections import defaultdict
 
@@ -7,7 +8,7 @@ from sortedcontainers import SortedDict
 
 from .category import Category
 from .fiat_rates import Twelve
-from .util import *
+from .util import clog, decustom, log, normalize_address
 
 
 class Transfer:
@@ -161,6 +162,7 @@ class Transfer:
         self.custom_rate = custom_rate
         self.custom_vaultid = custom_vaultid
         self.changed = None
+        self.derived_data = None
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -198,7 +200,6 @@ class Transaction:
     SELL = 2
     BUY = 3
     GIFT = 4
-    # MAPPED_FIELDS = {'fr': 2, 'to': 3, 'amount': 4, 'what': 5, 'type': 1, 'rate_found': 8, 'free':10, 'symbol':6,'amount_non_zero':}
     MAPPED_FIELDS = [
         "from_me",
         "fr",
@@ -213,13 +214,12 @@ class Transaction:
         "amount_non_zero",
         "input_non_zero",
     ]
-    # ALL_FIELDS = {'index':0, 'type':1, 'from':2, 'to':3, 'amount':4, 'what':5, 'input_len':6, 'rate_found':7, 'rate':8,'free':9}
 
     def __init__(
         self,
         user,
         chain,
-        hash=None,
+        _hash=None,
         ts=None,
         block=None,
         nonce=None,
@@ -246,8 +246,6 @@ class Transaction:
         self.transaction_value = None
         self.classification_certainty_level = 0
         self.rate_inferred = False
-        # self.rate_adjusted = False
-        # self.local_rates = defaultdict(dict)
         self.balanced = False
         self.txid = txid
         self.custom_type_id = custom_type_id
@@ -266,6 +264,12 @@ class Transaction:
         self.changed = None
         self.fiat_rate = 1
         self.minimized = None
+        self.counter_parties = {}
+        self.transfers = SortedDict()
+        self.mappings = {}
+        self.amounts = {}
+        self.in_cnt = 0
+        self.out_cnt = 0
 
     def append(
         self,
@@ -325,24 +329,6 @@ class Transaction:
                 ]
             )
 
-    # def get_solana_cp(self,user, input_len, input):
-    #     if input_len == 100:  # input is counterparty
-    #
-    #         cp_str, input_str = input.split(":")
-    #         counterparty_list = ast.literal_eval(cp_str)
-    #         if len(counterparty_list) > 0:
-    #             sig = None
-    #             cp_addr = counterparty_list[0]
-    #             prog_name, prog_addr, editable = self.chain.get_progenitor_entity(cp_addr)
-    #             log("finalize, solana", self.hash, input, prog_name)
-    #             if prog_name is None:
-    #                 prog_name = cp_addr[:12]
-    #             input_list = ast.literal_eval(input_str)
-    #             sig = ','.join(input_list)
-    #             return {cp_addr:[prog_name, sig, sig, True, cp_addr]}
-    #     return {}
-    # counter_parties[cp_addr] = [prog_name, sig, sig, True, cp_addr]
-
     def finalize(self, coingecko_rates, fiat_rates, signatures, store_derived=False):
         t_fin = [0, 0, 0, 0, 0]
         self.total_fee = 0
@@ -380,7 +366,7 @@ class Transaction:
             (
                 hash,
                 ts,
-                nonce,
+                _nonce,
                 block,
                 fr,
                 to,
@@ -405,11 +391,6 @@ class Transaction:
 
             assert id is not None
 
-            # if id is not None:
-            #     index = id
-
-            # rate_found, rate, rate_source = coingecko_rates.lookup_rate(token_contract, ts)
-            # coingecko_rates.verbose=True
             clog(self, "finalize", hash, dd, token_contract, fiat_rates.fiat)
             if token_contract == fiat_rates.fiat:
                 # rate_found, rate, rate_source = 1, 1, 'fiat'  # rate updated on the client
@@ -459,14 +440,10 @@ class Transaction:
                 rate_found, rate, rate_source = coingecko_rates.lookup_rate(
                     self.chain.name, token_contract, ts
                 )  # can't use custom rates here because they'll get saved into derived data
-                # rate_found, rate, rate_source = self.lookup_rate(user,coingecko_rates,lookup_rate_contract,ts)
             t1 = time.time()
             t_fin[0] += t1 - t0
 
-            # log("RATE LOOKUP",self.hash,token_contract,ts,rate_found,rate)
-            # transfer = [index, type, fr, to, val, token_contract, input_len, rate_found, rate,base_fee == 0]
-            # transfer = {'type':type, 'from':fr, 'to':to, 'amount':val, 'what':token_contract,'input_len':input_len, 'rate_found':rate_found, 'rate':rate}
-            decustomed_input, is_custom_op = decustom(input)
+            _decustomed_input, is_custom_op = decustom(input)
             if not is_custom_op:
                 passed_input = None
             else:
@@ -476,7 +453,6 @@ class Transaction:
             skip_transfer_cps = False
             from_me = self.my_address(fr)
             to_me = self.my_address(to)
-            # if to in self.user.relevant_addresses and fr in self.user.relevant_addresses:
             if from_me and to_me:
                 skip_transfer_cps = True
 
@@ -485,11 +461,6 @@ class Transaction:
             if from_me_strict and to_me_strict:
                 self_transfer = True
 
-            # outbound = not self_transfer and fr in self.user.relevant_addresses
-            # outbound = not to_me and from_me
-
-            # fr_id = self.user.all_addresses[fr][self.chain.name]['id']
-            # to_id = self.user.all_addresses[to][self.chain.name]['id']
             clog(
                 self,
                 "Making transfer",
@@ -556,9 +527,6 @@ class Transaction:
                 self.chain,
             )
 
-            # if self.chain.name == 'Solana':
-            #     counter_parties.update(self.get_solana_cp(self.user, input_len, input))
-
             if transfer.synthetic != Transfer.FEE:  # mostly ignore fee transfer
                 if (
                     self.chain.name == "Solana"
@@ -572,13 +540,9 @@ class Transaction:
 
                     if not self_transfer:
                         if val != 0:
-                            # if fr in self.user.relevant_addresses:
-                            # if self.my_address(fr):
                             if from_me_strict:
                                 amounts[token_contract] -= val
 
-                            # if to in self.user.relevant_addresses:
-                            # if self.my_address(to):
                             if to_me_strict:
                                 amounts[token_contract] += val
 
@@ -588,14 +552,14 @@ class Transaction:
                             for addr in [
                                 fr,
                                 to,
-                            ]:  # gather potential counterparties from transfer to/from addresses, superceeded later by self.interacted -- the contract address
+                            ]:  # gather potential counterparties from transfer to/from addresses,
+                                # superceeded later by self.interacted -- the contract address
                                 if (
                                     not self.my_address(addr)
                                     and addr != null_addr
                                     and addr[:2].lower() == "0x"
                                     and addr not in self.chain.transferred_tokens
                                 ):
-                                    # prog_addr, prog_name, editable = self.chain.get_progenitor_name(addr)
                                     prog_name, prog_addr = self.chain.get_progenitor_entity(addr)
                                     if prog_addr is None or prog_addr == "None":
                                         prog_addr = addr
@@ -610,23 +574,14 @@ class Transaction:
 
                                     if input_len > 2:
                                         tx_input = input
-                                    #     decoded_sig, sig = signatures.lookup_signature(input)
-                                    #     # if prog_name is not None:
-                                    #     if prog_name is None:
-                                    #         prog_name = 'UNKNOWN'
-                                    #     counter_parties[prog_addr] = [prog_name, sig, decoded_sig, editable, addr]
-                                    #     cp_found = True
-                                    # else:
                                     if prog_name is not None:
                                         potentates[prog_addr] = [prog_name, None, None, 1, addr]
-                                        # cp_found = True
 
                     if self.chain.name == "Solana" and input_len == 200:  # input is nft address
                         transfer.input = input
                         log("setting input to", input)
 
             else:
-                # transfer.treatment = 'burn'
                 self.total_fee = transfer.amount
                 self.fee_transfer = transfer
                 self.originator = transfer.fr
@@ -677,8 +632,9 @@ class Transaction:
                 counter_parties[prog_addr] = [prog_name, sig, decoded_sig, 1, self.interacted]
                 clog(self, "CPs", counter_parties)
 
-                # if we interacted with a token, it's probably a transfer, and not a useful counterparty
-                # sig is none if originator is not the user -- i.e. if someone else transferred stuff to user, "interacted" is present, but sig is None
+                # if we interacted with a token, it's probably a transfer, and not a useful
+                # counterparty sig is none if originator is not the user -- i.e. if someone else
+                # transferred stuff to user, "interacted" is present, but sig is None
                 if self.interacted in self.chain.transferred_tokens and (
                     decoded_sig is None or "transfer" in decoded_sig.lower()
                 ):
@@ -736,9 +692,6 @@ class Transaction:
         if len(counter_parties) > 1:
             counter_parties = {}
 
-            # if len(counter_parties) == 0:
-            #     counter_parties.update(potentates)
-
         log("finalizing", self.hash, counter_parties)
 
         self.counter_parties = counter_parties
@@ -749,14 +702,11 @@ class Transaction:
         for transfer in self.transfers.values():
             transfer.set_default_vaultid(cp_name)
 
-        # _, self.main_asset_rate, rate_source = coingecko_rates.lookup_rate(self.main_asset, self.ts)
-        # _, self.main_asset_rate, self.main_asset_rate_source = self.lookup_rate(user, coingecko_rates, self.main_asset, self.ts)
-
         self.amounts = dict(amounts)
 
         out_cnt = 0
         in_cnt = 0
-        for k, v in self.amounts.items():
+        for _k, v in self.amounts.items():
             if v > 0:
                 in_cnt += 1
             if v < 0:
@@ -774,24 +724,15 @@ class Transaction:
 
         matching_ids = None
         for field, value in fv_pairs.items():
-            # if self.hash == self.chain.hif:
-            #     log('transfer lookup 2',field,value)
             assert field in Transaction.MAPPED_FIELDS
             mapping = self.mappings[field]
-            if isinstance(value, list) or isinstance(
-                value, set
-            ):  # find everyone that's in the list
+            if isinstance(value, (list, set)):  # find everyone that's in the list
                 subset = set()
                 value_list = value
 
                 for val in mapping.keys():
-                    # if self.hash == self.chain.hif:
-                    #     log('transfer lookup 21 field',field, 'checking val', val, len(mapping[val]), 'against',value_list)
                     if val in value_list:
                         subset = subset.union(mapping[val])
-                # print('mapping',mapping,'val list',value_list,"SUBSET",subset)
-                # if self.hash == self.chain.hif:
-                #     log('transfer lookup 2 res 1', subset)
                 if matching_ids is None:
                     matching_ids = subset
                 else:
@@ -804,10 +745,6 @@ class Transaction:
                     matching_ids = set(mapping[value])
                 else:
                     matching_ids = matching_ids.intersection(mapping[value])
-                # if self.hash == self.chain.hif:
-                #     log('transfer lookup 2 res 2', mapping[value])
-            # if self.hash == self.chain.hif:
-            #     log('transfer lookup 3 running res', matching_ids)
             if len(matching_ids) == 0:
                 break
         if count_only:
@@ -818,7 +755,7 @@ class Transaction:
         return outs
 
     def tval(self, transfer, field):
-        return transfer[Transaction.ALL_FIELDS[field]]
+        return transfer[Transfer.ALL_FIELDS[field]]
 
     def __str__(self):
         if self.hash is not None:
@@ -840,31 +777,29 @@ class Transaction:
         counterparty_list = set()
         input_list = set()
 
-        for type, sub_data, _, _, _, _, _, _ in self.grouping:
+        for _type, sub_data, _, _, _, _, _, _ in self.grouping:
             (
-                hash,
-                ts,
-                nonce,
-                block,
+                _hash,
+                _ts,
+                _nonce,
+                _block,
                 fr,
                 to,
-                val,
-                token,
+                _val,
+                _token,
                 token_contract,
-                coingecko_id,
-                token_nft_id,
-                base_fee,
+                _coingecko_id,
+                _token_nft_id,
+                _base_fee,
                 input_len,
                 input,
             ) = sub_data
-            # log('get_contracts token_contract',token_contract,'transaction id',self.txid,'hash',hash)
             if token_contract is not None:
                 contract_list.add(token_contract)
             if self.chain.name != "Solana":
                 if input_len is not None and input_len > 2:  # ignore 0x
                     if input is not None:
                         input_list.add(input)
-                    # if to not in self.user.relevant_addresses:
 
                 # it's possible we don't have the transfer that called the contract
                 if not self.my_address(to):
@@ -872,17 +807,11 @@ class Transaction:
 
                 if not self.my_address(fr):
                     counterparty_list.add(fr)
-                    # log("counter", hash, fr, input_len)
             if self.chain.name == "Solana":
                 if self.interacted is not None:
                     counterparty_list = [self.interacted]
                 if self.function is not None:
                     input_list = self.function.split(",")
-                # if input_len == 100:
-                #     cp_str,input_str = input.split(":")
-                #     counterparty_list = ast.literal_eval(cp_str)
-                #     input_list = ast.literal_eval(input_str)
-                #     log('get_contracts',self.hash,counterparty_list,input_list)
 
         return contract_list, counterparty_list, input_list
 
@@ -920,7 +849,6 @@ class Transaction:
                 transfer.type == 5
             ):  # multi-tokens are too different from each other to assume all same
                 lookup_contract = transfer.what + "_" + str(transfer.token_nft_id)
-            # log('lookup_contract',lookup_contract,transfer.token_nft_id)
 
             if val > 0:
                 if transfer.treatment == "buy":
@@ -953,8 +881,6 @@ class Transaction:
         combo = (out_cnt, in_cnt)
 
         if combo[0] > 0 and combo[1] > 0:
-
-            # print(hash)
             add_rate_for = None
             bad_out = 0
             bad_in = 0
@@ -964,16 +890,11 @@ class Transaction:
             unaccounted_total = 0
             unaccounted_total_iffy = 0
             total_in = 0
-            total_in_iffy = 0
             total_out = 0
-            total_out_iffy = 0
             worst_inferrer = 1
             for contract, amt in amounts.items():
                 good = symbols[contract]["rate_found"]
                 rate = symbols[contract]["rate"]
-                # source = symbols[contract]['rate_source']
-                # if rate == 0 or rate is None:
-                #     good = 0
                 try:
                     rate = float(rate)
                 except:
@@ -992,8 +913,7 @@ class Transaction:
                         bad_contract = contract
                         bad_total = amt
                 else:
-                    if good < worst_inferrer:
-                        worst_inferrer = good
+                    worst_inferrer = min(worst_inferrer, good)
                     unaccounted_total += rate * amt
                     if amt > 0:
                         total_in += rate * amt
@@ -1047,10 +967,7 @@ class Transaction:
             if add_rate_for is not None:
                 try:
                     symbol = symbols[add_rate_for]["symbol"]
-                    # print("ADDING INFERRED RATE",add_rate_for,symbol,ts,self.transaction_value,unaccounted_total,bad_total)
                     inferred_rate = unaccounted_total / bad_total
-                    # self.local_rates[add_rate_for][self.ts] = inferred_rate
-                    # coingecko_rates.add_rate(add_rate_for,symbol,ts,unaccounted_total/bad_total)
                     self.rate_inferred = symbol
                     if worst_inferrer == 1:
                         clog(self, "rate inferred 1")
@@ -1071,7 +988,6 @@ class Transaction:
                         if do_print:
                             log("changing rate ", self.hash, transfer)
 
-                    # if self.type not in ['remove liquidity', 'add liquidity']:
                     coingecko_rates.add_rate(
                         self.chain.name,
                         add_rate_for,
@@ -1085,12 +1001,9 @@ class Transaction:
                     log("EXCEPTION", "contract", add_rate_for)
                     log(traceback.format_exc())
                     log(self)
-                    exit(0)
+                    sys.exit(0)
 
             # don't adjust rates for receipt tokens
-            # if self.type in ['remove liquidity','add liquidity']:
-            #     return
-
             if (
                 bad_in + bad_out == 0
                 and add_rate_for is None
@@ -1098,20 +1011,13 @@ class Transaction:
                 and total_out > 0
                 and total_in > 0
             ):
-
-                # if good_count == len(self.amounts):
                 total_avg = (total_in + total_out) / 2.0
                 try:
                     mult_adjustment_in = total_avg / total_in
                 except:
-                    # print("ADJUSTMENT FAIL",traceback.format_exc())
-                    # print('bad inout',bad_in,bad_out)
-                    # print(self)
-                    exit(1)
+                    sys.exit(1)
                 mult_adjustment_out = total_avg / total_out
                 adjustment_factor = abs(mult_adjustment_in - 1)
-                # if self.hash.lower() == '0x6833b6ecf00860bb7d32048367305fc0c5d6ca156843e15d4a23c3cc262e1423':
-                #     log('adjust', in_cnt, out_cnt,total_in,total_out)
                 if adjustment_factor > 0.05 or usd_present:
                     rate_fluxes = []
                     for contract, amt in amounts.items():
@@ -1120,17 +1026,18 @@ class Transaction:
                         good = symbols[contract]["rate_found"]
                         rate = symbols[contract]["rate"]
                         coingecko_id = symbols[contract]["coingecko_id"]
-                        rate_pre_good = rate_pre_source = rate_aft_good = rate_aft_source = None
                         if contract == self.main_asset or coingecko_id == user.fiat:
                             rate_flux = 0
                         else:
-                            # rate_pre_good, rate_pre, rate_pre_source = self.lookup_rate(user,coingecko_rates,contract,int(self.ts) - 3600)
-                            # rate_aft_good, rate_aft, rate_aft_source = self.lookup_rate(user, coingecko_rates, contract, int(self.ts) + 3600)
-                            rate_pre_good, rate_pre, rate_pre_source = coingecko_rates.lookup_rate(
-                                self.chain.name, contract, int(self.ts) - 3600
+                            _rate_pre_good, rate_pre, _rate_pre_source = (
+                                coingecko_rates.lookup_rate(
+                                    self.chain.name, contract, int(self.ts) - 3600
+                                )
                             )
-                            rate_aft_good, rate_aft, rate_aft_source = coingecko_rates.lookup_rate(
-                                self.chain.name, contract, int(self.ts) + 3600
+                            _rate_aft_good, rate_aft, _rate_aft_source = (
+                                coingecko_rates.lookup_rate(
+                                    self.chain.name, contract, int(self.ts) + 3600
+                                )
                             )
 
                             if rate_pre is None or rate_aft is None or rate_pre == 0:
@@ -1138,15 +1045,11 @@ class Transaction:
                                 log(
                                     "Couldn't find nearby rates, txid", self.txid, "hash", self.hash
                                 )
-                                # return
                             else:
                                 rate_flux = abs(rate_aft / rate_pre - 1)
-                            # else: #if rate is inferred, assume it's much more likely to be the wrong one
-                            #     rate_flux = 1-good
                             if good < 1:
                                 rate_flux += 1 - good
                         rate_fluxes.append((contract, rate_flux, rate, amt))
-                        # log(self.hash,contract,rate_flux,rate, rate_aft, rate_pre,amt,good)
                     if len(rate_fluxes) > 0:
                         max_flux = max(rate_fluxes, key=lambda t: t[1])
                         if do_print:
@@ -1195,57 +1098,10 @@ class Transaction:
                     for transfer in self.lookup({"from_me": True}):
                         if transfer.treatment == "sell":
                             transfer.rate *= mult_adjustment_out
-                        # transfer.rate_source += ", adjusted by " + str(adjustment_factor)
 
                     for transfer in self.lookup({"to_me": True}):
                         if transfer.treatment == "buy":
                             transfer.rate *= mult_adjustment_in
-                        # transfer.rate_source += ", adjusted by " + str(adjustment_factor)
-
-                    # if min_flux[3] > 0:
-                    #     mult_adjustment_in = 1
-                    #     mult_adjustment_out = total_in / total_out
-                    # else:
-                    #     mult_adjustment_in = total_out / total_in
-                    #     mult_adjustment_out = 1
-
-                # for contract, amt in amounts.items():
-                #     rate = symbols[contract]['rate']
-                #     local_adjustment = 1
-                #     if amt < 0:
-                #         local_adjustment = mult_adjustment_out
-                #     if amt > 0:
-                #         local_adjustment = mult_adjustment_in
-                #     if local_adjustment != 1:
-                #         adjusted_rate = rate * local_adjustment
-                #         if do_print:
-                #             log('adjusted rate',contract,rate,'->',adjusted_rate)
-                #         for transfer in self.lookup({'what':contract}):
-                #             transfer.rate = adjusted_rate
-                #             transfer.rate_source += ", adjusted by "+str(local_adjustment)
-                # transfer.good_rate = 1
-                # user.add_rate(self.txid, transfer.index, adjusted_rate, 'adjusted', 1)
-                # self.local_rates[contract][self.ts] = adjusted_rate
-
-                # coingecko_rates.add_rate(self, contract, symbols[contract]['symbol'], self.ts, adjusted_rate)
-
-                # self.rate_adjusted = adjustment_factor
-
-    # def add_fee_transfer(self):
-    #     # log("AFT")
-    #     if self.total_fee != 0:
-    #         treatment = 'fee'
-    #         if len(self.transfers) == 1:
-    #             treatment = 'loss'
-    #         # log("AFT loss")
-    #         # if isinstance(self.type, Category) and \
-    #         #         (self.type.category in [Category.SWAP, Category.ADD_LIQUIDITY, Category.REMOVE_LIQUIDITY, Category.MINT_NFT, Category.CLAIM] or self.type.claim):
-    #         #     treatment = 'fee'
-    #             # log("AFT fee",self.type.category,self.type.claim)
-    #
-    #
-    #         extra_transfer = Transfer(len(self.transfers),1, self.addr, None, self.total_fee, self.main_asset, self.main_asset, None, -1, 1, self.main_asset_rate, 'normal', 0, treatment=treatment, outbound=True, synthetic=True)
-    #         self.transfers.append(extra_transfer)
 
     def type_to_typestr(self):
         type = self.type

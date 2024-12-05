@@ -1,9 +1,7 @@
-import pprint
-import traceback
+# -*- coding: utf-8 -*-
 from collections import defaultdict
 
-from .transaction import Transaction, Transfer
-from .util import *
+from .util import log
 
 
 class Pool:
@@ -36,8 +34,6 @@ class Pool:
     def remove(self, transfer):
         what = self.pools.unwrap(transfer.what)
         self.deposited[what] -= transfer.amount
-        # if self.deposited[transfer.what] < 0:
-        #     print("WARNING, AMOUNT OF "+transfer.symbol+" IN POOL "+str(self)+" IS NOW "+str(self.deposited[transfer.what]))
 
     def issue_receipt(self, transfer):
         what = self.pools.unwrap(transfer.what)
@@ -79,10 +75,6 @@ class Pool:
     def __repr__(self):
         return self.__str__()
 
-    # def __hash__(self):
-    # return self.id()
-    # addresses = sorted(list(self.addresses))
-
     @classmethod
     def cls_id(cls, addresses, deposited, receipts_issued=None):
         addresses = sorted(list(addresses))
@@ -106,7 +98,6 @@ class Pools:
         self.chain = chain
         self.pools = set()
         self.stable_pools = set()
-        # self.map = {'A':defaultdict(set),'I':defaultdict(set),'O':defaultdict(set)}
         self.map = {
             "A": {
                 Pool.LIQUIDITY: defaultdict(set),
@@ -126,7 +117,6 @@ class Pools:
 
         self.staking_pools = set()
         self.vaults = set()
-        # self.map = {'A': {}, 'I': {}, 'O': {}}
 
     def __str__(self):
         rv = "POOL LIST:\n"
@@ -137,12 +127,6 @@ class Pools:
 
     def __repr__(self):
         return self.__str__()
-
-    # def is_receipt_token(self,what):
-    #     return what in self.map['O']
-
-    # def receipt_token_list(self):
-    #     return list(self.map['O'][Pool.STAKING].keys())
 
     def pool_address_list(self, pool_type=None):
         return self.map_keys("A", pool_type=pool_type)
@@ -165,16 +149,13 @@ class Pools:
         if pool_type is not None:
             if entry in self.map[map_type][pool_type]:
                 return self.map[map_type][pool_type]
-            else:
-                return set()
+            return set()
 
         all_pools = set()
         for pool_type in self.map[map_type].keys():
             if entry in self.map[map_type][pool_type]:
                 all_pools = all_pools.union(self.map[map_type][pool_type][entry])
         return all_pools
-
-    # def pool_list(self,map_type,pool_type=None,):
 
     def unwrap(self, what):
         return self.chain.unwrap(what)
@@ -191,8 +172,6 @@ class Pools:
         return res
 
     def deposit(self, transaction, deposits, receipts=None):
-        # print("DEPOSITING")
-        # pprint.pprint(deposits)
         new_pool = False
         candidates = self.pools
         depositing_symbols = set()
@@ -222,29 +201,20 @@ class Pools:
                 candidates = candidates.intersection(matches)
                 if transaction.hash == self.chain.hif:
                     log("candidates2", candidates)
-            # if len(candidates) == 0:
-            #     pool = Pool()
-            #     self.pools.add(pool)
-            #     break
 
-        if len(candidates):
+        if candidates:
             if receipts is not None and len(receipts):
                 candidates_w_receipts = candidates.copy()
                 for receipt in receipts:
                     what = self.unwrap(receipt.what)
                     if what not in depositing_symbols:
                         matches = self.matches(what, "O")
-                        if len(matches):
+                        if matches:
                             candidates_w_receipts = candidates_w_receipts.intersection(matches)
                         else:
                             candidates_w_receipts = set()
                             break
-                    # if what not in depositing_symbols and what in self.map['O']:
-                    #     candidates_w_receipts = candidates_w_receipts.intersection(self.map['O'][what])
-                    # else:
-                    #     candidates_w_receipts = set()
-                    #     break
-                if len(candidates_w_receipts):
+                if candidates_w_receipts:
                     candidates = candidates_w_receipts
 
         selected = []
@@ -262,31 +232,20 @@ class Pools:
             pool = list(selected)[0]
             if transaction.hash == self.chain.hif:
                 log("FOUND POOL", pool)
-            # log("POOL FOUND",pool)
         elif len(selected) > 1:
             if transaction.hash == self.chain.hif:
                 log("CREATING POOL BECAUSE THERE ARE MULTIPLE MATCHES, selected", selected)
             pool = Pool(self, transaction)
             new_pool = True
             self.pools.add(pool)
-            # log("DEPOSIT: FOUND MULTIPLE POOLS, BAILING",transaction.hash)
-            # log(deposits)
-            # log(receipts)
-            # log(candidates)
-            # exit(1)
 
         depositing_receipt_token = False
         for deposit in deposits:
             what = self.unwrap(deposit.what)
 
             pool.add(deposit)
-            # if what in self.map['O']:
-            if len(self.matches(what, "O")):
+            if self.matches(what, "O"):
                 depositing_receipt_token = True
-
-        # if '0xc2edad668740f1aa35e4d8f227fb8e17dca888cd' in pool.addresses:
-        #     if receipts is not None and len(receipts) > 0:
-        #         log('issuing receipt for 0xc2edad668740f1aa35e4d8f227fb8e17dca888cd',transaction.hash)
 
         if new_pool:
 
@@ -328,7 +287,6 @@ class Pools:
     def withdraw(self, transaction, withdrawals, returned_receipts=None, pool_type=None):
         withdrawing_tokens = set()
         candidates = set()
-        candidates_wide = set()
         for withdrawal in withdrawals:
             what = self.unwrap(withdrawal.what)
             withdrawing_tokens.add(what)
@@ -346,16 +304,11 @@ class Pools:
                 C = matches_adr.intersection(matches_what)
             candidates = candidates.union(C)
 
-            # candidates = candidates.intersection(self.map['A'][withdrawal.fr])
-            # candidates = candidates.intersection(self.map['I'][withdrawal.what])
-
         if returned_receipts is not None and len(returned_receipts) > 0:
             ret_candidates = self.pools
             for receipt in returned_receipts:
                 what = self.unwrap(receipt.what)
                 matches_what = self.matches(what, "O")
-                # if transaction.chain.hif == transaction.hash:
-                #     log('receipt map',self.map['O'])
                 ret_candidates = ret_candidates.intersection(matches_what)
             candidates = candidates.union(ret_candidates)
 
@@ -378,32 +331,17 @@ class Pools:
             if transaction.hash == self.chain.hif:
                 log("FOUND POOL", pool)
 
-            # log("POOL FOUND", pool)
         elif len(selected) > 1:
-            # return None
             log("WITHDRAW: FOUND MULTIPLE POOLS, BAILING")
             log("transaction", transaction)
-            # log(withdrawals)
-            # log(returned_receipts)
             log(selected)
-            # log(self)
-            # exit(1)
             return None
         else:
             log("WITHDRAW: POOL NOT FOUND, BAILING")
             log("transaction", transaction)
             log("receipts", returned_receipts)
-            # log(withdrawals)
-            # log(returned_receipts)
             log("candidates", candidates)
-            # log(self)
-            # exit(1)
-            # log(self)
             return None
-            # exit(1)
-            # return None
-            # log("POOL NOT FOUND")
-            # exit(1)
 
         for withdrawal in withdrawals:
             what = self.unwrap(withdrawal.what)
@@ -418,15 +356,6 @@ class Pools:
 
         return pool
 
-        # pool = self.map['A'][address]
-        #
-        # for what, amount in out_pairs.items():
-        #     pool.remove(what,amount)
-        #
-        # if in_pairs is not None:
-        #     for what, amount in in_pairs.items():
-        #         pool.process_receipt(what,amount)
-
     def add_liquidity(self, transaction, ignore_tokens=()):
         deposits = []
         receipts = []
@@ -434,16 +363,12 @@ class Pools:
             if transfer.what in ignore_tokens or transfer.synthetic == 1:
                 continue
             if transfer.amount > 0:
-                # if transfer.fr in transaction.user.relevant_addresses:
                 if transfer.from_me:
                     deposits.append(transfer)
                 else:
                     receipts.append(transfer)
-        if len(deposits):
+        if deposits:
             self.deposit(transaction, deposits, receipts)
-
-        # print("added liquidity",deposits)
-        # print(self.map['A'])
 
     def remove_liquidity(self, transaction, ignore_tokens=(), pool_type=None):
         withdrawals = []
@@ -452,41 +377,12 @@ class Pools:
             if transfer.what in ignore_tokens or transfer.synthetic == 1:
                 continue
             if transfer.amount > 0:
-                # if transfer.to in transaction.user.relevant_addresses:
                 if transfer.to_me:
                     withdrawals.append(transfer)
                 else:
                     receipts.append(transfer)
 
         pool = self.withdraw(transaction, withdrawals, receipts, pool_type=pool_type)
-        # try:
-        #     pool = self.withdraw(withdrawals, receipts)
-        # except:
-        #     log(transaction)
-        #     exit(1)
         if pool is not None:
             return 1
-        else:
-            # log("FAILED TO WITHDRAW", traceback.format_exc())
-            # log(transaction)
-            # log("CURRENT MAP", self.map['A'])
-            return 0
-
-    #
-    # def stake(self, address, what, amount):
-    #     self.deposit('staking',address, what,amount)
-
-    # def deposit(self,address, in_pairs, out_pairs=None):
-    #     if address not in self.holdings:
-    #         self.holdings[address] = defaultdict(float)
-    #
-    #     for what, amount in in_pairs.items():
-    #         self.holdings[address][what] += amount
-    #
-    #     if out_pairs is not None:
-    #         if address not in self.receipts:
-    #             self.receipts[address] = defaultdict(float)
-    #
-    #         for what, amount in out_pairs.items():
-    #             self.receipts[address][what] += amount
-    #             self.receipt_tokens.add(what)
+        return 0

@@ -1,10 +1,13 @@
+# -*- coding: utf-8 -*-
 import datetime
+import os
+import time
 
 import requests
 import sortedcontainers
 
-from .sqlite import *
-from .util import *
+from .sqlite import SQLite
+from .util import log, log_error, timestamp_to_date
 
 
 class Twelve:
@@ -30,6 +33,8 @@ class Twelve:
         self.session = requests.session()
         self.db = None
         self.fiat = symbol
+        self.rate_tables = {}
+        self.shortcut_tables = {}
 
     def init_rates(self):
         self.rate_tables = {}
@@ -86,7 +91,6 @@ class Twelve:
                 )
 
         else:
-            rate_table = rate_table
             idx = rate_table.bisect_left(ts)
             ts_bottom = rate_table.keys()[idx - 1]
             ts_top = rate_table.keys()[idx]
@@ -108,7 +112,7 @@ class Twelve:
     def download_all_rates(self, do_wait=False):
         self.db = SQLite("db", do_logging=False, read_only=True)
         all_db_writes = []
-        for symbol in Twelve.FIAT_SYMBOLS.keys():
+        for symbol in Twelve.FIAT_SYMBOLS:
             if symbol != "USD":
                 need_to_wait, db_writes = self.download_rates(symbol)
                 if need_to_wait and do_wait:
@@ -154,8 +158,8 @@ class Twelve:
             url = (
                 "https://api.twelvedata.com/time_series?symbol=USD/"
                 + symbol
-                + "&interval=1day&outputsize=5000&timezone=UTC&start_date=2012-12-31&end_date=2020-01-30&order=ASC&apikey="
-                + str(self.api_key)
+                + "&interval=1day&outputsize=5000&timezone=UTC"
+                "&start_date=2012-12-31&end_date=2020-01-30&order=ASC&apikey=" + str(self.api_key)
             )
             log("Sending request", url, filename="fiat.txt")
             try:
@@ -217,31 +221,11 @@ class Twelve:
                     )
                     rate = float(entry["close"])
                     db_writes.append([symbol, ts, rate])
-                    if ts > latest_available:
-                        latest_available = ts
+                    latest_available = max(latest_available, ts)
 
                 if latest_available < t - 3 * 24 * 3600:
                     time.sleep(10)
             except:
                 log_error("Failed to retrieve new rates for " + symbol + " from twelve", url)
                 return 1, db_writes
-
-        # if len(db_writes):
-        #     disconnect = False
-        #     if self.db is None:
-        #         self.db = SQLite('db', do_logging=False, read_only=False)
-        #         disconnect = True
-        #     if self.db.read_only:
-        #         self.db.disconnect()
-        #         self.db = SQLite('db', do_logging=False, read_only=False)
-        #     for entry in db_writes:
-        #         self.db.insert_kw('fiat_rates',currency=symbol,timestamp=entry[0],rate=entry[1])
-        #     self.db.commit()
-        #     if disconnect:
-        #         self.db.disconnect()
-        #         self.db = None
-        #     return 1
-
         return 1, db_writes
-
-        # pprint.pprint(db_writes)

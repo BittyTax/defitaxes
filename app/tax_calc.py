@@ -1,18 +1,14 @@
-import calendar
-import copy
+# -*- coding: utf-8 -*-
+import csv
 import datetime
-import decimal
-import json
+import pickle
+import pprint
 import re
+import sys
 import traceback
-import unicodedata
 import zipfile
-import zlib
-from decimal import Decimal
 
-from .chain import *
-from .coingecko import *
-from .util import *
+from .util import decustom, log, log_error, timestamp_to_date
 
 
 class Token:
@@ -26,8 +22,6 @@ class Token:
     def lookup_or_create_token(
         cls, token_dict, chain_name, what, symbol, coingecko_id, nft_id=None
     ):
-        # self.what = what
-        # self.symbol = symbol
         if coingecko_id is not None:
             id = coingecko_id
         else:
@@ -48,25 +42,23 @@ class Token:
         if chain_name is not None:
             if what_instead:
                 return self.symbols[chain_name][1]
-            else:
-                return self.symbols[chain_name][0]
-        else:
-            shortest = "X" * 10000
-            for chain_name, pair in self.symbols.items():
-                if pair[0] == None:
-                    log("No symbol in pair?", chain_name, pair, filename="aux_log.txt")
-                    pair[0] = ""
-                if len(pair[0]) < len(shortest):
-                    shortest = pair[0]
-                    shortest_what = pair[1]
-            assert len(shortest) < 10000
-            if what_instead:
-                return shortest_what
-            else:
-                return shortest
+            return self.symbols[chain_name][0]
+
+        shortest = "X" * 10000
+        for chain_name, pair in self.symbols.items():
+            if pair[0] is None:
+                log("No symbol in pair?", chain_name, pair, filename="aux_log.txt")
+                pair[0] = ""
+            if len(pair[0]) < len(shortest):
+                shortest = pair[0]
+                shortest_what = pair[1]
+        assert len(shortest) < 10000
+        if what_instead:
+            return shortest_what
+        return shortest
 
     def __eq__(self, other):
-        if type(self) == type(other) and self.id == other.id:
+        if type(self) is type(other) and self.id is other.id:
             return True
         return False
 
@@ -84,8 +76,6 @@ class Token:
             "nft_id": self.nft_id,
         }
 
-    # def __str__(self):
-    #     return self.symbol()
     def __str__(self):
         s = (
             "TOKEN: ID:"
@@ -118,21 +108,16 @@ def rate_pick(token, timestamp, running_rates, coingecko_rates, fiat_rate):
         return running_rate
     coingecko_id_or_cp = token.id
 
-    # good, coingecko_rate, source = coingecko_rates.lookup_rate(what,timestamp)
-    good, coingecko_rate, source = coingecko_rates.lookup_rate_by_id(coingecko_id_or_cp, timestamp)
+    good, coingecko_rate, _source = coingecko_rates.lookup_rate_by_id(coingecko_id_or_cp, timestamp)
     if good >= 1 or (running_rate == 0 and good > 0):
-        # print("Rate pick returns coingecko rate", token, coingecko_id_or_cp, coingecko_rate, source)
         return coingecko_rate * fiat_rate
-    else:
-        # print("Rate pick returns running rate", token, coingecko_id_or_cp, good, coingecko_rate, source)
-        return running_rate
+    return running_rate
 
 
 class Vault:
     def __init__(self, id, vault_gain="income", vault_loss="loss"):
         self.id = id
         self.holdings = {}
-        # self.symbols = {}
         self.usd_total = 0
         self.usd_max = 0
         self.history = []
@@ -172,21 +157,20 @@ class Vault:
                 "amount": amount,
             }
         )
-        # print("DEPOSIT",self.id,symbol,amount)
 
     def withdraw(
         self, transaction, trid, token, amount, running_rates, coingecko_rates, usd_fee, exit=False
     ):
         orig_amount = amount
-        # orig_what = what
         timestamp = transaction["ts"]
         txid = transaction["txid"]
         fiat_rate = transaction["fiat_rate"]
         log("WITHDRAW", self.id, token, amount)
-        usd_total, empty, bad = self.total_usd(timestamp, running_rates, coingecko_rates, fiat_rate)
+        usd_total, _empty, _bad = self.total_usd(
+            timestamp, running_rates, coingecko_rates, fiat_rate
+        )
 
-        if usd_total > self.usd_max:
-            self.usd_max = usd_total
+        self.usd_max = max(self.usd_max, usd_total)
 
         warning_issued = False
         if token not in self.holdings:
@@ -223,8 +207,6 @@ class Vault:
 
             # next, withdraw from other tokens and record swapping transactions
             holding_keys = list(self.holdings.keys())
-            # key_idx = 0
-            # rate = rates[what]
             rate = rate_pick(token, timestamp, running_rates, coingecko_rates, fiat_rate)
 
             holding_keys_reordered = []
@@ -237,8 +219,6 @@ class Vault:
                 else:
                     holding_keys_reordered.append(other_token)
 
-            # holding_keys_reordered = holding_keys
-
             log("original", holding_keys, "reordered", holding_keys_reordered)
 
             key_idx = 0
@@ -248,7 +228,6 @@ class Vault:
                 if other_token == token:
                     key_idx += 1
                     continue
-                # other_rate = rates[other_tok]
                 other_rate = rate_pick(
                     other_token, timestamp, running_rates, coingecko_rates, fiat_rate
                 )
@@ -290,47 +269,41 @@ class Vault:
                             performed_conversion = True
                         amount = 0
                         break
-                        # return trades, [], 0
-                    else:
-                        try:
-                            amount_bought = other_usd_amt / rate
-                        except:
-                            log(self.id, "EXCEPTION", traceback.format_exc(), token)
-                            log(transaction)
-                            amount_bought = other_usd_amt
-                            # exit(1)
-                        log(
-                            self.id,
-                            "WITHDRAW:CONVERSION: bought",
-                            amount_bought,
-                            "of",
-                            token.symbol(),
-                            ", sold",
-                            other_available,
-                            "of",
-                            other_token.symbol(),
+                    try:
+                        amount_bought = other_usd_amt / rate
+                    except:
+                        log(self.id, "EXCEPTION", traceback.format_exc(), token)
+                        log(transaction)
+                        amount_bought = other_usd_amt
+                    log(
+                        self.id,
+                        "WITHDRAW:CONVERSION: bought",
+                        amount_bought,
+                        "of",
+                        token.symbol(),
+                        ", sold",
+                        other_available,
+                        "of",
+                        other_token.symbol(),
+                    )
+                    self.history.append(
+                        {
+                            "txid": transaction["txid"],
+                            "trid": trid,
+                            "action": "conversion",
+                            "from": {"token": other_token.id, "amount": other_available},
+                            "to": {"token": token.id, "amount": amount_bought},
+                        }
+                    )
+                    trades.append(CA_transaction(timestamp, token, amount_bought, rate, txid, trid))
+                    trades.append(
+                        CA_transaction(
+                            timestamp, other_token, -other_available, other_rate, txid, trid
                         )
-                        self.history.append(
-                            {
-                                "txid": transaction["txid"],
-                                "trid": trid,
-                                "action": "conversion",
-                                "from": {"token": other_token.id, "amount": other_available},
-                                "to": {"token": token.id, "amount": amount_bought},
-                            }
-                        )
-                        trades.append(
-                            CA_transaction(timestamp, token, amount_bought, rate, txid, trid)
-                        )
-                        trades.append(
-                            CA_transaction(
-                                timestamp, other_token, -other_available, other_rate, txid, trid
-                            )
-                        )
-                        performed_conversion = True
-                        # trades.append([amount_bought, rate, other_available, other_rate])
-                        self.holdings[other_token] = 0
-                        amount -= amount_bought
+                    )
+                    performed_conversion = True
+                    self.holdings[other_token] = 0
+                    amount -= amount_bought
 
                 key_idx += 1
 
@@ -403,8 +376,6 @@ class Vault:
                 )
                 trades.append(CA_transaction(timestamp, token, amount, 0, txid, trid, usd_fee))
             close = 1
-            # if self.usd_max == 0:
-            #     self.warnings.append({'txid': transaction['txid'], 'tridx': tridx, 'text': 'Withdrawing from an empty vault', 'level':0})
 
             if amount * rate > self.usd_max * 0.3:
                 log(self.id, "Issuing withdrawal warning", amount * rate, self.usd_max)
@@ -418,7 +389,6 @@ class Vault:
                 )
         else:
             close = 0
-            # remaining_usd = self.total_usd(rates)
 
             remaining_usd, vault_empty, vault_bad_rate = self.total_usd(
                 timestamp, running_rates, coingecko_rates, fiat_rate
@@ -428,8 +398,7 @@ class Vault:
                 close = 1
 
         if close:
-            # log(self.id, "closing vault,checking transfers in same transaction", transaction['hash'])
-            # for transfer in transaction['rows'].values():  # make sure it's the last transfer in transaction mentionining this vault
+            # make sure it's the last transfer in transaction mentionining this vault
             check = False
             for transfer in transaction["ordered_transfers"]:
                 if transfer["id"] == trid:
@@ -438,9 +407,7 @@ class Vault:
                 if check:
                     other_vault_id, _ = decustom(transfer["vault_id"])
                     other_treatment, _ = decustom(transfer["treatment"])
-                    # log(self.id, "closing vault,checking transfers in same transaction", transfer['index'], tridx, other_vault_id, other_treatment)
 
-                    # if transfer['id'] > trid and other_vault_id == self.id and other_treatment in ['withdraw', 'deposit', 'exit']:
                     if other_vault_id == self.id and other_treatment in [
                         "withdraw",
                         "deposit",
@@ -453,8 +420,6 @@ class Vault:
             if close:
                 for loss_tok, loss_amt in self.holdings.items():
                     if loss_amt > 0:
-                        # loss_what = self.symbols[loss_tok][1]
-                        # loss_symbol = self.symbols[loss_tok][1]
                         try:
                             vault_loss = self.vault_loss
                         except:
@@ -539,7 +504,6 @@ class Vault:
         return trades, incomes, expenses, close
 
     def to_json(self):
-
         holdings_conv = []
         for token, amount in self.holdings.items():
             holdings_conv.append([token.id, amount])
@@ -557,7 +521,6 @@ class Loan:
     def __init__(self, id):
         self.id = id
         self.loaned = {}
-        # self.symbols = {}
         self.usd_total = 0
         self.usd_max = 0
         self.history = []
@@ -569,17 +532,10 @@ class Loan:
     def __repr__(self):
         return self.__str__()
 
-    # def total_usd(self, rates):
-    #     total = 0
-    #     for what, amt in self.loaned.items():
-    #         total += amt * rates[what]
-    #     return total
-
     def total_usd(self, timestamp, running_rates, coingecko_rates, fiat_rate):
         total = 0
         empty = True
         for token, amt in self.loaned.items():
-            # what = self.symbols[lookup][1]
             rate = rate_pick(token, timestamp, running_rates, coingecko_rates, fiat_rate)
             if amt > 0:
                 empty = False
@@ -597,10 +553,9 @@ class Loan:
         self.history.append(
             {"txid": txid, "trid": trid, "action": "borrow", "token": token.id, "amount": amount}
         )
-        # print("LOAN", self.id, symbol, amount)
 
     def repay(
-        self, transaction, trid, token, amount, running_rates, coingecko_rates, usd_fee, exit=False
+        self, transaction, trid, token, amount, running_rates, coingecko_rates, _usd_fee, exit=False
     ):
         txid = transaction["txid"]
         fiat_rate = transaction["fiat_rate"]
@@ -634,7 +589,6 @@ class Loan:
 
         # if we're out of money, the rest is profit
         timestamp = transaction["ts"]
-        # rate = rates[what]
         rate = rate_pick(token, timestamp, running_rates, coingecko_rates, fiat_rate)
 
         if amount > 0:
@@ -675,14 +629,9 @@ class Loan:
                 }
             )
 
-            # print("REPAY:interest ", amount, 'of', symbol)
-
         if exit:  # assuming we were liquidated, acquire the rest of the loan for free
-            for lookup, amt in self.loaned.items():
+            for _lookup, amt in self.loaned.items():
                 if amt != 0:
-                    # what = self.symbols[lookup][1]
-                    # symbol = self.symbols[lookup][0]
-                    # rate = rate_pick(what, timestamp, running_rates, coingecko_rates)
                     self.history.append(
                         {
                             "txid": txid,
@@ -696,22 +645,13 @@ class Loan:
                     trades.append(CA_transaction(timestamp, token, amt, 0, txid, trid))
             self.loaned = {}
 
-        for what, amt in self.loaned.items():
+        for _what, amt in self.loaned.items():
             if amt != 0:
                 break
         else:
             self.history.append({"txid": txid, "trid": trid, "action": "loan repaid"})
 
         return interest_payments, trades
-
-    # def liquidate(self,transaction, tridx, what,symbol,amount, running_rates, coingecko_rates):
-    #     txid = transaction['txid']
-    #     self.symbols[what] = symbol
-    #     self.loaned = {}
-    #     self.usd_total = 0
-    #     self.history.append({'txid': txid, 'tridx': tridx, 'action': 'liquidation', 'what': what, 'amount': amount})
-    #     self.history.append({'txid': txid, 'tridx': tridx, 'action': 'loan repaid'})
-    #     self.warnings.append({'txid': txid, 'tridx': tridx, 'text': 'Liquidated ' + str(amount)+' of '+ symbol + ' collateral, loan considered repaid ', 'level': 5})
 
     def to_json(self):
         holdings_conv = []
@@ -721,7 +661,6 @@ class Loan:
             "history": self.history,
             "warnings": self.warnings,
             "loaned": holdings_conv,
-            # 'loaned':self.loaned
         }
         return js
 
@@ -817,22 +756,7 @@ class Calculator:
         self.eoy_mtm = None
         self.tokens = {}
 
-    # def buysell_everything(self,timestamp,totals, running_rates,sell=True,eoy=True):
-    #     log("mtm totals",timestamp,totals)
-    #     transactions = []
-    #     if sell and eoy:
-    #         self.eoy_mtm = copy.deepcopy(totals)
-    #     for token,amount in totals.items():
-    #         rate = rate_pick(token,timestamp,running_rates,self.coingecko_rates)
-    #         if sell:
-    #             amount = -amount
-    #         sell_transaction = CA_transaction(timestamp, token, amount, rate, -10, -1)
-    #         transactions.append(sell_transaction)
-    #     return transactions
-
     def process_transactions(self, transactions_js, user):
-        # print(transactions_js)
-        # print("PROCESS TRANSACTIONS")
         if len(transactions_js) == 0:
             return
 
@@ -840,18 +764,15 @@ class Calculator:
 
         running_rates = {}
 
-        totals = {}
         vaults = self.vaults
         loans = self.loans
-        # print('all transactions',transactions_js)
 
         try:
             tx_costs = self.tx_costs
         except:
             tx_costs = "sell"
 
-        prev_timestamp = transactions_js[0]["ts"]
-        for tidx, transaction in enumerate(transactions_js):
+        for _tidx, transaction in enumerate(transactions_js):
             hash = transaction["hash"]
             txid = transaction["txid"]
             fiat_rate = transaction["fiat_rate"]
@@ -862,24 +783,10 @@ class Calculator:
             timestamp = transaction["ts"]
             function = transaction["function"]
 
-            current_year = timestamp_to_year(timestamp)
-            # if self.mtm:
-            #
-            #     if current_year != timestamp_to_year(prev_timestamp):
-            #         dt = datetime.date(current_year, 1, 1)
-            #         new_year_ts = calendar.timegm(dt.timetuple())
-            #         mtm_dispose_all = self.buysell_everything(new_year_ts-1,totals, running_rates, sell=True)
-            #         # print("MTM DISP")
-            #         # pprint.pprint(mtm_dispose_all)
-            #         self.ca_transactions.extend(mtm_dispose_all)
-            #         mtm_rebuy_all = self.buysell_everything(new_year_ts, totals, running_rates, sell=False)
-            #         self.ca_transactions.extend(mtm_rebuy_all)
-
             if hash == self.hash:
                 pprint.pprint(transaction)
             transfers = list(transaction["rows"].values())
 
-            # vaults_to_inspect = set()
             fee_amount_per_transaction = fee_rate = fee_amount = None
             fee_transfers = []
             if len(transfers) > 1:
@@ -898,9 +805,6 @@ class Calculator:
                         except:
                             fee_rate = 0
                             log_error("Couldn't get fee rate, fee transfer", transfer)
-                            # log("FEE TRANSFER HAS NO RATE",fee_transfer)
-                            # log("TRANSACTION",transaction)
-                            # exit(1)
                         usd_fee_amount += fee_amount * fee_rate
                     elif (
                         treatment in ["buy", "sell", "income"] and transfer["coingecko_id"] != fiat
@@ -935,19 +839,6 @@ class Calculator:
                         break
             transaction["ordered_transfers"] = transfers
 
-            # inbound = []
-            # self_tr = []
-            # outbound = []
-            # for transfer in transfers:
-            #     if transfer['to_me'] and transfer['from_me']:
-            #         self_tr.append(transfer)
-            #     elif transfer['to_me']:
-            #         inbound.append(transfer)
-            #     elif transfer['from_me']:
-            #         outbound.append(transfer)
-            # transfers = inbound + self_tr + outbound
-            # clog(transaction,"reordered transfers",transfers)
-
             for transfer in transfers:
                 treatment, _ = decustom(transfer["treatment"])
                 coingecko_id = transfer["coingecko_id"]
@@ -957,12 +848,11 @@ class Calculator:
                     continue
 
                 trid = transfer["id"]
-                # outbound = False
                 try:
                     contract = transfer["what"]
                 except:
                     log("bad transfer", transfer)
-                    exit(1)
+                    sys.exit(1)
                 symbol = transfer["symbol"]
 
                 nft_id = transfer["token_nft_id"]
@@ -970,13 +860,6 @@ class Calculator:
                 token = Token.lookup_or_create_token(
                     self.tokens, transaction["chain"], contract, symbol, coingecko_id, nft_id
                 )
-                # print("lookup_or_create_token", transaction['chain'], contract, symbol, coingecko_id, token)
-                # token = Token(self.tokens,contract,symbol,coingecko_id,nft_id)
-                # self.tokens[token.id] = token.json()
-                # if nft_id is not None:
-                #     nft_id = str(nft_id)
-                #     what += '_'+nft_id
-                #     symbol += ' '+nft_id
 
                 rate = transfer["rate"]
                 if rate is None:
@@ -999,34 +882,12 @@ class Calculator:
 
                 amount = transfer["amount"]
 
-                # if token not in totals:
-                #     totals[token] = 0
-                #
-                # if transfer['outbound']:
-                #     outbound = True
-                #     totals[token] -= amount
-                # else:
-                #     totals[token] += amount
-                #
-                # if abs(totals[token]) < 1e-4:
-                #     del totals[token]
-
-                # treatment = transfer['treatment']
-                # custom = False
-                #
-                # if treatment is not None and treatment[:7] == 'custom:':
-                #     treatment = treatment[7:]
-                #     custom = True
-
-                to = transfer["to"]
-                fr = transfer["fr"]
-
                 if treatment == "loss":
                     treatment = "sell"
 
-                if treatment in [
-                    "fee"
-                ]:  # these need to be later taken out of the fifo queue but ignored in cap gains calc
+                if treatment in ["fee"]:
+                    # these need to be later taken out of the fifo queue but ignored
+                    # in cap gains calc
                     log("fee transfer in calc", transfer, "tx_costs", tx_costs, amount, rate)
                     if tx_costs == "sell":
                         self.ca_transactions.append(
@@ -1193,23 +1054,6 @@ class Calculator:
                     vault_id, _ = decustom(transfer["vault_id"])
 
                     vaddr = vault_id
-                    # if vault_id is None:
-                    #     cp_name = list(transaction['counter_parties'].values())[0][0]
-                    #     if outbound:
-                    #         vaddr = cp_name[:6]+" "+to[2:8] #to
-                    #     else:
-                    #         vaddr = cp_name[:6]+" "+fr[2:8] #fr
-                    # if vault_id == 'type_name':
-                    #     vaddr = transaction['type']
-                    # else:
-                    #     vaddr = vault_id
-
-                    # if vaddr == '':
-                    #     print('wtf vault',transaction)
-
-                    # if txid not in self.vaddr_info:
-                    #     self.vaddr_info[txid] = {}
-                    # self.vaddr_info[txid][tridx] = vaddr
 
                 if treatment in ["borrow", "repay", "full_repay", "liquidation"]:
                     if vaddr not in loans:
@@ -1219,8 +1063,7 @@ class Calculator:
                     if treatment == "borrow":
                         loan.borrow(transaction, trid, token, amount)
 
-                    if treatment == "repay" or treatment == "full_repay":
-                        # print(transfer)
+                    if treatment in ("repay", "full_repay"):
                         interest_payments, v_trades = loan.repay(
                             transaction,
                             trid,
@@ -1234,10 +1077,6 @@ class Calculator:
                         self.interest_payments.extend(interest_payments)
                         self.ca_transactions.extend(v_trades)
 
-                    # if treatment == 'liquidation':
-                    #     self.ca_transactions.append(CA_transaction(timestamp, what, symbol, -amount, rate, txid, tridx))
-                    #     loan.liquidate(transaction, tridx, what,symbol,amount,running_rates, self.coingecko_rates)
-
                 if treatment in ["deposit", "withdraw", "exit"]:
                     if vaddr not in vaults:
                         vaults[vaddr] = Vault(vaddr, self.vault_gain, self.vault_loss)
@@ -1246,8 +1085,7 @@ class Calculator:
                     if treatment == "deposit":
                         vault.deposit(transaction, trid, token, amount)
                     else:
-                        # print(transfer)
-                        v_trades, v_incomes, v_expenses, close = vault.withdraw(
+                        v_trades, v_incomes, v_expenses, _close = vault.withdraw(
                             transaction,
                             trid,
                             token,
@@ -1261,51 +1099,8 @@ class Calculator:
                         self.incomes.extend(v_incomes)
                         log("vault expenses", v_expenses)
                         self.business_expenses.extend(v_expenses)
-                        # if close:
-                        #     del vaults[vaddr]
 
-            prev_timestamp = timestamp
             del transaction["ordered_transfers"]
-
-            # for vaddr in vaults_to_inspect:
-            #     vault = vaults[vaddr]
-            #     vault_close_res = vault.inspect(running_rates)
-            #     if vault_close_res is not None:
-            #         for what, vault_rem_amount in vault_close_res.items():
-            #             symbol = vault.symbols[what]
-            #             if vault_rem_amount > 0: #capital gains loss
-            #                 self.ca_transactions.append(CA_transaction(timestamp, what, symbol, -vault_rem_amount, 0, fee_amount_per_transaction, fee_rate))
-            #             elif vault_rem_amount < 0:
-            #                 self.incomes.append({'timestamp': timestamp, 'text': 'Income upon closing a vault', 'amount': -vault_rem_amount * running_rates[what], 'hash':hash})
-            #                 self.ca_transactions.append(CA_transaction(timestamp, what, symbol, -vault_rem_amount, running_rates[what], fee_amount_per_transaction, fee_rate))
-            #
-            #
-            #
-            #         del vaults[vaddr]
-
-        # print("Totals")
-        # pprint.pprint(totals)
-        # print("\n\n")
-        # for ca_trans in self.ca_transactions:
-        #     print(ca_trans)
-        # dt = datetime.date(current_year + 1, 1, 1)
-        # new_year_ts = calendar.timegm(dt.timetuple())
-        # if self.mtm:
-        #     mtm_dispose_all = self.buysell_everything(new_year_ts-1, totals, running_rates, sell=True,eoy=False)
-        #     self.ca_transactions.extend(mtm_dispose_all)
-
-        # check non-empty vaults
-        # for vault_id,vault in vaults.items():
-        #     total, empty, bad = vault.total_usd(self, new_year_ts, running_rates, self.coingecko_rates)
-
-        # print("Vaults")
-        # pprint.pprint(vaults)
-
-        # print("\n\n\nIncomes")
-        # pprint.pprint(self.incomes)
-
-        # print("\n\n\nInterest")
-        # pprint.pprint(self.interest_payments)
 
     def matchup(self):
         queues = {}
@@ -1315,13 +1110,9 @@ class Calculator:
         CA_all = []
         errors = {}
         log("processing queues")
-        for idx, ca_trans in enumerate(self.ca_transactions):
-            queue_only = ca_trans.queue_only
+        for _idx, ca_trans in enumerate(self.ca_transactions):
             token = ca_trans.token
             is_nft = token.nft_id is not None
-            # what = ca_trans.what
-            # symbol = ca_trans.symbol
-            # coingecko_id = ca_trans.coingecko_id
 
             if token not in queues:
                 queues[token] = []
@@ -1338,14 +1129,11 @@ class Calculator:
             while not done:
                 switch = False
                 if (amount > 0 and mode == 1) or (amount < 0 and mode == -1):
-                    # if mode == -1:
-                    #     print("Putting short on q", ca_trans)
                     log("put current trans on q")
                     q.append(ca_trans)
                     done = True
                 else:
-                    initial_amount = amount = -amount
-                    fees = initial_fees = ca_trans.usd_fee
+                    fees = ca_trans.usd_fee
                     rate = ca_trans.rate
                     pos_amount = amount * mode
                     log("subtracting from 1", "pos_amount", pos_amount, "rate", rate)
@@ -1368,8 +1156,6 @@ class Calculator:
                             else:
                                 ca_trans.sale = -ca_trans.amount * ca_trans.rate
                             switch = True
-                            # print("switch to",mode,ca_trans,'amt rem',pos_amount,amount)
-                            # exit(1)
                             if mode == -1:
                                 errors[txid] = {
                                     "level": 3,
@@ -1391,31 +1177,26 @@ class Calculator:
                         if mode == 1:
                             if CA_in.amount > amount:
                                 log("qcase 1")
-                                # if not queue_only:
-                                if 1:
-                                    prop_in = amount / CA_in.amount
-                                    basis_spent_in = CA_in.basis * prop_in
-                                    fees_spent_in = CA_in.usd_fee * prop_in
+                                prop_in = amount / CA_in.amount
+                                basis_spent_in = CA_in.basis * prop_in
+                                fees_spent_in = CA_in.usd_fee * prop_in
 
-                                    CA_in.basis -= basis_spent_in
-                                    CA_in.usd_fee -= fees_spent_in
-                                    basis = basis_spent_in + fees + fees_spent_in
-                                    # if not queue_only:
-                                    if 1:
-                                        CA_line = {
-                                            "token": token.id,
-                                            "amount": amount,
-                                            "in_ts": CA_in.timestamp,
-                                            "out_ts": ca_trans.timestamp,
-                                            "basis": basis,
-                                            "sale": amount * rate,
-                                            "out_txid": txid,
-                                            "out_trid": trid,
-                                            "in_txid": CA_in.txid,
-                                            "in_trid": CA_in.trid,
-                                        }
-
-                                    fees = 0
+                                CA_in.basis -= basis_spent_in
+                                CA_in.usd_fee -= fees_spent_in
+                                basis = basis_spent_in + fees + fees_spent_in
+                                CA_line = {
+                                    "token": token.id,
+                                    "amount": amount,
+                                    "in_ts": CA_in.timestamp,
+                                    "out_ts": ca_trans.timestamp,
+                                    "basis": basis,
+                                    "sale": amount * rate,
+                                    "out_txid": txid,
+                                    "out_trid": trid,
+                                    "in_txid": CA_in.txid,
+                                    "in_trid": CA_in.trid,
+                                }
+                                fees = 0
 
                                 CA_in.amount -= amount
                                 if CA_in.amount * CA_in.rate < min_threshold and CA_in.rate != 0:
@@ -1424,26 +1205,22 @@ class Calculator:
                                 amount = 0
                             else:
                                 log("qcase 2")
-                                # if not queue_only:
-                                if 1:
-                                    prop_out = CA_in.amount / amount
-                                    fees_spent = fees * prop_out
-                                    basis = CA_in.basis + fees_spent + CA_in.usd_fee
-                                    fees -= fees_spent
-                                    # if not queue_only:
-                                    if 1:
-                                        CA_line = {
-                                            "token": token.id,
-                                            "amount": CA_in.amount,
-                                            "in_ts": CA_in.timestamp,
-                                            "out_ts": ca_trans.timestamp,
-                                            "basis": basis,
-                                            "sale": CA_in.amount * rate,
-                                            "out_txid": txid,
-                                            "out_trid": trid,
-                                            "in_txid": CA_in.txid,
-                                            "in_trid": CA_in.trid,
-                                        }
+                                prop_out = CA_in.amount / amount
+                                fees_spent = fees * prop_out
+                                basis = CA_in.basis + fees_spent + CA_in.usd_fee
+                                fees -= fees_spent
+                                CA_line = {
+                                    "token": token.id,
+                                    "amount": CA_in.amount,
+                                    "in_ts": CA_in.timestamp,
+                                    "out_ts": ca_trans.timestamp,
+                                    "basis": basis,
+                                    "sale": CA_in.amount * rate,
+                                    "out_txid": txid,
+                                    "out_trid": trid,
+                                    "in_txid": CA_in.txid,
+                                    "in_trid": CA_in.trid,
+                                }
                                 log("del first from q")
                                 del q[0]
                                 amount -= CA_in.amount
@@ -1451,30 +1228,26 @@ class Calculator:
                         else:  # short, all amounts negative
                             if CA_in.amount < amount:
                                 log("qcase 3")
-                                # if not queue_only:
-                                if 1:
-                                    prop_in = amount / CA_in.amount
+                                prop_in = amount / CA_in.amount
 
-                                    sale = CA_in.sale * prop_in
-                                    fees_spent_in = CA_in.usd_fee * prop_in
-                                    basis = -amount * rate + fees + fees_spent_in
-                                    CA_in.usd_fee -= fees_spent_in
-                                    CA_in.sale -= sale
+                                sale = CA_in.sale * prop_in
+                                fees_spent_in = CA_in.usd_fee * prop_in
+                                basis = -amount * rate + fees + fees_spent_in
+                                CA_in.usd_fee -= fees_spent_in
+                                CA_in.sale -= sale
 
-                                    # if not queue_only:
-                                    if 1:
-                                        CA_line = {
-                                            "token": token.id,
-                                            "amount": -amount,
-                                            "out_ts": CA_in.timestamp,
-                                            "in_ts": ca_trans.timestamp,
-                                            "basis": basis,
-                                            "sale": sale,
-                                            "in_txid": txid,
-                                            "in_trid": trid,
-                                            "out_txid": CA_in.txid,
-                                            "out_trid": CA_in.trid,
-                                        }
+                                CA_line = {
+                                    "token": token.id,
+                                    "amount": -amount,
+                                    "out_ts": CA_in.timestamp,
+                                    "in_ts": ca_trans.timestamp,
+                                    "basis": basis,
+                                    "sale": sale,
+                                    "in_txid": txid,
+                                    "in_trid": trid,
+                                    "out_txid": CA_in.txid,
+                                    "out_trid": CA_in.trid,
+                                }
 
                                 CA_in.amount -= amount
                                 fees = 0
@@ -1484,64 +1257,58 @@ class Calculator:
                                     log("del first from q")
                                     del q[0]
                             else:
-                                # if not queue_only:
                                 log("qcase 4")
-                                if 1:
-                                    prop_out = CA_in.amount / amount
-                                    fees_spent = fees * prop_out
-                                    sale = CA_in.sale
-                                    basis = -CA_in.amount * rate + fees_spent + CA_in.usd_fee
-                                    fees -= fees_spent
-                                    # if not queue_only:
-                                    if 1:
-                                        CA_line = {
-                                            "token": token.id,
-                                            "amount": -CA_in.amount,
-                                            "out_ts": CA_in.timestamp,
-                                            "in_ts": ca_trans.timestamp,
-                                            "basis": basis,
-                                            "sale": sale,
-                                            "in_txid": txid,
-                                            "in_trid": trid,
-                                            "out_txid": CA_in.txid,
-                                            "out_trid": CA_in.trid,
-                                        }
+                                prop_out = CA_in.amount / amount
+                                fees_spent = fees * prop_out
+                                sale = CA_in.sale
+                                basis = -CA_in.amount * rate + fees_spent + CA_in.usd_fee
+                                fees -= fees_spent
+                                CA_line = {
+                                    "token": token.id,
+                                    "amount": -CA_in.amount,
+                                    "out_ts": CA_in.timestamp,
+                                    "in_ts": ca_trans.timestamp,
+                                    "basis": basis,
+                                    "sale": sale,
+                                    "in_txid": txid,
+                                    "in_trid": trid,
+                                    "out_txid": CA_in.txid,
+                                    "out_trid": CA_in.trid,
+                                }
                                 log("del first from q")
                                 del q[0]
                                 amount -= CA_in.amount
 
                         pos_amount = amount * mode
-                        # if not queue_only:
-                        if 1:
-                            CA_line["gain"] = CA_line["sale"] - CA_line["basis"]
-                            # print('cl', pos_amount, amount, CA_line)
-                            CA_all.append(CA_line)
-                            if abs(CA_line["out_ts"] - CA_line["in_ts"]) > 365 * 86400:
-                                CA_long.append(CA_line)
-                            else:
-                                CA_short.append(CA_line)
+                        CA_line["gain"] = CA_line["sale"] - CA_line["basis"]
+                        # print('cl', pos_amount, amount, CA_line)
+                        CA_all.append(CA_line)
+                        if abs(CA_line["out_ts"] - CA_line["in_ts"]) > 365 * 86400:
+                            CA_long.append(CA_line)
+                        else:
+                            CA_short.append(CA_line)
                     if not switch:
                         done = True
 
                     if txid in errors:
                         log("errors", errors[txid])
 
-        # pprint.pprint(CA_long)
         self.CA_long = CA_long
         self.CA_short = CA_short
         self.errors = errors
 
     def cache(self):
-        cache_file = open("data/users/" + self.address + "/calculator_cache", "wb")
         coingecko_rates = self.coingecko_rates
         self.coingecko_rates = None
+        with open("data/users/" + self.address + "/calculator_cache", "wb") as cache_file:
+            pickle.dump(self, cache_file)
 
-        pickle.dump(self, cache_file)
-        cache_file.close()
         self.coingecko_rates = coingecko_rates
 
     def from_cache(self):
-        C = pickle.load(open("data/users/" + self.address + "/calculator_cache", "rb"))
+        with open("data/users/" + self.address + "/calculator_cache", "rb") as f:
+            C = pickle.load(f)
+
         self.CA_long = C.CA_long
         self.CA_short = C.CA_short
         self.errors = C.errors
@@ -1622,51 +1389,51 @@ class Calculator:
         year = int(year)
         path = "data/users/" + self.address + "/"
 
-        form_8949_short, short_total_proceeds, short_total_cost = self.CA_to_form(
+        form_8949_short, _short_total_proceeds, _short_total_cost = self.CA_to_form(
             self.CA_short, year, format="turbotax"
         )
-        form_8949_long, long_total_proceeds, long_total_cost = self.CA_to_form(
+        form_8949_long, _long_total_proceeds, _long_total_cost = self.CA_to_form(
             self.CA_long, year, format="turbotax"
         )
 
         all_rows = []
-        if len(form_8949_short):
+        if form_8949_short:
             all_rows += form_8949_short
-        if len(form_8949_long):
+        if form_8949_long:
             all_rows += form_8949_long
 
         if len(all_rows) < 4000:  # turbotax limit
-            form_file = open(path + "turbotax_8949_" + str(year) + ".csv", "w")
-            writer = csv.writer(form_file)
-            writer.writerow(
-                ["Currency Name", "Purchase Date", "Cost Basis", "Date Sold", "Proceeds"]
-            )
-            writer.writerows(all_rows)
-            form_file.close()
+            with open(
+                path + "turbotax_8949_" + str(year) + ".csv", "w", encoding="utf-8"
+            ) as form_file:
+                writer = csv.writer(form_file)
+                writer.writerow(
+                    ["Currency Name", "Purchase Date", "Cost Basis", "Date Sold", "Proceeds"]
+                )
+                writer.writerows(all_rows)
             return 0
-        else:
-            batch_size = 3999
-            batch_cnt = len(all_rows) // batch_size + 1
-            offset = 0
-            file_list = []
-            for batch_idx in range(batch_cnt):
-                file_name = "turbotax_8949_" + str(year) + "_batch_" + str(batch_idx + 1) + ".csv"
-                file_list.append(file_name)
-                form_file = open(path + file_name, "w")
+
+        batch_size = 3999
+        batch_cnt = len(all_rows) // batch_size + 1
+        offset = 0
+        file_list = []
+        for batch_idx in range(batch_cnt):
+            file_name = "turbotax_8949_" + str(year) + "_batch_" + str(batch_idx + 1) + ".csv"
+            file_list.append(file_name)
+            with open(path + file_name, "w", encoding="utf-8") as form_file:
                 writer = csv.writer(form_file)
                 writer.writerow(
                     ["Currency Name", "Purchase Date", "Cost Basis", "Date Sold", "Proceeds"]
                 )
                 writer.writerows(all_rows[offset : offset + batch_size])
-                form_file.close()
-                offset += batch_size
 
-            compression = zipfile.ZIP_DEFLATED
-            zf = zipfile.ZipFile(path + "turbotax_8949_" + str(year) + ".zip", mode="w")
+            offset += batch_size
+
+        compression = zipfile.ZIP_DEFLATED
+        with zipfile.ZipFile(path + "turbotax_8949_" + str(year) + ".zip", mode="w") as zf:
             for filename in file_list:
                 zf.write(path + filename, arcname=filename, compress_type=compression)
-            zf.close()
-            return 1
+        return 1
 
     def make_forms(self, year):
         year = int(year)
@@ -1681,28 +1448,80 @@ class Calculator:
 
         if not self.mtm:
             if len(form_8949_short) > 0 or len(form_8949_long) > 0:
-                form_file = open(path + "form_1040_schedule_D.txt", "w")
-                if short_total_proceeds != 0:
-                    gain = short_total_proceeds - short_total_cost
-                    form_file.write("\nRow 3, column (d): " + str(short_total_proceeds))
-                    form_file.write("\nRow 3, column (e): " + str(short_total_cost))
-                    form_file.write("\nRow 3, column (h): " + str(gain))
-                    form_file.write("\nRow 7, column (h): " + str(gain))
+                with open(path + "form_1040_schedule_D.txt", "w", encoding="utf-8") as form_file:
+                    if short_total_proceeds != 0:
+                        gain = short_total_proceeds - short_total_cost
+                        form_file.write("\nRow 3, column (d): " + str(short_total_proceeds))
+                        form_file.write("\nRow 3, column (e): " + str(short_total_cost))
+                        form_file.write("\nRow 3, column (h): " + str(gain))
+                        form_file.write("\nRow 7, column (h): " + str(gain))
 
-                if long_total_proceeds != 0:
-                    gain = long_total_proceeds - long_total_cost
-                    form_file.write("\nRow 10, column (d): " + str(long_total_proceeds))
-                    form_file.write("\nRow 10, column (e): " + str(long_total_cost))
-                    form_file.write("\nRow 10, column (h): " + str(gain))
-                    form_file.write("\nRow 15, column (h): " + str(gain))
+                    if long_total_proceeds != 0:
+                        gain = long_total_proceeds - long_total_cost
+                        form_file.write("\nRow 10, column (d): " + str(long_total_proceeds))
+                        form_file.write("\nRow 10, column (e): " + str(long_total_cost))
+                        form_file.write("\nRow 10, column (h): " + str(gain))
+                        form_file.write("\nRow 15, column (h): " + str(gain))
 
-                form_file.write("\n\nYou will need to complete the rest of the form yourself")
-                form_file.close()
+                    form_file.write("\n\nYou will need to complete the rest of the form yourself")
+
                 file_list.append("form_1040_schedule_D.txt")
         else:
             if len(form_8949_short) > 0:
-                form_file = open(path + "form_4797_part_2.csv", "w")
-                file_list.append("form_4797_part_2.csv")
+                with open(path + "form_4797_part_2.csv", "w", encoding="utf-8") as form_file:
+                    file_list.append("form_4797_part_2.csv")
+                    writer = csv.writer(form_file)
+                    writer.writerow(
+                        [
+                            "Description of property",
+                            "Date acquired",
+                            "Date sold or disposed of",
+                            "Proceeds/Gross sales price",
+                            "Cost basis",
+                            "Gain or loss",
+                        ]
+                    )
+                    rows = [
+                        [
+                            "Trader - see attached",
+                            "",
+                            "",
+                            short_total_proceeds,
+                            short_total_cost,
+                            short_total_proceeds - short_total_cost,
+                        ]
+                    ]
+                    writer.writerows(rows)
+
+                if self.eoy_mtm is not None:
+                    with open(
+                        path + "mark_to_market_eoy_" + str(year - 1) + "_holdings.txt",
+                        "w",
+                        encoding="utf-8",
+                    ) as form_file:
+                        file_list.append("mark_to_market_eoy_" + str(year - 1) + "_holdings.txt")
+
+                        writer = csv.writer(form_file)
+                        writer.writerow(["Description of property"])
+                        rows = []
+                        for token, amount in self.eoy_mtm.items():
+                            contract = token.symbol(what_instead=True)
+                            if "_" in contract:
+                                contract, _nft_id = contract.split("_")
+                            desc = (
+                                str(amount) + " units of " + token.symbol() + " (" + contract + ")"
+                            )
+                            rows.append([desc])
+                        writer.writerows(rows)
+
+        if len(form_8949_short) > 0:
+            if self.mtm:
+                filename = "form_4797_attachment.csv"
+            else:
+                filename = "form_8949_part_1.csv"
+
+            with open(path + filename, "w", newline="", encoding="utf-8") as form_file:
+                file_list.append(filename)
                 writer = csv.writer(form_file)
                 writer.writerow(
                     [
@@ -1714,132 +1533,82 @@ class Calculator:
                         "Gain or loss",
                     ]
                 )
-                rows = [
-                    [
-                        "Trader - see attached",
-                        "",
-                        "",
-                        short_total_proceeds,
-                        short_total_cost,
-                        short_total_proceeds - short_total_cost,
-                    ]
-                ]
-                writer.writerows(rows)
-                form_file.close()
-
-                if self.eoy_mtm is not None:
-                    form_file = open(
-                        path + "mark_to_market_eoy_" + str(year - 1) + "_holdings.txt",
-                        "w",
-                        encoding="utf-8",
-                    )
-                    file_list.append("mark_to_market_eoy_" + str(year - 1) + "_holdings.txt")
-
-                    writer = csv.writer(form_file)
-                    writer.writerow(["Description of property"])
-                    rows = []
-                    for token, amount in self.eoy_mtm.items():
-                        contract = token.symbol(what_instead=True)
-                        if "_" in contract:
-                            contract, nft_id = contract.split("_")
-                        desc = str(amount) + " units of " + token.symbol() + " (" + contract + ")"
-                        rows.append([desc])
-                    writer.writerows(rows)
-                    form_file.close()
-
-        if len(form_8949_short) > 0:
-            if self.mtm:
-                form_file = open(
-                    path + "form_4797_attachment.csv", "w", newline="", encoding="utf-8"
-                )
-                file_list.append("form_4797_attachment.csv")
-            else:
-                form_file = open(path + "form_8949_part_1.csv", "w", newline="", encoding="utf-8")
-                file_list.append("form_8949_part_1.csv")
-            writer = csv.writer(form_file)
-            writer.writerow(
-                [
-                    "Description of property",
-                    "Date acquired",
-                    "Date sold or disposed of",
-                    "Proceeds/Gross sales price",
-                    "Cost basis",
-                    "Gain or loss",
-                ]
-            )
-            writer.writerows(form_8949_short)
-            form_file.close()
+                writer.writerows(form_8949_short)
 
         if not self.mtm:
             if len(form_8949_long) > 0:
-                form_file = open(path + "form_8949_part_2.csv", "w", newline="", encoding="utf-8")
-                file_list.append("form_8949_part_2.csv")
-                writer = csv.writer(form_file)
-                writer.writerow(
-                    [
-                        "Description of property",
-                        "Date acquired",
-                        "Date sold or disposed of",
-                        "Proceeds",
-                        "Cost basis",
-                        "Gain or loss",
-                    ]
-                )
-                writer.writerows(form_8949_long)
-                form_file.close()
+                with open(
+                    path + "form_8949_part_2.csv", "w", newline="", encoding="utf-8"
+                ) as form_file:
+                    file_list.append("form_8949_part_2.csv")
+                    writer = csv.writer(form_file)
+                    writer.writerow(
+                        [
+                            "Description of property",
+                            "Date acquired",
+                            "Date sold or disposed of",
+                            "Proceeds",
+                            "Cost basis",
+                            "Gain or loss",
+                        ]
+                    )
+                    writer.writerows(form_8949_long)
 
         log("incomes", self.incomes)
         if len(self.incomes) > 0:
-
-            # {'timestamp':timestamp,'text':'Income upon closing a vault', 'amount':amount*rate, 'hash':transaction['hash']}
-            income_list_file = open(path + "income_list.csv", "w", newline="", encoding="utf-8")
-            writer = csv.writer(income_list_file)
-            writer.writerow(
-                [
-                    "This file is for your records. It's a list of all transactions that produced income.",
-                    "",
-                    "",
-                    "",
-                ]
-            )
-            writer.writerow(["Timestamp", "Transaction hash", "Description", "Income amount"])
-
-            income_types = {}
-            for income in self.incomes:
-                if timestamp_to_year(income["timestamp"]) == year:
-                    income_list_row = [
-                        timestamp_to_date(income["timestamp"], and_time=True),
-                        income["hash"],
-                        income["text"],
-                        income["amount"],
+            with open(
+                path + "income_list.csv", "w", newline="", encoding="utf-8"
+            ) as income_list_file:
+                writer = csv.writer(income_list_file)
+                writer.writerow(
+                    [
+                        (
+                            "This file is for your records. "
+                            "It's a list of all transactions that produced income."
+                        ),
+                        "",
+                        "",
+                        "",
                     ]
-                    writer.writerow(income_list_row)
+                )
+                writer.writerow(["Timestamp", "Transaction hash", "Description", "Income amount"])
 
-                    income_type = income["text"]
-                    if income_type not in income_types:
-                        income_types[income_type] = 0
-                    income_types[income_type] += income["amount"]
-            income_list_file.close()
+                income_types = {}
+                for income in self.incomes:
+                    if timestamp_to_year(income["timestamp"]) == year:
+                        income_list_row = [
+                            timestamp_to_date(income["timestamp"], and_time=True),
+                            income["hash"],
+                            income["text"],
+                            income["amount"],
+                        ]
+                        writer.writerow(income_list_row)
+
+                        income_type = income["text"]
+                        if income_type not in income_types:
+                            income_types[income_type] = 0
+                        income_types[income_type] += income["amount"]
+
             file_list.append("income_list.csv")
 
             if len(income_types) > 0:
-                form_file = open(path + "form_1040_schedule_1.txt", "w")
-                file_list.append("form_1040_schedule_1.txt")
-                form_file.write(
-                    "\nOnly use this if you DON'T have a registered crypto business. Otherwise use form_1040_schedule_C.txt"
-                )
-                total = 0
-                for type, amount in income_types.items():
-                    if amount > 0.5:
-                        form_file.write(
-                            "\nRow 8 income type: " + type + ", amount: " + str(round(amount))
-                        )
-                    total += amount
-                form_file.write("\nRow 8 total: " + str(round(total)))
-                form_file.close()
+                with open(path + "form_1040_schedule_1.txt", "w", encoding="utf-8") as form_file:
+                    file_list.append("form_1040_schedule_1.txt")
+                    form_file.write(
+                        "\nOnly use this if you DON'T have a registered crypto business. "
+                        "Otherwise use form_1040_schedule_C.txt"
+                    )
+                    total = 0
+                    for type, amount in income_types.items():
+                        if amount > 0.5:
+                            form_file.write(
+                                "\nRow 8 income type: " + type + ", amount: " + str(round(amount))
+                            )
+                        total += amount
+                    form_file.write("\nRow 8 total: " + str(round(total)))
 
         log("expenses", self.business_expenses)
-        if len(self.business_expenses):
+        if self.business_expenses:
             expense_types = {}
             for expense in self.business_expenses:
                 if timestamp_to_year(expense["timestamp"]) == year:
@@ -1849,42 +1618,42 @@ class Calculator:
                     expense_types[expense_type] += expense["amount"]
 
             if len(expense_types) > 0:
-                schedule_C = open(path + "form_1040_schedule_C.txt", "w")
-                file_list.append("form_1040_schedule_C.txt")
-                total = 0
-                for type, amount in expense_types.items():
-                    if amount > 0.5:
-                        schedule_C.write(
-                            "\nPart V row: " + type + ", amount: " + str(round(amount))
-                        )
-                    total += amount
-                schedule_C.write("\nRows 27a, 48: " + str(round(total)))
-                schedule_C.write(
-                    "\n\nYou will need to complete the rest of the form yourself. Note that you should only file this if cryptocurrency trading is a substantial "
-                    "part of your daily routine, or if you have a registered business. "
-                    "You may wish to consult with a tax professional about this. You may owe additional self-employment taxes."
-                )
-                schedule_C.close()
+                with open(path + "form_1040_schedule_C.txt", "w", encoding="utf-8") as schedule_C:
+                    file_list.append("form_1040_schedule_C.txt")
+                    total = 0
+                    for type, amount in expense_types.items():
+                        if amount > 0.5:
+                            schedule_C.write(
+                                "\nPart V row: " + type + ", amount: " + str(round(amount))
+                            )
+                        total += amount
+                    schedule_C.write("\nRows 27a, 48: " + str(round(total)))
+                    schedule_C.write(
+                        "\n\nYou will need to complete the rest of the form yourself. "
+                        "Note that you should only file this if cryptocurrency trading is a "
+                        "substantial part of your daily routine, or if you have a registered "
+                        "business. You may wish to consult with a tax professional about this. "
+                        "You may owe additional self-employment taxes."
+                    )
 
-        if len(self.interest_payments):
-            form_file = open(path + "form_4952.txt", "w")
-            file_list.append("form_4952.txt")
-            total = 0
-            form_file.write(
-                "\nWe strongly recommend consulting with a tax professional about deducting loan interest\n"
-            )
-            for entry in self.interest_payments:
-                if timestamp_to_year(entry["timestamp"]) == year:
-                    total += entry["amount"]
-            form_file.write("\nLine 1: " + str(round(total)))
-            form_file.write("\n\nYou will need to complete the rest of the form yourself")
-            form_file.close()
+        if self.interest_payments:
+            with open(path + "form_4952.txt", "w", encoding="utf-8") as form_file:
+                file_list.append("form_4952.txt")
+                total = 0
+                form_file.write(
+                    "\nWe strongly recommend consulting with a tax professional about "
+                    "deducting loan interest\n"
+                )
+                for entry in self.interest_payments:
+                    if timestamp_to_year(entry["timestamp"]) == year:
+                        total += entry["amount"]
+                form_file.write("\nLine 1: " + str(round(total)))
+                form_file.write("\n\nYou will need to complete the rest of the form yourself")
 
         compression = zipfile.ZIP_DEFLATED
-        zf = zipfile.ZipFile(path + "tax_forms_" + str(year) + ".zip", mode="w")
-        for filename in file_list:
-            zf.write(path + filename, arcname=filename, compress_type=compression)
-        zf.close()
+        with zipfile.ZipFile(path + "tax_forms_" + str(year) + ".zip", mode="w") as zf:
+            for filename in file_list:
+                zf.write(path + filename, arcname=filename, compress_type=compression)
 
     def vaults_json(self):
         js = {}

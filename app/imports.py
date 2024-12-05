@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import time
 
 from .util import normalize_address, sql_in
@@ -32,14 +33,14 @@ class Import:
         self.errors = []
         self.codes = set()
         if all_chains is not None:
-            for chain_name, chain_data in all_chains.items():
+            for _chain_name, chain_data in all_chains.items():
                 chain = chain_data["chain"]
                 chain.current_import = self
         self.overwrites_ok = True
 
     def populate_addresses(self, user, all_chains):
         db = user.db
-        for chain_name, chain_data in all_chains.items():
+        for _chain_name, chain_data in all_chains.items():
             addresses = chain_data["import_addresses"]
             chain = chain_data["chain"]
             for active_address in addresses:
@@ -61,7 +62,6 @@ class Import:
             status = 1
         db.update_kw("imports", "id=" + str(self.id), ended=t, status=status)
         for error in self.errors:
-            # self.db.create_table('imports_errors', 'id integer, chain TEXT, address TEXT, txtype INTEGER, error_code INTEGER', drop=drop)
             db.insert_kw(
                 "imports_errors",
                 import_id=self.id,
@@ -87,8 +87,6 @@ class Import:
         chain_name = None
         if chain is not None:
             chain_name = chain.name
-        # if error_code not in [Import.COVALENT_FAILURE, Import.DEBANK_TOKEN_FAILURE, Import.DEBANK_PROTOCOL_FAILURE, Import.PRESENCE_CHECK_FAILURE]:
-        #     self.overwrites_ok = False
         self.codes.add(error_code)
         self.errors.append(
             {
@@ -141,24 +139,45 @@ class Import:
                 if chain == "Arbitrum":
                     s = "failed to get data from CovalentHQ, fees might be off"
                 elif chain == "Fantom":
-                    s = "failed to get data from CovalentHQ, failed transactions are counted as completed"
+                    s = (
+                        "failed to get data from CovalentHQ, "
+                        "failed transactions are counted as completed"
+                    )
                 elif chain == "ETH":
-                    s = "failed to get data from CovalentHQ, some counterparty info might be missing"
+                    s = (
+                        "failed to get data from CovalentHQ, "
+                        "some counterparty info might be missing"
+                    )
             elif code == Import.COVALENT_OVERLOAD:
-                s = "too many transactions, stopped Covalent data at 50 requests, some transaction data might be wrong"
+                s = (
+                    "too many transactions, stopped Covalent data at 50 requests, "
+                    "some transaction data might be wrong"
+                )
             elif code == Import.DEBANK_TOKEN_FAILURE:
                 s = "failed to get token data from DeBank, balance check can't be performed"
             elif code == Import.DEBANK_PROTOCOL_FAILURE:
-                s = "failed to get protocol data from DeBank, some counterparty info might be missing"
+                s = (
+                    "failed to get protocol data from DeBank, "
+                    "some counterparty info might be missing"
+                )
             elif code == Import.SIMPLEHASH_FAILURE:
-                s = "failed to get NFT data from Simplehash, some NFT transfers might be missing or incorrect"
+                s = (
+                    "failed to get NFT data from Simplehash, "
+                    "some NFT transfers might be missing or incorrect"
+                )
             elif code == Import.PRESENCE_CHECK_FAILURE:
                 s = "failed to get data from scanner, it might be down or its API may have changed"
             elif code == Import.NO_CREATORS:
-                s = "failed to get contract creators from scanner, some counterparty info might be missing"
+                s = (
+                    "failed to get contract creators from scanner, "
+                    "some counterparty info might be missing"
+                )
             elif code == Import.TOO_MANY_TRANSACTIONS:
                 if chain == "Solana":
-                    s = "too many transactions, we support up to 10000. We pay our data provider per transaction retrieved."
+                    s = (
+                        "too many transactions, we support up to 10000. "
+                        "We pay our data provider per transaction retrieved."
+                    )
                 else:
                     s = "too many transactions, we support up to 50000 per chain per address."
             elif code == Import.COINGECKO_CACHE_FAIL:

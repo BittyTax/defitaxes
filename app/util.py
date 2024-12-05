@@ -1,9 +1,8 @@
+# -*- coding: utf-8 -*-
 import datetime
 import decimal
 import os
-import pickle
 import pprint
-import secrets
 import time
 import traceback
 from collections import defaultdict
@@ -30,10 +29,8 @@ Q = [
 
 def dec(num, places=None):
     if places is None:
-        # print("dec",num)
         return decimal.Decimal(num)
-    else:
-        return decimal.Decimal(num).quantize(Q[places], rounding=decimal.ROUND_HALF_EVEN)
+    return decimal.Decimal(num).quantize(Q[places], rounding=decimal.ROUND_HALF_EVEN)
 
 
 # logger = None
@@ -52,11 +49,9 @@ class Logger:
         if "WRITE ALL" in args:
             for filename in self.files:
                 self.buf_to_file(filename)
-                # self.files[filename]['file_object'].close()
-            # self.files = defaultdict(dict)
             return
 
-        if "buffer" in kwargs and kwargs["buffer"] != None:
+        if "buffer" in kwargs and kwargs["buffer"] is not None:
             buffer = kwargs["buffer"]
             strings = []
             if "ignore_time" not in kwargs:
@@ -75,18 +70,14 @@ class Logger:
             else:
                 filename = "log.txt"
             if filename not in self.files:
-                # myfile = open('logs/' + filename, "a", encoding="utf-8")
-                # self.files[filename]['file_object'] = myfile
                 self.files[filename]["last_write"] = t
                 self.files[filename]["buffer"] = []
 
             buffer = self.files[filename]["buffer"]
-            # myfile = self.files[filename]['file_object']
             if "ignore_time" not in kwargs:
                 tm = str(datetime.datetime.now())
                 if "print_only" not in kwargs:
                     buffer.append(tm + " ")
-                    # myfile.write(tm + " ")
                 if "log_only" not in kwargs:
                     self.lprint(tm)
 
@@ -94,26 +85,16 @@ class Logger:
                 if "prettify" in kwargs:
                     s = pprint.pformat(s)
                 if "print_only" not in kwargs:
-                    # myfile.write(str(s) + " ")
                     buffer.append(str(s) + " ")
                 if "log_only" not in kwargs:
                     self.lprint(s)
 
             if "print_only" not in kwargs:
-                # myfile.write("\n")
                 buffer.append("\n")
             if "log_only" not in kwargs:
                 self.lprint("", same_line=False)
 
             self.buf_to_file(filename, glob=glob)
-            # if 'force_write' in kwargs:
-            # # if 1:
-            #     self.buf_to_file(filename)
-            #
-            # elif self.files[filename]['last_write'] + self.write_frequency < t:
-            #     self.buf_to_file(filename)
-
-            # myfile.close()
 
     def buf_to_file(self, filename, glob=False):
         buffer = self.files[filename]["buffer"]
@@ -128,9 +109,8 @@ class Logger:
             if self.do_write or glob:
                 do_write = True
             if do_write:
-                myfile = open(path, "a", encoding="utf-8")
-                myfile.write("".join(buffer))
-                myfile.close()
+                with open(path, "a", encoding="utf-8") as myfile:
+                    myfile.write("".join(buffer))
         self.files[filename]["buffer"] = []
         self.files[filename]["last_write"] = time.time()
 
@@ -147,17 +127,7 @@ class Logger:
 
 
 def log(*args, **kwargs):
-    # try:
-    #     debug = g.debug
-    # except:
-    #     debug = True
     debug_level = int(os.environ.get("debug"))
-    # if debug:
-    #     logger = Logger(address='glob')
-    # else:
-    #     logger = Logger(address=g.address, chain=g.chain_name, do_print=False, do_write=False)
-    #
-    # logger.log(*args,**kwargs)
 
     if debug_level > 0:
         logger = Logger(address="glob")
@@ -185,7 +155,6 @@ def clog(transaction, *args, **kwargs):
         log(*args, **kwargs)
 
 
-# progress_bar = None
 class ProgressBar:
     def __init__(self, redis, max_pb=None):
         self.redis = redis
@@ -276,5 +245,4 @@ def timestamp_to_date(ts, and_time=False, format=None, utc=False):
             format = "%m/%d/%y"
     if utc:
         return datetime.datetime.utcfromtimestamp(ts).strftime(format)
-    else:
-        return datetime.datetime.fromtimestamp(ts).strftime(format)
+    return datetime.datetime.fromtimestamp(ts).strftime(format)

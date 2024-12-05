@@ -1,49 +1,24 @@
+# -*- coding: utf-8 -*-
 import calendar
-import copy
-import csv
 import math
-import pprint
+import os
 import random
 import re
 import time
+import traceback
 from collections import defaultdict
 from datetime import datetime
 
 import bs4
 import requests
-from requests.auth import HTTPBasicAuth
-from sortedcontainers import SortedDict
 
-from .classifiers import Classifier
 from .imports import Import
 from .pool import Pools
-from .transaction import *
-from .util import ProgressBar, log  # , progress_bar_update
-
-# class Address:
-#     def __init__(self,address):
-#         self.address = address
-#
-#     def normalize(self):
-#         if self.ethereum():
-#             return self.address.lower()
-#         return self.address
-#
-#     def ethereum(self):
-#         address = self.address
-#         if len(address) == 42 and address[0] == '0' and address[1] == 'x':
-#             return True
-#         return False
-#
-#     def solana(self):
-#         address = self.address
-#         if len(address) >= 32 and len(address) <= 44:
-#             return True
-#         return False
+from .transaction import Transaction, Transfer, normalize_address
+from .util import clog, is_ethereum, log, log_error
 
 
 class Chain:
-
     CONFIG = {
         # defaults:
         # scanner_name -> scanner without extension, or "blockscout" if blockscout:1
@@ -526,7 +501,6 @@ class Chain:
         self.main_asset = main_asset
         self.api_key = api_key
         self.name = name
-        # self.address_db = None
         self.outbound_bridges = []
         self.inbound_bridges = []
         for bridge in outbound_bridges:
@@ -538,13 +512,15 @@ class Chain:
         if wrapper is not None:
             self.wrapper = normalize_address(wrapper)
 
-        self.hif = "47M65BG4riNsp4HwtEYdKx9dy4rC6QNM8zY1h1jf3aXEoWmGgDcrZcFLj7777ebvfHsThoTzVWZkpo6kLPuB9NSD"
+        self.hif = (
+            "47M65BG4riNsp4HwtEYdKx9dy4rC6QNM8zY1h1jf3aXE"
+            "oWmGgDcrZcFLj7777ebvfHsThoTzVWZkpo6kLPuB9NSD"
+        )
+
         self.wait_time = 1 / float(rate_limit) + 0.05
 
         self.wait_time *= 2
 
-        # self.ancestor_entities = {}
-        # self.address_ancestor_map = {}
         self.entity_map = {}
         self.addresses_initialized = False
 
@@ -569,6 +545,7 @@ class Chain:
         self.use_routescan_backup = False
         if self.explorer_url is not None and "routescan.io" in self.explorer_url:
             self.use_routescan_backup = True
+        self.current_import = None
 
     def __str__(self):
         return self.name + " chain"
@@ -724,19 +701,6 @@ class Chain:
         return what
 
     def get_progenitor_entity(self, address):
-        # log("get_progenitor_entity",self.name,address,filename='address_lookups.txt')
-        # if address in self.ancestor_entities:
-        #     return self.ancestor_entities[address], None, 1
-        #
-        # if address in self.address_ancestor_map:
-        #     ancestor = self.address_ancestor_map[address]
-        #     log("get_progenitor_entity", self.name, address, 'found in address_ancestor_map, ancestor', ancestor, filename='address_lookups.txt')
-        #     if ancestor in self.ancestor_entities:
-        #         return self.ancestor_entities[ancestor], ancestor, 1
-        #     else:
-        #         log("get_progenitor_entity", self.name, address, 'ancestor not found in name map',ancestor, filename='address_lookups.txt')
-        # else:
-        #     log("get_progenitor_entity", self.name, address, 'not found in address_ancestor_map', filename='address_lookups.txt')
         if address in self.entity_map:
             return self.entity_map[address]
         return None, None
@@ -745,39 +709,28 @@ class Chain:
         log("scrapping scan for", address)
         self.scrapes += 1
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.164 Safari/537.36",
-            # 'cache-control':'max-age=0',
-            # 'cookie': '_ga=GA1.2.467112662.1615497128; etherscan_cookieconsent=True; __stripe_mid=5a09d00b-4eae-4692-8504-f313de02aa144b4a30; etherscan_userid=iraykhel; etherscan_pwd=4792:Qdxb:EWvgzItHTspsgiGejmq+IyCF6VkM5FCC+CnRgsL0EiE=; etherscan_autologin=True; ASP.NET_SessionId=rclihdriqigdpnfiu5jygebv; __cflb=02DiuFnsSsHWYH8WqVXcJWaecAw5gpnmeVbBoLqEHwzz8; _gid=GA1.2.885744722.1628003673; _gat_gtag_UA_46998878_6=1; __cf_bm=763969dfe2b4a8b08b7baf2ade8c42a99a92215a-1628011329-1800-ATJVGPjy7InedZvxrWeZmEKX0F2aD+Vb119x0YA2D9LF70kEAAGyZsTRQYv43oTLCmhO02yGmcEuDiuMKOmjrvr9TVRF9H7vngozwaoXjINf1PhUSKnw1wcJudy2C/ZlCg=='
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.164 Safari/537.36",
         }
         url = "https://" + self.domain + "/address/" + address.lower()
         log(url)
         session = requests.session()
-        # ip = '52.193.76.133'
-        # session.proxies = {'http': 'http://' + ip + ":8888", 'https': 'http://' + ip + ":8888"}
-        # cont = requests.get(url, headers=headers).content
         cont = session.get(url, headers=headers).content
         html = cont.decode("utf-8")
 
         soup = bs4.BeautifulSoup(html, features="html.parser")
         log(soup)
-        # print(soup)
         cont = soup.find("div", class_="py-3")
         labels_els = cont.find_all("a", class_="u-label")
         labels = []
         for el in labels_els:
             label = el.contents[0].strip()
             labels.append(label)
-        # print(labels)
 
         nametag = None
         nametag_el = soup.find("span", class_="u-label")
         if len(nametag_el) == 3:
             nametag = nametag_el.contents[0].contents[0].strip()
-        # nametag = soup.select('span[data-original-title="Public Name Tag (viewable by anyone)"]')
-        #     print(nametag)
-
-        # creator = soup.find('a',{'data-original-title':'Creator Address'})
-        # creator = soup.select('a[data-original-title="Creator Address"]')
         creator = None
         creator_el = soup.find("div", id="ContentPlaceHolder1_trContract")
 
@@ -807,14 +760,9 @@ class Chain:
             + self.api_key
             + "&offset=5"
         )
-        resp = requests.get(url)
-        # print(address,'normal', resp.content)
+        resp = requests.get(url, timeout=120)
         time.sleep(self.wait_time)
 
-        # print(address, transaction)
-        # if len(transaction['input']) <=2:
-        #     return -1, None
-        # print(transaction['to'],
         try:
             data = resp.json()["result"]
             for transaction in data:
@@ -836,8 +784,7 @@ class Chain:
             + self.api_key
             + "&offset=5"
         )
-        resp = requests.get(url)
-        # print(address, 'internal', resp.content)
+        resp = requests.get(url, timeout=120)
         time.sleep(self.wait_time)
         data = resp.json()["result"]
         if data is None or len(data) == 0:
@@ -854,21 +801,7 @@ class Chain:
         except:
             log("ERROR (2) getting ancestor", url, data)
             return None, [], None, None
-            # return 0, transaction['from']
-        # transaction = data[0]
-
-        # return -1, None
         return None, [], None, None
-
-    # def get_ancestor_new(self,addresses):
-    #     url = self.explorer_url + "?module=contract&action=getcontractcreation&contractaddresses=" + ','.join(addresses) + "&apikey=" + self.api_key
-    #     resp = requests.get(url)
-    #     time.sleep(self.wait_time)
-    #     rv = {}
-    #     data = resp.json()['result']
-    #     for entry in data:
-    #         rv[entry['contractAddress']] = entry['contractCreator']
-    #     return rv
 
     def get_all_transaction_from_api(
         self,
@@ -897,17 +830,26 @@ class Chain:
         headers = {}
         if self.name in ["Moonriver", "Moonbeam"]:  # ,'Arbitrum','Optimism']:
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36",
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
+                ),
                 "cache-control": "max-age=0",
                 "accept-language": "en-US,en;q=0.9,ru;q=0.8",
                 "upgrade-insecure-requests": "1",
-                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                "accept": (
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
+                    "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
+                ),
             }
         while not done:
             overlap_cnt = 0
             self.update_pb()
             if self.use_routescan_backup:
-                explorer_url = f"https://api.routescan.io/v2/network/mainnet/evm/{self.routescan_id}/etherscan/api"
+                explorer_url = (
+                    f"https://api.routescan.io/v2/network/mainnet/evm/"
+                    f"{self.routescan_id}/etherscan/api"
+                )
                 offset = 10000
             else:
                 explorer_url = self.explorer_url
@@ -930,7 +872,7 @@ class Chain:
             try:
                 resp = requests.get(url, headers=headers, timeout=timeout)
             except:
-                if self.routescan_id is not None and self.use_routescan_backup == False:
+                if self.routescan_id is not None and not self.use_routescan_backup:
                     self.use_routescan_backup = True
                     return self.get_all_transaction_from_api(
                         address,
@@ -1017,12 +959,10 @@ class Chain:
             if not isinstance(data, list):
                 data = []
             cur_rep = 0
-            # log("Data len",len(data),"last block",data[-1]['blockNumber'])
-            # if action == 'tokennfttx':
-            #     log("GLORIOUS DUMP",data,filename='glorious_dump.txt')
             for entry in data:
                 entry["confirmations"] = (
-                    1  # overwrite this because it changes between paginated API requests, causing the same entry to be recorded twice
+                    1  # overwrite this because it changes between paginated API requests,
+                    # causing the same entry to be recorded twice
                 )
                 uid = str(entry)
                 try:
@@ -1034,8 +974,6 @@ class Chain:
                     self.current_import.add_error(
                         Import.UNEXPECTED_DATA, chain=self, address=address, txtype=action
                     )
-                    # err = "unexpected data from scanner instead of "+err_tx_type
-                    # errors.add(err)
                     log_error("Unexpected data from scanner", url, action, address, self.name, data)
                     break
                 if uid not in tr_uids:
@@ -1057,17 +995,15 @@ class Chain:
         return all_data
 
     def check_validity(self, address):
-        # log("Checking validity",address,"chain",self.name)
         if self.name == "Solana":
             if address[0] == "0" and address[1] == "x":
                 return False
             if len(address) < 32 or len(address) > 44:
                 return False
             return True
-        else:
-            if address[0] != "0" or address[1] != "x" or len(address) != 42:
-                return False
-            return True
+        if address[0] != "0" or address[1] != "x" or len(address) != 42:
+            return False
+        return True
 
     def check_presence(self, address):
         if self.discontinued:
@@ -1083,14 +1019,13 @@ class Chain:
         for entry in data:
             fr = normalize_address(entry["from"])
             to = normalize_address(entry["to"])
-            if fr == address or to == address:
+            if address in (fr, to):
                 return True
         return False
 
     def get_transactions(self, user, address, pb_alloc):
         if self.discontinued:
             return {}
-        # pb_alloc = 20./self.chain_count
         mpp = 10000
         if self.name == "HECO":
             mpp = 1000
@@ -1115,17 +1050,16 @@ class Chain:
 
         hif = self.hif
 
-        t = time.time()
         self.update_pb("Retrieving " + self.main_asset + " transactions for " + address, 0)
         div = 1000000000000000000.0
         log("\n\ngetting transactions for", address, self.name)
 
-        # because shitty heco chain doesn't have hashes on txlistinternal, we need to try to locate tx by block
+        # because shitty heco chain doesn't have hashes on txlistinternal,
+        # we need to try to locate tx by block
         if self.name == "HECO":
             blockmap = defaultdict(list)
 
         data = self.get_all_transaction_from_api(address, "txlist", max_per_page=mpp)
-        # all_errors = all_errors.union(errors)
 
         base_vals = defaultdict(
             list
@@ -1133,13 +1067,10 @@ class Chain:
 
         transactions = {}
         for entry in data:
-
             hash = entry["hash"]
             if hash == hif:
                 log("FROM API-base", entry)
             ts = entry["timeStamp"]
-            # uid = str(ts) + "_" + str(hash)
-            # uid = hash
             nonce = entry["nonce"]
             block = entry["blockNumber"]
             if hash not in transactions:
@@ -1184,7 +1115,6 @@ class Chain:
 
                 receipt_status = entry["txreceipt_status"]
                 if receipt_status == "1":  # or entry['isError'] != '1':
-                    # if entry['isError'] != '1':
                     T.success = True
                 else:
                     T.success = False
@@ -1205,13 +1135,10 @@ class Chain:
                 input_len,
                 input,
             ]
-            # if fee + val > 0:
             T.append(Transfer.BASE, row)
-        t1 = time.time()
 
         self.update_pb("Retrieving internal transactions for " + address, per_type_alloc)
         data = self.get_all_transaction_from_api(address, "txlistinternal", max_per_page=mpp)
-        # all_errors = all_errors.union(errors)
         for entry in data:
             # print(entry)
 
@@ -1246,10 +1173,7 @@ class Chain:
                 input_len = len(input)
             val = float(entry["value"]) / div
 
-            # if entry['isError'] == 1 and self.name != 'Fantom': #see reddit messages
-            #     val = 0
-
-            if transactions[hash].success == False or (
+            if not transactions[hash].success or (
                 transactions[hash].success is None and entry["isError"] == "1"
             ):
                 val = 0
@@ -1273,20 +1197,11 @@ class Chain:
             # if val > 0:
             if self.name == "Fantom" and val in base_vals[hash]:
                 continue  # skip Fantom duplicate
-            else:
-                transactions[hash].append(Transfer.INTERNAL, row)
 
-        t2 = time.time()
+            transactions[hash].append(Transfer.INTERNAL, row)
+
         self.update_pb("Retrieving token transactions for " + address, per_type_alloc)
-        # url = self.explorer_url + '?module=account&action=tokentx&address=' + self.addr + '&apikey=' + self.api_key
-        # resp = requests.get(url)
-        # data = resp.json()['result']
-        # pprint.pprint(resp.json())
-        # q = 'tokentx'
-        # if self.name == 'Velas':
-        #     q = 'tokenTransfer'
         data = self.get_all_transaction_from_api(address, "tokentx", max_per_page=mpp)
-        # all_errors = all_errors.union(errors)
         for entry in data:
             hash = entry["hash"]
             if hash == hif:
@@ -1324,15 +1239,6 @@ class Chain:
                     else:
                         decimals = 18
                     token = "Unknown token"
-                    # very specific Etherscan issue
-                    # if token_contract == '0x22648c12acd87912ea1710357b1302c6a4154ebc':
-                    #     decimals = 6
-                    #     token = 'anyUSDT'
-                    # else:
-                    #     log("MISSING TOKEN DECIMAL",self.name,entry,filename='global_error_log.txt')
-                    #     decimals = 18
-                    #     token = 'Unknown token'
-                    #     # exit(1)
 
                 tokendiv = float(math.pow(10, decimals))
                 self.decimal_info[token_contract] = tokendiv
@@ -1363,14 +1269,7 @@ class Chain:
                 type = Transfer.BASE
                 token = token_contract = "METIS"
 
-            # if self.name == 'Polygon' and token_contract == '0x0000000000000000000000000000000000001010': #MATIC mislabel
-            #     token = token_contract = 'MATIC'
-            #     type = 1
-            # if self.name == 'ETH' and decimals == 0 and int(val) == val: #actually an NFT??? ex 0x60b8af64cc18033e43fefd9a62632bb7d2b473584d591153d959fb09a020d311 -- corrected in balance_provider_correction
-            #     token_nft_id = str(int(val))
-            #     val = 1
-            #     type = 4
-            if transactions[hash].success == False:
+            if not transactions[hash].success:
                 val = 0
 
             row = [
@@ -1389,17 +1288,11 @@ class Chain:
                 input_len,
                 input,
             ]
-            # self.transferred_tokens.add(token_contract)
-            # if val > 0:
             transactions[hash].append(type, row)
 
-        t3 = time.time()
         if not self.blockscout:
             self.update_pb("Retrieving NFT transactions for " + address, per_type_alloc)
             data = self.get_all_transaction_from_api(address, "tokennfttx", max_per_page=mpp)
-            # log("GLORIOUS DUMP-total", data, filename='glorious_dump.txt')
-            # all_errors = all_errors.union(errors)
-            # pprint.pprint(resp.json())
             for entry in data:
                 hash = entry["hash"]
                 if hash == hif:
@@ -1417,13 +1310,10 @@ class Chain:
                 token_contract = entry["contractAddress"].lower()
                 token = entry["tokenSymbol"]  # + " ("+entry['tokenID']+")"
                 token_nft_id = entry["tokenID"]
-                # tokenID = entry['tokenID']
                 val = 1
                 fee = 0  # accounted in base transactions
                 nonce = entry["nonce"]
                 block = entry["blockNumber"]
-                # uid = str(ts) + "_" +str(block)+"_"+ str(hash)
-                # uid = hash
                 if hash not in transactions:
                     transactions[hash] = Transaction(user, self)
                 row = [
@@ -1442,11 +1332,8 @@ class Chain:
                     input_len,
                     input,
                 ]
-                # self.transferred_tokens.add(token_contract)
-                # if val > 0:
                 transactions[hash].append(4, row)
 
-        t4 = time.time()
         if self.name in [
             "ETH",
             "Polygon",
@@ -1459,54 +1346,48 @@ class Chain:
         ]:
             self.update_pb("Retrieving ERC1155 transactions for " + address, per_type_alloc)
             data = self.get_all_transaction_from_api(address, "token1155tx", max_per_page=mpp)
-            # all_errors = all_errors.union(errors)
-            # if len(errors):
-            #     self.scrape_erc1155(user, address, transactions)
-            # else:
-            if 1:
-                log("erc1155 transfer count on", self.name, len(data), filename="aux_log.txt")
-                for entry in data:
-                    hash = entry["hash"]
-                    # log('erc1155 transfer on',self.name,hash, entry,filename='aux_log.txt')
-                    if hash == hif:
-                        log("FROM API-1155", entry)
-                    ts = entry["timeStamp"]
+            log("erc1155 transfer count on", self.name, len(data), filename="aux_log.txt")
+            for entry in data:
+                hash = entry["hash"]
+                # log('erc1155 transfer on',self.name,hash, entry,filename='aux_log.txt')
+                if hash == hif:
+                    log("FROM API-1155", entry)
+                ts = entry["timeStamp"]
 
-                    fr = entry["from"].lower()
-                    to = entry["to"].lower()
-                    input_len = -1
-                    input = None
-                    token_contract = entry["contractAddress"].lower()
-                    token = entry["tokenSymbol"]
-                    if token == "":
-                        token = "ERC1155"  # matches what was scraped in scrape_erc1155 for symbols
-                    token_nft_id = entry["tokenID"]
-                    try:
-                        val = float(entry["tokenValue"])
-                    except:
-                        val = 1
-                    nonce = entry["nonce"]
-                    block = entry["blockNumber"]
-                    if hash not in transactions:
-                        transactions[hash] = Transaction(user, self)
-                    row = [
-                        hash,
-                        ts,
-                        nonce,
-                        block,
-                        fr,
-                        to,
-                        val,
-                        token,
-                        token_contract,
-                        None,
-                        str(token_nft_id),
-                        0,
-                        input_len,
-                        input,
-                    ]
-                    # self.transferred_tokens.add(token_contract)
-                    transactions[hash].append(5, row)
+                fr = entry["from"].lower()
+                to = entry["to"].lower()
+                input_len = -1
+                input = None
+                token_contract = entry["contractAddress"].lower()
+                token = entry["tokenSymbol"]
+                if token == "":
+                    token = "ERC1155"  # matches what was scraped in scrape_erc1155 for symbols
+                token_nft_id = entry["tokenID"]
+                try:
+                    val = float(entry["tokenValue"])
+                except:
+                    val = 1
+                nonce = entry["nonce"]
+                block = entry["blockNumber"]
+                if hash not in transactions:
+                    transactions[hash] = Transaction(user, self)
+                row = [
+                    hash,
+                    ts,
+                    nonce,
+                    block,
+                    fr,
+                    to,
+                    val,
+                    token,
+                    token_contract,
+                    None,
+                    str(token_nft_id),
+                    0,
+                    input_len,
+                    input,
+                ]
+                transactions[hash].append(5, row)
 
         if self.name == "Polygon":
             self.update_pb(
@@ -1514,19 +1395,7 @@ class Chain:
             )
             self.scrape_plasma(user, address, transactions)
 
-        # if self.name == 'Optimism':
-        #     self.update_pb('Retrieving deposit transactions for ' + address, per_type_alloc)
-        #     self.retrieve_deposits(user,address,transactions)
-
-        # pprint.pprint(transactions)
-        # log("downloaded transactions",transactions)
-
         return transactions
-        # txlist = list(transactions.values())
-        # txlist.sort(key=lambda x: str(x.ts) + "_" + str(x.block) + "_" + x.hash)
-        #
-        # log('timing:get transactions',t1-t,t2-t1,t3-t2,t4-t3)
-        # return txlist
 
     # corrects scanners' deficiencies
     def correct_transactions(self, address, transactions, pb_alloc):
@@ -1555,10 +1424,10 @@ class Chain:
                     val,
                     token,
                     token_contract,
-                    coingecko_id,
+                    _coingecko_id,
                     token_nft_id,
                     base_fee,
-                    input_len,
+                    _input_len,
                     input,
                 ) = sub_data
                 clog(transaction, "correcting, fee?", base_fee, fr, address)
@@ -1580,7 +1449,7 @@ class Chain:
                         if running_amounts[token_contract_mod] > max_amounts[token_contract_mod]:
                             max_amounts[token_contract_mod] = running_amounts[token_contract_mod]
 
-                    if input is not None and (to == self.wrapper or fr == self.wrapper):
+                    if input is not None and self.wrapper in (to, fr):
                         wrap = True
 
                 if fr == address:
@@ -1596,113 +1465,6 @@ class Chain:
                         filename="specific_tx.txt",
                     )
 
-            # print(idx,hash,dict(tx_amounts))
-
-            for token_contract_mod, amount in tx_amounts.items():
-                # # print(token_contract_mod,amount)
-                # running_amounts[token_contract_mod] += amount
-                # if running_amounts[token_contract_mod] > max_amounts[token_contract_mod]:
-                #     max_amounts[token_contract_mod] = running_amounts[token_contract_mod]
-
-                # amount gone negative -- was there a prior rebase?
-                if (
-                    self.name == "ETH"
-                    and "_" not in token_contract_mod
-                    and not wrap
-                    and token_contract_mod != "ETH"
-                ):
-                    continue  # disabled temporarily
-                    contract = token_contract_mod
-                    if (
-                        running_amounts[contract] < 0
-                        and abs(running_amounts[contract]) > max_amounts[contract] * 0.001
-                        and block is not None
-                    ):
-                        symbol = tx_symbols[contract]
-                        log(
-                            "Negative amount (rebase?)",
-                            hash,
-                            symbol,
-                            contract,
-                            max_amounts[contract],
-                            running_amounts[contract],
-                            block,
-                        )
-                        url = (
-                            "https://api.etherscan.io/api?module=account&action=tokenbalancehistory&contractaddress="
-                            + contract
-                            + "&address="
-                            + address
-                            + "&blockno="
-                            + str(int(block) - 1)
-                            + "&apikey="
-                            + self.api_key
-                        )
-                        log(url)
-                        resp = requests.get(url)
-                        time.sleep(0.5)
-                        data = resp.json()["result"]
-                        # pprint.pprint(self.decimal_info)
-                        api_amount = float(data) / self.decimal_info[contract]
-                        diff = api_amount - (running_amounts[contract] - tx_amounts[contract])
-                        running_amounts[contract] += diff
-                        # print("Amt after rebase and sell",running_amounts[contract])
-
-                        row = [
-                            hash,
-                            ts,
-                            nonce,
-                            block,
-                            contract,
-                            address,
-                            diff,
-                            symbol,
-                            contract,
-                            None,
-                            None,
-                            0,
-                            0,
-                            None,
-                        ]
-                        transaction.append(3, row, synthetic=Transfer.REBASE, prepend=True)
-
-                # missed ERC1155 mint?
-                if self.name == "ETH" and "_" in token_contract_mod:
-                    continue  # disable temporarily?
-                    contract = token_contract_mod
-                    if running_amounts[contract] < 0:
-                        symbol = tx_symbols[contract]
-                        log(
-                            "Negative amount (missed mint?)",
-                            hash,
-                            symbol,
-                            contract,
-                            max_amounts[contract],
-                        )
-
-                        diff = -running_amounts[contract]
-                        running_amounts[contract] = 0
-                        contract, nft_id = contract.split("_")
-                        row = [
-                            hash,
-                            ts,
-                            nonce,
-                            block,
-                            "0x0000000000000000000000000000000000000000",
-                            address,
-                            diff,
-                            symbol,
-                            contract,
-                            None,
-                            nft_id,
-                            0,
-                            0,
-                            None,
-                        ]
-                        transaction.append(5, row, synthetic=Transfer.MISSED_MINT, prepend=True)
-
-            # print(hash,wrap,len(transaction.grouping),tx_amounts)
-            # print(transaction.grouping)
             # wrap/unwrap missing a transfer?
             if wrap and self.name != "Fantom" and not self.blockscout:
                 if (
@@ -1729,7 +1491,6 @@ class Chain:
                         wrap_fr = self.wrapper
                         wrap_to = address
                     running_amounts[wrap_token] -= amount
-                    # print(hash,'WRAP TRANSFER',wrap_fr,wrap_to,abs(amount),wrap_symbol,wrap_token, running_amounts[wrap_token])
                     row = [
                         hash,
                         ts,
@@ -1814,10 +1575,10 @@ class Chain:
                         val,
                         token,
                         token_contract,
-                        coingecko_id,
+                        _coingecko_id,
                         token_nft_id,
                         base_fee,
-                        input_len,
+                        _input_len,
                         input,
                     ) = sub_data
                     if (
@@ -1831,12 +1592,13 @@ class Chain:
                             [1, row, None, None, None, None, Transfer.ARBITRUM_BRIDGE, None]
                         ]
 
-                # in rare case arbitrum duplicates ETH transfer, ex 0xdd9c3074593fc1a40e0cd3ec18d98990fc481b7848d42819565a431bceac34c5
+                # in rare case arbitrum duplicates ETH transfer,
+                # ex 0xdd9c3074593fc1a40e0cd3ec18d98990fc481b7848d42819565a431bceac34c5
                 eth_transfer_hashes = []
                 to_delete = []
                 for idx, entry in enumerate(transaction.grouping):
                     type, sub_data, _, _, _, _, _, _ = entry
-                    if type == 1 or type == 2:
+                    if type in (1, 2):
                         (
                             hash,
                             ts,
@@ -1847,10 +1609,10 @@ class Chain:
                             val,
                             token,
                             token_contract,
-                            coingecko_id,
+                            _coingecko_id,
                             token_nft_id,
                             base_fee,
-                            input_len,
+                            _input_len,
                             input,
                         ) = sub_data
                         tr_hash = fr + "_" + to + "_" + str(val)
@@ -1872,11 +1634,17 @@ class Chain:
         cnt = 0
         done = False
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
+            ),
             "cache-control": "max-age=0",
             "accept-language": "en-US,en;q=0.9,ru;q=0.8",
             "upgrade-insecure-requests": "1",
-            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
+                "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
+            ),
         }
         session = requests.session()
         session.proxies = {"http": self.proxy, "https": self.proxy}
@@ -1899,7 +1667,6 @@ class Chain:
                     resp.content,
                 )
                 return
-            # print('resp.content',resp.content)
             html = resp.content.decode("utf-8")
             if "There are no matching entries" in html:
                 return
@@ -1941,14 +1708,14 @@ class Chain:
                     token_nft_id = tokenid_html.find("a").contents[0]
                     amount = cells[8].contents[0]
                     try:
-                        isitfloat = float(amount)
-                    except:
+                        float(amount)
+                    except ValueError:
                         amount = cells[8].find("span").contents[0]
 
                     what_html = cells[9].find("a")
                     what = what_html["href"][7:49]
                     symbol = what_html.contents[-1]
-                    match = re.search("\((.*?)\)", symbol)
+                    match = re.search(r"\((.*?)\)", symbol)
                     if match is not None:
                         symbol = match.group()[1:-1]
                     else:
@@ -1956,19 +1723,9 @@ class Chain:
                         if len(symbol_spans) >= 1:
                             symbol = symbol_spans[-1]["title"]
 
-                    # row = [hash, ts, fr, to, val, token, token_contract, token_nft_id, 0, input_len, input]
-                    # if val > 0:
-                    # uid = txhash
-                    # ts_tr = None
-                    # if uid in transactions:
-                    #     ts_tr = transactions[uid].grouping[-1][1][1]
-                    # else:
-                    #     transactions[uid] = Transaction(self)
-                    # uid = txhash
                     if txhash not in transactions:
                         transactions[txhash] = Transaction(user, self)
 
-                    # log(txhash, '|' ,ts, '|', fr, '|', to, '|', tokenid, '|', amount, '|', what, '|', symbol)
                     row = [
                         txhash,
                         ts,
@@ -1985,7 +1742,6 @@ class Chain:
                         0,
                         None,
                     ]
-                    # self.transferred_tokens.add(what)
                     cnt += 1
                     if txhash == self.hif:
                         log(
@@ -2013,17 +1769,22 @@ class Chain:
                 done = True
 
             page += 1
-        # log('scraped erc1155',cnt)
 
     def scrape_plasma(self, user, address, transactions):
         page = 1
         done = False
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
+            ),
             "cache-control": "max-age=0",
             "accept-language": "en-US,en;q=0.9,ru;q=0.8",
             "upgrade-insecure-requests": "1",
-            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
+                "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
+            ),
         }
         session = requests.session()
         session.proxies = {"http": self.proxy, "https": self.proxy}
@@ -2045,7 +1806,6 @@ class Chain:
                     resp.content,
                 )
                 return
-            # print('resp.content',resp.content)
             html = resp.content.decode("utf-8")
             if "There are no matching entries" in html:
                 return
@@ -2085,7 +1845,7 @@ class Chain:
                     what_html = cells[7].find("a")
                     what = what_html["href"][7:49]
                     symbol = what_html.contents[-1]
-                    match = re.search("\((.*?)\)", symbol)
+                    match = re.search(r"\((.*?)\)", symbol)
                     symbol = match.group()[1:-1]
                     if symbol == "MATIC":
                         what = symbol
@@ -2095,7 +1855,6 @@ class Chain:
 
                     if txhash not in transactions:
                         transactions[txhash] = Transaction(user, self)
-                    # log(txhash, '|' ,ts, '|', fr, '|', to, '|', tokenid, '|', amount, '|', what, '|', symbol)
                     row = [
                         txhash,
                         ts,
@@ -2112,8 +1871,6 @@ class Chain:
                         0,
                         None,
                     ]
-                    # self.transferred_tokens.add(what)
-                    # print("plasma row",row)
                     if txhash == self.hif:
                         log(
                             "SCRAPED",
@@ -2169,7 +1926,6 @@ class Chain:
                 )
             done = False
             page_num = 0
-            failure = False
             idx = 0
             covalent_dump[address] = []
             while not done:
@@ -2201,7 +1957,6 @@ class Chain:
                         Import.COVALENT_OVERLOAD, address=address, chain=self, debug_info=exc
                     )
                     log_error("Too many requests for covalent", address, url, exc)
-                    failure = True
                     break
 
                 for rep in range(3):
@@ -2224,7 +1979,6 @@ class Chain:
                         data = resp.json()
                     except:
                         exc = traceback.format_exc()
-                        # log('Could not parse Covalent JSON', address, url, exc, resp.status_code, resp.content, filename='global_error_log.txt')
                         continue
 
                     try:
@@ -2232,29 +1986,6 @@ class Chain:
                         done = not data["data"]["pagination"]["has_more"]
                         covalent_dump[address].extend(entries)
                         break
-                        # for entry in entries:
-                        #     txhash = entry['tx_hash']
-                        #     if txhash in transactions:
-                        #         T = transactions[txhash]
-                        #         if self.name in ['Arbitrum','Optimism']:
-                        #             # log('adjusting Arbitrum fee', txhash)
-                        #             fee = float(entry['fees_paid']) / pow(10,18)
-                        #             for row in T.grouping:
-                        #                 if row[0] == 1 and row[1][5] == 'network':
-                        #                     row[1][6] = fee
-                        #         if self.name == 'Fantom':
-                        #             success = entry['successful']
-                        #             if not success:
-                        #                 for row in T.grouping:
-                        #                     if row[1][5] != 'network':
-                        #                         row[1][6] = 0
-                        #         to = entry['to_address']
-                        #         fr = entry['from_address']
-                        #
-                        #         #originator is not the user, receiver is the contract -- set it as counterparty
-                        #         if fr is not None and to is not None and address not in [normalize_address(fr),normalize_address(to)]:
-                        #             T.interacted = normalize_address(to)
-                        #
 
                     except:
                         exc = traceback.format_exc()
@@ -2271,7 +2002,6 @@ class Chain:
                         Import.COVALENT_FAILURE, address=address, chain=self, debug_info=exc
                     )
                     log_error("Failed to get data from covalent", address, url, exc)
-                    failure = True
                     covalent_dump[address] = None
                     break
                 if ps == 1:
@@ -2280,19 +2010,6 @@ class Chain:
                     page_num += 1
             chain_data["covalent_dump"] = covalent_dump
             log("covalent total time", time.time() - tstart, filename="covalent.txt")
-
-            # if failure:
-            #     if self.name == 'Fantom':
-            #         for txhash,T in transactions.items():
-            #             for row in T.grouping:
-            #                 if address in [row[1][5],row[1][4]]:
-            #                     row[6] |= Transfer.SUSPECT_AMOUNT
-            #     if self.name == 'Arbitrum':
-            #         for txhash,T in transactions.items():
-            #             for row in T.grouping:
-            #                 if row[1][4] == address and row[1][5] == 'network':
-            #                     row[6] |= Transfer.SUSPECT_AMOUNT
-            #                     log("Setting suspect_amount",self.name,txhash,row,filename='suspects.txt')
 
     def covalent_correction(self, chain_data):
         if "covalent_dump" not in chain_data:
@@ -2348,18 +2065,16 @@ class Chain:
                         except:
                             pass
 
-                        # originator is not the user, receiver is a contract -- set the originator as the counterparty
-                        # if fr is not None and to is not None and address not in [normalize_address(fr),normalize_address(to)]:
+                        # originator is not the user, receiver is a contract --
+                        # set the originator as the counterparty
                         if fr is not None and to is not None and val == 0:
                             if address != normalize_address(to):
                                 T.interacted = normalize_address(to)
                             T.originator = normalize_address(fr)
-                        # T.originator = fr
 
     def balance_provider_correction(self, chain_data):
         to_switch = set()
         not_switch = set()
-        # hash, ts, nonce, block, fr, to, val, token, token_contract, token_nft_id, base_fee, input_len, input
         transactions = chain_data["transactions"]
         addresses = chain_data["import_addresses"]
         timestamp_mapping = {}
@@ -2466,29 +2181,6 @@ class Chain:
                                 )
                                 T.append(type, row, synthetic=Transfer.MISSED_MINT)
 
-    # def retrieve_deposits(self,user,address,transactions):
-    #     data = self.get_all_transaction_from_api(address, 'getdeposittxs')
-    #     for entry in data:
-    #         hash = entry['hash']
-    #         if hash == hif:
-    #             log('FROM API', entry)
-    #         ts = entry['timeStamp']
-    #
-    #         fr = entry['from'].lower()
-    #         to = address
-    #         input_len = -1
-    #         input = None
-    #         token_contract = entry['contractAddress'].lower()
-    #         token = entry['tokenSymbol']
-    #         token_nft_id = entry['tokenID']
-    #         val = float(entry['tokenValue'])
-    #         nonce = entry['nonce']
-    #         block = entry['blockNumber']
-    #         if hash not in transactions:
-    #             transactions[hash] = Transaction(user, self)
-    #         row = [hash, ts, nonce, block, fr, to, val, token, token_contract, str(token_nft_id), 0, input_len, input]
-    #         transactions[hash].append(5, row)
-
     def extract_entity(self, tag):
         if ":" in tag:
             row_entity = tag[: tag.index(":")].upper()
@@ -2500,28 +2192,34 @@ class Chain:
                 row_entity = tag.upper()
         return row_entity
 
-    def update_multiple_addresses_from_scan(self, five_addresses):
-        log(self.name, "five address lookup", five_addresses, filename="address_lookups.txt")
+    def update_multiple_addresses_from_scan(self, addresses):
+        log(self.name, "five address lookup", addresses, filename="address_lookups.txt")
         db_writes = []
 
-        if len(five_addresses) == 0:
+        if len(addresses) == 0:
             return True, []
         creators = {}
         if self.name != "HECO":
             headers = {}
             if self.name in ["Moonriver", "Moonbeam"]:  # ,'Arbitrum','Optimism']:
                 headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36",
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
+                    ),
                     "cache-control": "max-age=0",
                     "accept-language": "en-US,en;q=0.9,ru;q=0.8",
                     "upgrade-insecure-requests": "1",
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                    "accept": (
+                        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
+                        "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
+                    ),
                 }
 
             url = (
                 self.explorer_url
                 + "?module=contract&action=getcontractcreation&contractaddresses="
-                + ",".join(five_addresses)
+                + ",".join(addresses)
                 + "&apikey="
                 + self.api_key
             )
@@ -2564,7 +2262,7 @@ class Chain:
                 filename="address_lookups.txt",
             )
 
-        for address in five_addresses:
+        for address in addresses:
             creator = None
             entity = "unknown"
             if address in creators:
@@ -2586,8 +2284,6 @@ class Chain:
                     db_writes.append([self.name, [creator, None, None, entity, "lookup"]])
                     self.entity_map[address] = [entity, creator]
                     self.entity_map[creator] = [entity, None]
-                    # self.address_ancestor_map[address] = creator
-                    # self.ancestor_entities[creator] = entity
 
             else:
                 log(
@@ -2600,7 +2296,6 @@ class Chain:
                 if badge is not None:
                     entity = self.extract_entity(badge)
                 self.entity_map[address] = [entity, None]
-                # self.ancestor_entities[address] = entity
 
             if entity != "unknown":
                 log(
@@ -2612,7 +2307,6 @@ class Chain:
                     filename="address_lookups.txt",
                 )
             db_writes.append([self.name, [address, None, creator, entity, "lookup"]])
-            # self.addresses[address] = {'tag': None, 'entity': entity, 'ancestor': creator}
 
         return True, db_writes
 
@@ -2648,86 +2342,9 @@ class Chain:
                 log("blockscan badge", tag_el, chain_match, badge, filename="address_lookups.txt")
                 if self.domain in link:
                     return badge
-                elif top_cand is None:
+                if top_cand is None:
                     top_cand = badge
         return top_cand
-
-    # def update_address_from_scan(self, address_db, user, address, max_depth=1):
-    #     address = address.lower()
-    #     # log("progenitor for",address)
-    #     if address == '0x0000000000000000000000000000000000000000':
-    #         return
-    #
-    #     entity,_,_ = self.get_progenitor_entity(address)
-    #     if entity is not None:
-    #         return
-    #
-    #     # log('updating address for',address)
-    #     # print("Getting progenitor for ",address)
-    #     prev_ancestor = address
-    #     ancestry = []
-    #
-    #     entity = None
-    #     db_ancestor = None
-    #     # nametag, labels, creator, ens = self.scrape_address_info(address)
-    #     nametag, labels, creator, ens = self.get_ancestor(address)
-    #     depth = 1
-    #     while nametag is None and ens is None and creator is not None and depth <= max_depth:
-    #
-    #         entity, db_ancestor, _ = self.get_progenitor_entity(creator)
-    #         if entity is not None:
-    #             log("Found entity",entity,db_ancestor)
-    #             break
-    #         else:
-    #             if depth == max_depth:
-    #                 break
-    #
-    #             if len(labels) > 0:
-    #                 log("populate labels for", address, labels)
-    #                 for label in labels:
-    #                     address_db.insert_kw(self.name + '_labels', values=[address, label], ignore=True)
-    #
-    #             ancestry.append(prev_ancestor)
-    #             prev_ancestor = creator
-    #             # nametag, labels, creator, ens = self.scrape_address_info(creator)
-    #             nametag, labels, creator, ens = self.get_ancestor(creator)
-    #
-    #             if len(labels) > 0:
-    #                 log("populate labels for", creator, labels)
-    #                 for label in labels:
-    #                     address_db.insert_kw(self.name + '_labels', values=[creator, label], ignore=True)
-    #
-    #         depth += 1
-    #
-    #     if entity is None:
-    #         if nametag is not None:
-    #             entity = self.extract_entity(nametag)
-    #         elif ens is not None:
-    #             entity = ens
-    #     # else:
-    #     #     if db_ancestor is not None:
-    #     #         log("setting creator from db, to",db_ancestor)
-    #     #         creator = db_ancestor
-    #
-    #     if entity is None:
-    #         entity = 'unknown'
-    #
-    #
-    #
-    #     log("prev_ancestor", prev_ancestor, "creator", creator, "nametag", nametag, "ens", ens, "entity", entity, "descendants", ancestry)
-    #     rc = address_db.insert_kw(self.name + '_addresses', values=[prev_ancestor,nametag,creator,entity,'lookup'], ignore=True)
-    #     if rc > 0:
-    #         address_db.insert_kw(self.name + '_labels', values=[prev_ancestor, 'auto'], ignore=True)
-    #     self.addresses[prev_ancestor] = {'tag': nametag, 'entity': entity, 'ancestor': creator}
-    #
-    #     if creator is None:
-    #         creator = prev_ancestor
-    #     for descendant in ancestry:
-    #         rc = address_db.insert_kw(self.name + '_addresses', values=[descendant, None, creator, entity,'lookup-descendant'], ignore=True)
-    #         if rc > 0:
-    #             address_db.insert_kw(self.name + '_labels', values=[descendant, 'auto'], ignore=True)
-    #         self.addresses[descendant] = {'tag': None, 'entity': entity, 'ancestor': creator}
-    #     address_db.commit()
 
     def get_contracts(self, transactions):
         contract_dict = {}
@@ -2767,10 +2384,10 @@ class Chain:
     def update_progenitors(self, counterparty_list, pb_alloc):
         all_db_writes = []
         if self.blockscout:
-            return
+            return None
 
         if len(counterparty_list) == 0:
-            return
+            return None
 
         addresses_to_lookup = []
         for address in counterparty_list:
@@ -2807,7 +2424,6 @@ class Chain:
                     + str(batch_cnt),
                     pb_per_batch,
                 )
-                # self.update_pb('Looking up counterparties (runs slowly once): ' + str(batch_idx+1) + '/' + str(batch_cnt)+' <a id="skip_step" step=cp chain="'+self.name+'">Skip this step</a>', pb_per_batch)
                 if not good:
                     break
         return all_db_writes
@@ -2826,44 +2442,44 @@ class Chain:
         for _, (
             type,
             sub_data,
-            transfer_id,
-            custom_treatment,
-            custom_rate,
-            custom_vaultid,
+            _transfer_id,
+            _custom_treatment,
+            _custom_rate,
+            _custom_vaultid,
             synthetic,
-            derived,
+            _derived,
         ) in enumerate(source.grouping):
             (
-                hash,
-                ts,
-                nonce,
-                block,
+                _hash,
+                _ts,
+                _nonce,
+                _block,
                 fr,
                 to,
                 val,
                 token,
-                token_contract,
-                coingecko_id,
+                _token_contract,
+                _coingecko_id,
                 token_nft_id,
-                base_fee,
-                input_len,
+                _base_fee,
+                _input_len,
                 input,
             ) = sub_data
-            for _, (c_type, c_sub_data, _, _, _, _, _, _) in enumerate(destination.grouping):
+            for _, (_c_type, c_sub_data, _, _, _, _, _, _) in enumerate(destination.grouping):
                 (
-                    hash,
-                    ts,
-                    nonce,
-                    block,
+                    _hash,
+                    _ts,
+                    _nonce,
+                    _block,
                     c_fr,
                     c_to,
                     c_val,
                     c_token,
-                    c_token_contract,
-                    c_coingecko_id,
+                    _c_token_contract,
+                    _c_coingecko_id,
                     c_token_nft_id,
-                    c_base_fee,
-                    c_input_len,
+                    _c_base_fee,
+                    _c_input_len,
                     c_input,
                 ) = c_sub_data
                 if (
@@ -2880,183 +2496,5 @@ class Chain:
                 clog(source, "Adding transfer", sub_data, "synthetic", synthetic)
                 destination.append(type, sub_data, synthetic=synthetic)
 
-        # log_file = open('data/'+self.name+'.csv', 'w', newline='')
-        # writer = csv.writer(log_file)
-        # writer.writerow(['ID', 'Timestamp', 'Quote', 'Base', 'Side', 'Base amount', 'Quote Amount'])
-        # writer.writerows(all_rows)
-        # log_file.close()
-
-    # def get_current_tokens(self, address):
-    #     rv = {}
-    #     try:
-    #         url = None
-    #         if self.name == 'BSC':
-    #             url = 'https://bscscan.com/tokenholdingsHandler.aspx?&a='+address+'&q=&p=2&f=0&h=0&sort=total_price_usd&order=desc&pUsd24hrs=325.13&pBtc24hrs=0.01589&pUsd=328.96&fav=&langMsg=A total of XX tokenSS found&langFilter=Filtered by XX&langFirst=First&langPage=Page X of Y&langLast=Last&ps=25'
-    #
-    #         if self.name == 'Fantom':
-    #             url = 'https://ftmscan.com/tokenholdingsHandler.aspx?&a='+address+'&q=&p=1&f=0&h=0&sort=total_price_usd&order=desc&pUsd24hrs=0.23847615&pBtc24hrs=0.0000116554046624551&pUsd=0.2307&fav=&langMsg=A total of XX tokenSS found&langFilter=Filtered by XX&langFirst=First&langPage=Page X of Y&langLast=Last&ps=25'
-    #
-    #         if self.name == 'Arbitrum':
-    #             url = 'https://arbiscan.io/tokenholdingsHandler.aspx?&a=0xd603a49886c9b500f96c0d798aed10068d73bf7c&q=&p=1&f=0&h=0&sort=total_price_usd&order=desc&pUsd24hrs=1583.38&pBtc24hrs=0.07739&pUsd=1607.44&fav=&langMsg=A total of XX tokenSS found&langFilter=Filtered by XX&langFirst=First&langPage=Page X of Y&langLast=Last&ps=25'
-    #
-    #         if self.name == 'Polygon':
-    #             url = 'https://polygonscan.com/tokenholdingsHandler.aspx?&a=0xd603a49886c9b500f96c0d798aed10068d73bf7c&q=&p=1&f=0&h=0&sort=total_price_usd&order=desc&pUsd24hrs=0.8824&pBtc24hrs=0.00004312&pUsd=0.8888&fav=&langMsg=A total of XX tokenSS found&langFilter=Filtered by XX&langFirst=First&langPage=Page X of Y&langLast=Last&ps=25'
-    #
-    #         if self.name == 'Avalanche':
-    #             url = 'https://snowtrace.io/tokenholdingsHandler.aspx?&a=0xd603a49886c9b500f96c0d798aed10068d73bf7c&q=&p=1&f=0&h=0&sort=total_price_usd&order=desc&pUsd24hrs=18.71&pBtc24hrs=0.0009144&pUsd=18.63&fav=&langMsg=A total of XX tokenSS found&langFilter=Filtered by XX&langFirst=First&langPage=Page X of Y&langLast=Last&ps=25'
-    #
-    #         if url is not None:
-    #             log('get_current_tokens url',self.name, url)
-    #             resp = requests.get(url,timeout=20)
-    #             log('get_current_tokens resp', resp.status_code, resp.content)
-    #
-    #         # if self.name == 'ETH':
-    #         #     headers = {
-    #         #         'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36'
-    #         #     }
-    #
-    #             # session = requests.session()
-    #             # session.proxies = {
-    #             #     'http': self.proxy,
-    #             #     'https': self.proxy
-    #             # }
-    #
-    #             # url = "https://api.etherscan.io/api?module=account&action=addresstokenbalance&address="+address+"&page=1&offset=100&apikey="+self.api_key
-    #             # resp = requests.get(url)
-    #             # log('etherscan token resp',resp.status_code,resp.content)
-    #
-    #
-    #             # url = 'https://etherscan.io/address/'+address
-    #             # resp = session.get(url, headers=headers, timeout=10)
-    #             # log("Etherscan token response", resp.status_code, resp.content)
-    #             # url = 'https://etherscan.io/tokenholdingsnew.aspx/GetAssetDetails'
-    #             # offset = 0
-    #             # pagesize = 100
-    #             # done = False
-    #             # while not done:
-    #             #     dumpitydump = '{"dataTableModel":{"draw":3,"columns":[{"data":"TokenName","name":"","searchable":true,"orderable":true,"search":{"value":"","regex":false}},{"data":"Symbol","name":"","searchable":true,"orderable":false,"search":{"value":"","regex":false}},{"data":"ContractAddress","name":"","searchable":true,"orderable":false,"search":{"value":"","regex":false}},{"data":"Balance","name":"","searchable":true,"orderable":true,"search":{"value":"","regex":false}},{"data":"Price","name":"","searchable":true,"orderable":true,"search":{"value":"","regex":false}},{"data":"Change24H","name":"","searchable":true,"orderable":false,"search":{"value":"","regex":false}},{"data":"Value","name":"","searchable":true,"orderable":true,"search":{"value":"","regex":false}},{"data":"More","name":"","searchable":true,"orderable":false,"search":{"value":"","regex":false}}],"order":[{"column":6,"dir":"desc"}],"start":'+str(offset)+',"length":'+str(pagesize)+',"search":{"value":"","regex":false}},"model":{"address":"'+address+'","hideZeroAssets":false,"filteredContract":"","showEthPrice":false}}'
-    #             #     offset += pagesize
-    #             #     resp = session.post(url,data=dumpitydump,headers=headers,timeout=10)
-    #             #     log("Etherscan token response", resp.status_code, resp.content)
-    #             #     data = resp.json()
-    #             #     data = data['d']['data']
-    #             #     if len(data) < pagesize:
-    #             #         done = True
-    #             #     for entry in data:
-    #             #         symbol = entry['Symbol']
-    #             #         idx = symbol.find("title='")
-    #             #         if idx != -1:
-    #             #             match = re.search('title=\'(.*?)\'', symbol)
-    #             #             symbol = match.group(0)
-    #             #
-    #             #         amount = float(entry['Balance'])
-    #             #         contract_html = entry['ContractAddress']
-    #             #         idx = contract_html.find("title='0x")
-    #             #         contract = contract_html[idx+7:idx+49]
-    #             #         rv[contract] = {'symbol': symbol, 'amount': amount}
-    #     except:
-    #         log(self.name,": Failed to get_current_tokens:Tokens", address, traceback.format_exc(), filename='global_error_log.txt')
-    #         return None
-    #     return rv
-
-    # def get_current_tokens(self, address):
-    #     return None
-
-    def get_current_tokens(self, address):
+    def get_current_tokens(self, _address):
         return None
-        # debank_chain_mapping = {
-        #     'ETH':'eth','Polygon':'matic','Arbitrum':'arb','Avalanche':'avax','Fantom':'ftm','BSC':'bsc','HECO':'heco','Moonriver':'movr','Cronos':'cro','Gnosis':'xdai','Optimism':'op'
-        # }
-        # rv = {}
-        # url = "https://api.debank.com/token/balance_list?user_addr="+address+"&is_all=false&chain="+debank_chain_mapping[self.name]
-        # log('debank url',url)
-        # try:
-        #     resp = requests.get(url, timeout=20)
-        #     data = resp.json()
-        #     data = data['data']
-        #     for entry in data:
-        #         token = entry['id']
-        #         symbol = entry['optimized_symbol']
-        #         if len(token) != 42:
-        #             token = symbol
-        #         amount = entry['amount']
-        #         rv[token] = {'symbol':symbol,'amount':amount}
-        # except:
-        #     log(self.name,": Failed to get_current_tokens:Tokens", address, traceback.format_exc(), filename='global_error_log.txt')
-        #     return None
-
-    #
-    #     centerdev_chain_mapping = {'Arbitrum':'arbitrum-mainnet','Avalanche':'avalanche-mainnet','BSC':'bsc-mainnet','ETH':'ethereum-mainnet','Fantom':'fantom-mainnet',
-    #                                'Optimism':'optimism-mainnet','Polygon':'polygon-mainnet'}
-    #     if self.name in centerdev_chain_mapping:
-    #         session = requests.session()
-    #         session.headers.update({'X-API-Key': 'key871f6043a4dbef1f2432df07'})
-    #         url = 'https://api.center.dev/v1/'+centerdev_chain_mapping[self.name]+'/account/0xd603a49886c9B500f96C0d798aed10068D73bF7C/assets-owned?limit=100'
-    #
-    #     # url = "https://api.debank.com/nft/collection_list?user_addr="+address+"&chain="+debank_chain_mapping[self.name]
-    #     # log('debank url', url)
-    #     # try:
-    #     #     resp = requests.get(url, timeout=20)
-    #     #     data = resp.json()
-    #     #     data = data['data']
-    #     #     for entry in data:
-    #     #         token = entry['id']
-    #     #         symbol = entry['name']
-    #     #         rv[token] = {'symbol': symbol, 'nft_amounts':{}}
-    #     #         nft_list = entry['nft_list']
-    #     #         for single_nft in nft_list:
-    #     #             nft_id = single_nft['inner_id']
-    #     #             amount = single_nft['amount']
-    #     #             rv[token]['nft_amounts'][nft_id] = amount
-    #     # except:
-    #     #     log(self.name, ": Failed to get_current_tokens:NFTs", address, traceback.format_exc(), filename='global_error_log.txt')
-    #     #     return None
-    #
-    #
-    #     # nftscan_chain_mapping = {'ETH':'ETH','BSC':'BNB','Polygon':'MATIC','Arbitrum':'Arbitrum','Avalanche':'AVALANCHE','Optimism':'Optimism','Moonriver':'GLMR'}
-    #     # if self.name not in nftscan_chain_mapping:
-    #     #     return rv
-    #     #
-    #     # headers = {
-    #     #     'chain': nftscan_chain_mapping[self.name]
-    #     # }
-    #     # for ercType in ['erc721','erc1155']:
-    #     #     done = False
-    #     #     pageIndex = 0
-    #     #     while not done:
-    #     #         url = 'https://webapi.nftscan.com/nftscan/getUserNftByContract?ercType='+ercType+'&walletType=3&user_address='+address+'&nft_address=&pageSize=40&pageIndex='+str(pageIndex)+'&sortBy=recently'
-    #     #         log('nftscan url', url,nftscan_chain_mapping[self.name])
-    #     #         try:
-    #     #             resp = requests.get(url,headers=headers,timeout=10)
-    #     #             data = resp.json()
-    #     #             if 'data' in data:
-    #     #                 data = data['data']['nftList']
-    #     #                 if len(data) < 40:
-    #     #                     done = True
-    #     #
-    #     #                 for entry in data:
-    #     #                     contract = entry['nft_asset_address']
-    #     #                     nft_id = entry['nft_asset_number']
-    #     #                     symbol = 'Unknown NFT ('+contract[:6]+'...)'
-    #     #                     if 'collection' in entry:
-    #     #                         symbol = entry['collection']
-    #     #                     elif 'nft_name' in entry:
-    #     #                         symbol = entry['nft_name']
-    #     #
-    #     #                     if contract not in rv:
-    #     #                         rv[contract] = {'symbol':symbol,'nft_amounts':{}}
-    #     #                     if nft_id not in rv[contract]['nft_amounts']:
-    #     #                         rv[contract]['nft_amounts'][nft_id] = 0
-    #     #                     rv[contract]['nft_amounts'][nft_id] += 1
-    #     #
-    #     #
-    #     #             else:
-    #     #                 done = True
-    #     #         except:
-    #     #             log(self.name, ": Failed to get_current_tokens:NFTs from nftscan", address, traceback.format_exc(), filename='global_error_log.txt')
-    #     #             return None
-    #     #         pageIndex += 1
-    #
-    #     log('get_current_tokens results',self.name, address)
-    #     log(rv)
-    #     return rv

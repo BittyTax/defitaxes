@@ -1,12 +1,11 @@
+# -*- coding: utf-8 -*-
 import copy
-import pprint
-import traceback
 from collections import defaultdict
 
-from sortedcontainers import *
+from sortedcontainers import SortedDict
 
 from .category import Category
-from .pool import Pool, Pools
+from .pool import Pool
 from .transaction import Transfer
 from .util import clog, log
 
@@ -182,10 +181,6 @@ class Classifier:
             transaction, ignore_tokens=ignore_tokens, pool_type=pool_type
         )
 
-    # def stake(self, transfer):
-    #     address, what, amount = transfer.to, transfer.what, transfer.amount
-    #     self.chain.pools.stake(address, what, amount)
-
     def check_sig(self, sig, what):
         if sig is not None and what in sig.lower():
             return True
@@ -244,7 +239,6 @@ class Classifier:
             log("Classifying ", transaction.hash)
             logtx = True
 
-        # log("Classifying",transaction.hash,transaction.chain.hif)
         if transaction.derived_data is not None and transaction.changed is None:
             if logtx:
                 log("Found ", transaction.hash, "in derived data, not reclassifying")
@@ -271,11 +265,8 @@ class Classifier:
         self.chain = transaction.chain
         transaction.type = None
         transaction.classification_certainty_level = 0
-        # fee = transaction.lookup({'to':transaction.chain.name +" network"})
 
         combo = (transaction.out_cnt, transaction.in_cnt)
-
-        # user_addresses_ids = transaction.user.relevant_address_ids
 
         if transaction.interacted is None:
             interacted = transaction.lookup({"from_me": True, "input_non_zero": True})
@@ -325,8 +316,6 @@ class Classifier:
                 {"to_me": True, "amount_non_zero": True, "fr": self.chain.pools.pool_address_list()}
             )
 
-            fees = transaction.lookup({"to": "network"})
-
             staked = transaction.lookup(
                 {
                     "from_me": True,
@@ -335,7 +324,6 @@ class Classifier:
                 }
             )
             staked = list(set(staked) - set(burned))
-            # unstaked = transaction.lookup({'to': transaction.addr,'amount_non_zero':True, 'what': self.chain.pools.receipt_token_list(), 'fr':self.chain.pools.pool_address_list(Pool.STAKING)})
             unvaulted = transaction.lookup(
                 {
                     "to_me": True,
@@ -357,16 +345,6 @@ class Classifier:
                 {"to_me": True, "fr": Classifier.NULL, "amount_non_zero": True, "type": 4}
             )
 
-            # if transaction.hash == self.chain.hif:
-            #     log('unstaked data',unstaked)
-            #     log(unstaked[0].what+' in receipt_token_list', unstaked[0].what in self.chain.pools.receipt_token_list())
-            #     log('self.chain.pools.receipt_token_list()',self.chain.pools.receipt_token_list())
-            #     log(unstaked[0].fr + ' in pool_address_list', unstaked[0].fr in self.chain.pools.pool_address_list())
-
-            # redeemed = transaction.lookup({'fr': transaction.addr,'amount_non_zero':True, 'what': self.chain.pools.receipt_token_list(), 'to':self.chain.pools.pool_address_list()})
-
-            # staked = transaction.lookup({'fr': transaction.addr,'amount_non_zero':True, 'what': self.chain.pools.receipt_token_list()})
-            # staked = list(set(staked)-set(burned))
             transaction.categorized_transfers = {
                 Transfer.MINTED: minted,
                 Transfer.RECEIVED: received_nonzero,
@@ -403,7 +381,7 @@ class Classifier:
             if len(transaction.counter_parties) == 1:
                 cp_list = list(transaction.counter_parties.values())
                 prog_addr = list(transaction.counter_parties.keys())[0]
-                cp, hex_sig, sig, _, cp_addr = cp_list[0]
+                cp, _hex_sig, sig, _, cp_addr = cp_list[0]
 
                 if cp_addr in self.address_to_cp_mapping:
                     cp_pair = self.address_to_cp_mapping[cp_addr]
@@ -438,13 +416,6 @@ class Classifier:
             if logtx:
                 log("counterparty", cp, "sig", sig)
 
-            # if cp is not None:
-            #     for custom_code_option in self.cp_mapping.keys():
-            #         if custom_code_option.lower() in cp.lower():
-            #             cp = custom_code_option
-            #             break
-
-            # err = self.check_error(transaction,sig)
             err = None
             if err is None:
                 types = []
@@ -468,7 +439,6 @@ class Classifier:
                                     combo_checkers, list
                                 ):  # or type(combo_checkers) is not list:
                                     combo_checkers = [combo_checkers]
-                                # print(checkers,combo_checkers)
                                 checkers.extend(combo_checkers)
 
                         # if sig in specific_checkers:
@@ -477,7 +447,8 @@ class Classifier:
                                 if isinstance(specific_checkers[specific_checker_sig], Category):
                                     types.append(
                                         copy.deepcopy(specific_checkers[specific_checker_sig])
-                                    )  # god that was an insane bug. Must have copy here, or it'll overwrite .claim on types used in different transactions.
+                                    )  # god that was an insane bug. Must have copy here, or it'll
+                                    # overwrite .claim on types used in different transactions.
                                 else:
                                     sig_checkers = specific_checkers[specific_checker_sig]
                                     if not isinstance(sig_checkers, list):
@@ -496,7 +467,6 @@ class Classifier:
                         generic_checkers = []
                         for combo_opt in combo_options:
                             if combo_opt in self.generic_library:
-                                # print(combo_opt,self.generic_library[combo_opt])
                                 generic_checkers.extend(self.generic_library[combo_opt])
 
                         for checker in generic_checkers:
@@ -514,8 +484,9 @@ class Classifier:
                             if rv is not None:
                                 types.append(rv)
 
-                    # CATCHMENT is below in priority than generics. For example, "TRANSFER IN" overrides anything from CATCHMENT
-                    # this only fires if no other types were discovered earlier
+                    # CATCHMENT is below in priority than generics. For example, "TRANSFER IN"
+                    # overrides anything from CATCHMENT this only fires if no other types were
+                    # discovered earlier
                     if (
                         len(types) == 0
                         and specific_checkers is not None
@@ -553,16 +524,14 @@ class Classifier:
 
                             if type.category == Category.SWAP and type.certainty != 10:
                                 continue
-                            else:
-                                types_noswap.append(type)
+
+                            types_noswap.append(type)
                         types = types_noswap
 
                 if len(types) == 1:
                     transaction.type = types[0]
                     if self.NFT_check(transaction, sig):
                         transaction.type.nft = True
-
-                    # print("tt",transaction.type)
 
                     if (
                         transaction.type.category
@@ -586,8 +555,6 @@ class Classifier:
                 if len(types) > 1:
                     log(transaction.hash, "MULTIPLE TYPES")
                     transaction.type = types
-
-            # transaction.type = None
 
         self.process_classification(transaction)
 
@@ -620,11 +587,6 @@ class Classifier:
             log("\n\n\n")
             # exit(1)
 
-    def check_error(self, transaction, sig):
-        CT = transaction.categorized_transfers
-        if len(CT[Transfer.ERROR]) > 0:
-            return Category(Category.ERROR, certainty=0)
-
     def check_self_transfers(self, transaction):
         clog(transaction, "check_self_transfers")
         CT = transaction.categorized_transfers
@@ -648,6 +610,7 @@ class Classifier:
                 certainty,
             )
             return Category(Category.SELF, certainty=certainty)
+        return None
 
     def check_reward(self, transaction, sig):
         CT = transaction.categorized_transfers
@@ -778,7 +741,6 @@ class Classifier:
                 prew_list = sorted(
                     list(reward_transfers), key=lambda x: x.id, reverse=False
                 )  # need consistent order
-                # rew = list(reward_transfers)[0]
                 for prew in prew_list:
                     if prew.treatment is None:
                         rew = prew
@@ -826,27 +788,20 @@ class Classifier:
 
             clog(transaction, "cr XI7, full_cat", full_cat)
 
-            # if full_cat and rew is not None:
-            #     found_transfers = transaction.lookup({'to': transaction.addr,'amount_non_zero':True,'what':rew.what})
-            #     for transfer in found_transfers:
-            #         transfer.treatment = 'income'
             if full_cat and rew is not None:
                 found_transfers = transaction.lookup({"to_me": True, "amount_non_zero": True})
                 for transfer in found_transfers:
                     transfer.treatment = "income"
 
-    # def cl_00(self,transaction,sig):
-    #     return Category(Category.FEE)
-
-    def cl_fee(self, transaction, sig):
+    def cl_fee(self, _transaction, _sig):
         return Category(Category.FEE)
 
-    def cl_adjustment(self, transaction, sig):
-        CT = transaction.categorized_transfers
+    def cl_adjustment(self, _transaction, sig):
         if self.check_sig(sig, "mismatch fix"):
             return Category(Category.BALANCE_ADJUSTMENT)
+        return None
 
-    def cl_deposit(self, transaction, sig):
+    def cl_deposit(self, transaction, _sig):
         CT = transaction.categorized_transfers
 
         transfers = list(transaction.transfers.values())
@@ -859,16 +814,12 @@ class Classifier:
             )
 
         if (
-            len(CT[Transfer.RECEIVED])
-            and not len(CT[Transfer.SENT])
-            and not len(CT[Transfer.UNSTAKED_LP])
+            CT[Transfer.RECEIVED] and not CT[Transfer.SENT] and not CT[Transfer.UNSTAKED_LP]
         ):  # and not len(CT[Transfer.NFT_IN]):
             if (len(CT[Transfer.FROM_BRIDGE]) or len(CT[Transfer.RECEIVED]) == 1) and (
                 len(CT[Transfer.MINTED]) == 0
                 or (
-                    len(transfers) == 1
-                    and transfers[0].rate_found == 1
-                    and not len(CT[Transfer.NFT_IN])
+                    len(transfers) == 1 and transfers[0].rate_found == 1 and not CT[Transfer.NFT_IN]
                 )
             ):
 
@@ -886,8 +837,7 @@ class Classifier:
                 if match_found or len(CT[Transfer.FROM_BRIDGE]):
                     return Category(Category.DEPOSIT_FROM_BRIDGE, certainty=certainty)
 
-            if not len(CT[Transfer.NFT_IN]):
-                # if transaction.interacted in [None,'11111111111111111111111111111111','TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL']:
+            if not CT[Transfer.NFT_IN]:
                 if (
                     transaction.interacted is None
                     or transaction.function is None
@@ -902,6 +852,7 @@ class Classifier:
                     ]:
                         certainty = 3
                     return Category(Category.DEPOSIT, certainty=certainty)
+        return None
 
     def cl_wrap_unwrap(self, transaction, sig):
         CT = transaction.categorized_transfers
@@ -914,27 +865,16 @@ class Classifier:
                 return Category(Category.UNWRAP, certainty=10)
             if sig == "deposit":
                 return Category(Category.WRAP, certainty=10)
-        # if sig != 'withdraw':
-        #     return
-        # CT = transaction.categorized_transfers
-        # if transaction.interacted == transaction.chain.wrapper:
-        #     return Category(Category.UNWRAP, certainty=10)
-        #
-        # if len(CT[Transfer.RECEIVED]) and (CT[Transfer.RECEIVED][0].fr == transaction.chain.wrapper):
-        #     return Category(Category.UNWRAP, certainty=10)
+        return None
 
     def cl_withdraw(self, transaction, sig):
         if sig in ["stake", "deposit"]:
-            return
+            return None
         if self.check_sig(sig, "repay"):
-            return
+            return None
         CT = transaction.categorized_transfers
-        if (
-            len(CT[Transfer.SENT])
-            and not len(CT[Transfer.RECEIVED])
-            and not len(CT[Transfer.STAKED_LP])
-        ):
-            if len(CT[Transfer.TO_BRIDGE]) or len(CT[Transfer.SENT]) == 1:
+        if CT[Transfer.SENT] and not CT[Transfer.RECEIVED] and not CT[Transfer.STAKED_LP]:
+            if CT[Transfer.TO_BRIDGE] or len(CT[Transfer.SENT]) == 1:
                 for transfer in CT[Transfer.SENT]:
                     if transfer.amount != 0:
                         clog(transaction, "Adding to outgoing transfers", transfer)
@@ -948,7 +888,6 @@ class Classifier:
                 if len(CT[Transfer.TO_BRIDGE]):
                     return Category(Category.WITHDRAW_TO_BRIDGE, certainty=5)
 
-            # if transaction.interacted in [None,'11111111111111111111111111111111','TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL']:
             if transaction.interacted is None or transaction.chain.name == "Solana":
                 certainty = 5
                 if transaction.interacted not in [
@@ -959,24 +898,16 @@ class Classifier:
                 ]:
                     certainty = 3
                 return Category(Category.WITHDRAW, certainty=certainty)
-
-    # def cl_wrap(self, transaction, sig):
-    #     if sig == 'deposit' and transaction.interacted == transaction.chain.wrapper:
-    #         return Category(Category.WRAP, certainty=10)
-    # if sig != 'deposit':
-    #     return None
-    # CT = transaction.categorized_transfers
-    # if len(CT[Transfer.SENT]) and CT[Transfer.SENT][0].to == transaction.chain.wrapper:
-    #     return Category(Category.WRAP, certainty=10)
+        return None
 
     def cl_swap(self, transaction, sig):
         if sig is not None:
             if sig in ["mint"]:  # or self.check_sig(sig,'liquidity'):
-                return
+                return None
 
             if self.check_sig(sig, "swap") or self.check_sig(sig, "exchange"):
                 return Category(Category.SWAP, certainty=10)
-            elif self.check_sig(sig, "migrate"):
+            if self.check_sig(sig, "migrate"):
                 return Category(Category.SWAP, certainty=5)
 
         CT = transaction.categorized_transfers
@@ -986,28 +917,28 @@ class Classifier:
                 len(CT[Transfer.SENT]) == 1
                 or (len(CT[Transfer.SENT]) >= 1 and self.chain.name == "Solana")
             )
-            and not len(CT[Transfer.MINTED])
-            and not len(CT[Transfer.BURNED])
+            and not CT[Transfer.MINTED]
+            and not CT[Transfer.BURNED]
         ):
             if len(CT[Transfer.SENT]) > 1:
                 return Category(Category.SWAP, certainty=5)
             if (
-                not len(CT[Transfer.STAKED_LP])
-                and not len(CT[Transfer.UNSTAKED_LP])
-                and not len(CT[Transfer.REWARDS_LP])
+                not CT[Transfer.STAKED_LP]
+                and not CT[Transfer.UNSTAKED_LP]
+                and not CT[Transfer.REWARDS_LP]
             ):
                 return Category(Category.SWAP, certainty=10)
-            else:
-                return Category(Category.SWAP, certainty=5)
+            return Category(Category.SWAP, certainty=5)
+        return None
 
     def cl_add(self, transaction, sig):
         if transaction.total_fee == 0 and self.chain.name != "Polygon":
-            return
+            return None
         if sig is not None and "migrate" in sig:
-            return
+            return None
 
         if self.check_sig(sig, "swap"):
-            return
+            return None
 
         if transaction.hash == self.chain.hif:
             print("ADD PASS 1")
@@ -1015,9 +946,7 @@ class Classifier:
         certainty = None
         CT = transaction.categorized_transfers
         if (
-            len(CT[Transfer.SENT]) >= 1
-            and not len(CT[Transfer.BURNED])
-            and not len(CT[Transfer.NFT_OUT])
+            len(CT[Transfer.SENT]) >= 1 and not CT[Transfer.BURNED] and not CT[Transfer.NFT_OUT]
         ):  # and not len(CT[Transfer.MINTED_NFT]):
             do_add = False
             if transaction.hash == self.chain.hif:
@@ -1025,7 +954,7 @@ class Classifier:
             if (
                 self.check_sig(sig, "add")
                 and self.check_sig(sig, "liquidity")
-                and not len(CT[Transfer.MINTED_NFT])
+                and not CT[Transfer.MINTED_NFT]
             ):
                 do_add = True
                 if transaction.hash == self.chain.hif:
@@ -1047,7 +976,6 @@ class Classifier:
                 len(CT[Transfer.RECEIVED]) >= 1 and len(CT[Transfer.SENT]) >= 2
             ):  # issued liquidity pool token from the same address we deposited to
 
-                # do_add = True
                 received_addresses = set()
                 sent_addresses = set()
                 for received_transfer in CT[Transfer.RECEIVED]:
@@ -1063,35 +991,28 @@ class Classifier:
                     if transaction.hash == self.chain.hif:
                         print("ADD PASS 4")
                     do_add = True
-                    # if sent_transfer.to != CT[Transfer.RECEIVED][0].fr:
-                    #     do_add = False
-                    #     break
 
             if do_add:
                 if self.check_sig(sig, "addliquidity"):
                     self.add_liquidity(transaction)
                     return Category(Category.ADD_LIQUIDITY, certainty=10)
-                else:
-                    if len(CT[Transfer.SENT]) >= 2 or not self.check_sig(sig, "execute"):
-                        # if 1:
-                        if certainty is None:
-                            certainty = 5
-                        self.add_liquidity(transaction)
-                        return Category(Category.ADD_LIQUIDITY, certainty=certainty)
+
+                if len(CT[Transfer.SENT]) >= 2 or not self.check_sig(sig, "execute"):
+                    if certainty is None:
+                        certainty = 5
+                    self.add_liquidity(transaction)
+                    return Category(Category.ADD_LIQUIDITY, certainty=certainty)
+        return None
 
     def cl_remove(self, transaction, sig):
         if transaction.total_fee == 0 and self.chain.name != "Polygon":
-            return
+            return None
         if sig is not None and "migrate" in sig:
-            return
+            return None
         if self.check_sig(sig, "swap"):
-            return
+            return None
         CT = transaction.categorized_transfers
-        if (
-            len(CT[Transfer.RECEIVED]) >= 1
-            and not len(CT[Transfer.MINTED])
-            and not len(CT[Transfer.NFT_IN])
-        ):
+        if len(CT[Transfer.RECEIVED]) >= 1 and not CT[Transfer.MINTED] and not CT[Transfer.NFT_IN]:
             do_remove = False
             max_certainty = 10
             if len(CT[Transfer.BURNED]) == 1:  # burned liquidity pool token
@@ -1105,23 +1026,15 @@ class Classifier:
                     print("cl_remove 1")
                 destination = CT[Transfer.STAKED_LP][0].to
                 token = CT[Transfer.STAKED_LP][0].what
-                # pools_by_token = self.chain.pools.receipt_token_list()
-
-                # if token in pools_by_token:
-                # pbt = pools_by_token[token]
                 pbt = self.chain.pools.pool_list("O", token)
-
-                # pools_by_address = self.chain.pools.pool_address_list()
-                # if destination in pools_by_address:
-                #     if len(pools_by_address[destination].intersection(pbt)):
-                #         do_remove = True
 
                 if len(pbt):
                     pba = self.chain.pools.pool_list("A", destination)
                     if len(pbt.intersection(pba)):
                         do_remove = True
 
-                    else:  # returned LP token to a different address, but got back everything matching an existing
+                    else:  # returned LP token to a different address, but got back everything
+                        # matching an existing
                         for transfer in CT[Transfer.RECEIVED]:
                             in_token = self.chain.unwrap(transfer.what)
                             if transaction.hash == self.chain.hif:
@@ -1131,8 +1044,6 @@ class Classifier:
                                     print("cl_remove 4", self.chain.pools.pool_list("I", in_token))
                                 pbt = pbt.intersection(self.chain.pools.pool_list("I", in_token))
 
-                                # pbt = pbt.intersection(self.chain.pools.map['I'][in_token])
-
                         if len(pbt):
                             max_certainty = 3
                             do_remove = True
@@ -1140,21 +1051,14 @@ class Classifier:
             if do_remove:
                 if self.remove_liquidity(transaction):
                     return Category(Category.REMOVE_LIQUIDITY, certainty=max_certainty)
-                else:
-                    return Category(Category.REMOVE_LIQUIDITY, certainty=3)
-                # if self.check_sig(sig, 'removeliquidity'):
-                #     if self.remove_liquidity(transaction):
-                #         return Category(Category.REMOVE_LIQUIDITY, certainty=10)
-                # else:
-                #     if len(CT[Transfer.RECEIVED]) == 2:
-                #         if self.remove_liquidity(transaction):
-                #             return Category(Category.REMOVE_LIQUIDITY, certainty=5)
+                return Category(Category.REMOVE_LIQUIDITY, certainty=3)
+        return None
 
     def cl_stake(self, transaction, sig):
         if transaction.total_fee == 0 and self.chain.name != "Polygon":
-            return
+            return None
         if self.check_sig(sig, "repay") or self.check_sig(sig, "swap"):
-            return
+            return None
         CT = transaction.categorized_transfers
         if len(CT[Transfer.STAKED_LP]):
             # returned token to the pool?
@@ -1163,35 +1067,24 @@ class Classifier:
             destination = CT[Transfer.STAKED_LP][0].to
             token = CT[Transfer.STAKED_LP][0].what
 
-            # if transaction.hash == self.chain.hif:
-            #     log('token',token,'pools_by_token',pools_by_token[token])
-            #     log('destination',destination,'pools_by_address', pools_by_address[destination])
-            #     log('intersect',pools_by_address[destination].intersection(pools_by_token[token]))
-
-            # pools_by_token = self.chain.pools.receipt_token_list()
-            # pools_by_address = self.chain.pools.pool_address_list()
-            # if destination in pools_by_address and token in pools_by_token:
-            #     if len(pools_by_address[destination].intersection(pools_by_token[token])):
-            #         return
             pbt = self.chain.pools.pool_list("O", token)
             pba = self.chain.pools.pool_list("A", destination)
             if len(pbt.intersection(pba)):
                 if transaction.hash == self.chain.hif:
                     print("cl_stake 2 BAIL")
-                return
+                return None
 
             if transaction.in_cnt == 0:
                 if transaction.hash == self.chain.hif:
                     print("cl_stake 3")
                 self.add_liquidity(transaction)
                 return Category(Category.STAKE, certainty=5)
-            elif len(CT[Transfer.REWARDS_LP]) or len(
-                CT[Transfer.UNVAULTED]
-            ):  # claim reward as well?
+            if len(CT[Transfer.REWARDS_LP]) or len(CT[Transfer.UNVAULTED]):  # claim reward as well?
                 if transaction.hash == self.chain.hif:
                     print("cl_stake 4")
                 self.add_liquidity(transaction)
                 return Category(Category.STAKE, certainty=5)
+        return None
 
     def cl_vault(self, transaction, sig):
         if transaction.hash == self.chain.hif:
@@ -1215,13 +1108,13 @@ class Classifier:
                 print("cl_vault XI1")
             self.add_liquidity(transaction)
             return Category(Category.ADD_LIQUIDITY_NO_RECEIPT, certainty=3)
-            # return Category(Category.STAKE, certainty=0)
+        return None
 
     def cl_unstake(self, transaction, sig):
         if transaction.total_fee == 0 and self.chain.name != "Polygon":
-            return
+            return None
         if sig is not None and "borrow" in sig:
-            return
+            return None
         if self.check_sig(sig, "exit"):
             cat = Category.EXIT_VAULT
         else:
@@ -1231,12 +1124,13 @@ class Classifier:
         if len(CT[Transfer.UNSTAKED_LP]):
             if self.remove_liquidity(transaction, pool_type=Pool.STAKING):
                 return Category(cat, certainty=5)
+        return None
 
     def cl_unvault(self, transaction, sig):
         if transaction.total_fee == 0 and self.chain.name != "Polygon":
-            return
+            return None
         if sig is not None and "borrow" in sig:
-            return
+            return None
 
         if self.check_sig(sig, "exit"):
             cat = Category.EXIT_VAULT
@@ -1244,11 +1138,11 @@ class Classifier:
             cat = Category.REMOVE_LIQUIDITY_NO_RECEIPT
 
         CT = transaction.categorized_transfers
-        if len(CT[Transfer.UNSTAKED_LP]):
-            return
+        if CT[Transfer.UNSTAKED_LP]:
+            return None
 
         if (
-            len(CT[Transfer.UNVAULTED])
+            CT[Transfer.UNVAULTED]
             and not self.check_sig(sig, "deposit")
             and not self.check_sig(sig, "harvest")
             and len(CT[Transfer.FROM_BRIDGE]) == 0
@@ -1256,14 +1150,9 @@ class Classifier:
             if transaction.hash == self.chain.hif:
                 print("cl_unvault xi1")
 
-            # cnt_unvault = transaction.lookup({'what': CT[Transfer.UNVAULTED][0].what},count_only=True)
-            # if cnt_unvault > 1:
-            #     return
-
             if self.remove_liquidity(transaction, pool_type=Pool.VAULT):
                 return Category(cat, certainty=5)
-            else:
-                return
+            return None
 
         # did we receive tokens from a different address than the deposited?
         if (
@@ -1294,8 +1183,7 @@ class Classifier:
                         if transaction.hash == self.chain.hif:
                             print("cl_unvault XI3", pools)
                         return Category(cat, certainty=3)
-                    else:
-                        return
+        return None
 
     def cl_borrow(self, transaction, sig):
         CT = transaction.categorized_transfers
@@ -1304,6 +1192,7 @@ class Classifier:
             for transfer in minted:
                 transfer.treatment = "ignore"
             return Category(Category.BORROW, certainty=5)
+        return None
 
     def cl_repay(self, transaction, sig):
         CT = transaction.categorized_transfers
@@ -1318,8 +1207,9 @@ class Classifier:
                     transfer.treatment = "income"
                 claim = True
             return Category(Category.REPAY, certainty=5, claim_reward=claim)
+        return None
 
-    def cl_spam(self, transaction, sig):
+    def cl_spam(self, transaction, _sig):
         CT = transaction.categorized_transfers
         received = CT[Transfer.RECEIVED]
 
@@ -1341,15 +1231,15 @@ class Classifier:
         ):
             for tr in received:
                 if tr.what in self.spam_data["confirmed_not_spam"]:
-                    return
+                    return None
                 if tr.fr in self.spam_data["previously_interacted"] or transaction.my_address(
                     tr.fr
                 ):
-                    return
+                    return None
                 if tr.coingecko_id is not None:
-                    return
+                    return None
                 if tr.rate_found != 0:
-                    return
+                    return None
                 clog(
                     transaction,
                     "spam? 1",
@@ -1375,7 +1265,7 @@ class Classifier:
                             ]["rate"][1]
                             clog(transaction, "floor", floor)
                             if floor > 1.0:
-                                return
+                                return None
                         except:
                             pass
 
@@ -1389,25 +1279,27 @@ class Classifier:
                     processed_tokens.add(tok)
 
             return Category(Category.SPAM, certainty=10)
+        return None
 
-    def cl_mint_nft(self, transaction, sig):
+    def cl_mint_nft(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.MINTED_NFT]) > 0:
             if len(CT[Transfer.SENT]) > 0:
                 transaction.balanced = True
 
             return Category(Category.MINT_NFT, certainty=5)
+        return None
 
-    def cl_compound(self, transaction, sig):
+    def cl_compound(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.SENT]) == 1 and len(CT[Transfer.RECEIVED]) == 1:
             if CT[Transfer.SENT][0].what == CT[Transfer.RECEIVED][0].what:
-                # print('comp div',CT[Transfer.SENT][0].amount / CT[Transfer.RECEIVED][0].amount)
                 ratio = CT[Transfer.SENT][0].amount / CT[Transfer.RECEIVED][0].amount
-                if ratio > 0.5 and ratio <= 1:
+                if 0.5 > ratio <= 1:
                     return Category(Category.COMPOUND, certainty=5)
+        return None
 
-    def NFT_check(self, transaction, sig):
+    def NFT_check(self, transaction, _sig):
         found_count = transaction.lookup({"type": 4}, count_only=True) + transaction.lookup(
             {"type": 5}, count_only=True
         )
@@ -1415,7 +1307,7 @@ class Classifier:
             return True
         return False
 
-    def cl_uniswap_all(self, transaction, sig):
+    def cl_uniswap_all(self, transaction, _sig):
         clog(transaction, "uniswap cl_uniswap_all")
 
         CT = transaction.categorized_transfers
@@ -1424,10 +1316,10 @@ class Classifier:
             len(transaction.amounts) == 2
             and len(CT[Transfer.SENT]) >= 1
             and len(CT[Transfer.RECEIVED]) >= 1
-            and not len(CT[Transfer.MINTED])
-            and not len(CT[Transfer.BURNED])
-            and not len(CT[Transfer.NFT_IN])
-            and not len(CT[Transfer.NFT_OUT])
+            and not CT[Transfer.MINTED]
+            and not CT[Transfer.BURNED]
+            and not CT[Transfer.NFT_IN]
+            and not CT[Transfer.NFT_OUT]
         ):
             return Category(Category.SWAP, certainty=10, protocol="UNISWAP V3")
 
@@ -1436,8 +1328,6 @@ class Classifier:
             if tr.to == "network" or tr.amount == 0:
                 continue
             symbol = tr.symbol
-            if symbol == "ETH":
-                qw = tr.to
             if symbol == "WETH":
                 symbol = "ETH"
             if tr.token_nft_id is None:
@@ -1474,10 +1364,9 @@ class Classifier:
             return Category(
                 Category.ADD_LIQUIDITY_NO_RECEIPT, certainty=certainty, protocol="UNISWAP V3"
             )
-        else:
-            return Category(
-                Category.REMOVE_LIQUIDITY_NO_RECEIPT, certainty=certainty, protocol="UNISWAP V3"
-            )
+        return Category(
+            Category.REMOVE_LIQUIDITY_NO_RECEIPT, certainty=certainty, protocol="UNISWAP V3"
+        )
 
     def find_outgoing_bridge_match(self, transaction, transfer, protocol=None):
         outgoing_timestamps = list(self.outgoing_transfers.keys())
@@ -1486,7 +1375,8 @@ class Classifier:
             # print(outgoing_ts,transaction.ts)
             if (
                 outgoing_ts > transaction.ts + 30
-            ):  # leeway for some chains that have wrong scanner times. See also "timing_adjustment" in user.py
+            ):  # leeway for some chains that have wrong scanner times.
+                # See also "timing_adjustment" in user.py
                 break
             if outgoing_ts < transaction.ts - 86400 * 7:
                 continue
@@ -1494,14 +1384,10 @@ class Classifier:
             if self.outgoing_transfers[outgoing_ts]["matched"]:
                 continue
 
-            tdiff = transaction.ts - outgoing_ts
-
             candidate = self.outgoing_transfers[outgoing_ts]["transfer"]
             candidate_tx = self.outgoing_transfers[outgoing_ts]["transaction"]
 
             clog(transaction, "bridge 3")
-            # print("CANDIDATE",candidate)
-            # print(candidate.symbol, transfer.symbol, candidate.amount, transfer.amount)
             proceed = 0
             if (
                 transaction.chain.name != candidate_tx.chain.name
@@ -1514,7 +1400,7 @@ class Classifier:
                     or candidate.symbol == "W" + transfer.symbol
                     or (
                         candidate.coingecko_id == transfer.coingecko_id
-                        and transfer.coingecko_id != None
+                        and transfer.coingecko_id is not None
                     )
                 ):
                     proceed = 1
@@ -1576,7 +1462,7 @@ class Classifier:
                         return True, certainty
         return False, 0
 
-    def cl_multichain_all(self, transaction, sig):
+    def cl_multichain_all(self, transaction, _sig):
         CT = transaction.categorized_transfers
         send_to_bridge = 0
         receive_from_bridge = 0
@@ -1632,7 +1518,6 @@ class Classifier:
                     "matched": False,
                     "transaction": transaction,
                 }
-                # return Category(Category.WITHDRAW_TO_BRIDGE, certainty=10, protocol='MULTICHAIN')
 
             if receive_from_bridge == 1 and send_to_bridge == 0:
                 certainty = 0
@@ -1647,8 +1532,9 @@ class Classifier:
                 return Category(
                     Category.DEPOSIT_FROM_BRIDGE, certainty=certainty, protocol="MULTICHAIN"
                 )
+        return None
 
-    def cl_compound_repaybehalf(self, transaction, sig):
+    def cl_compound_repaybehalf(self, transaction, _sig):
         CT = transaction.categorized_transfers
         for tr in CT[Transfer.SENT]:
             tr.treatment = "repay"
@@ -1656,14 +1542,14 @@ class Classifier:
             tr.treatment = "income"
         return Category(Category.REPAY, certainty=10, protocol="COMPOUND")
 
-    def cl_tether_transfer(self, transaction, sig):
-        CT = transaction.categorized_transfers
+    def cl_tether_transfer(self, transaction, _sig):
         if len(transaction.lookup({"from_me": True, "symbol": "USDT"})):
             return Category(Category.WITHDRAW, certainty=10, protocol="TETHER")
         if len(transaction.lookup({"to_me": True, "symbol": "USDT"})):
             return Category(Category.DEPOSIT, certainty=10, protocol="TETHER")
+        return None
 
-    def cl_raydium_staking(self, transaction, sig):
+    def cl_raydium_staking(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.SENT]) == 1 and len(CT[Transfer.RECEIVED]) == 0:
             tr = CT[Transfer.SENT][0]
@@ -1685,8 +1571,9 @@ class Classifier:
                 else:
                     cat = Category(Category.CLAIM, certainty=5, protocol="RAYDIUM")
             return cat
+        return None
 
-    def cl_tulip_farms(self, transaction, sig):
+    def cl_tulip_farms(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.SENT]) in [1, 2] and len(CT[Transfer.RECEIVED]) == 0:
             for tr in CT[Transfer.SENT]:
@@ -1706,8 +1593,9 @@ class Classifier:
             for tr in CT[Transfer.RECEIVED]:
                 tr.vault_id = "Tulip " + tr.fr[:6]
             return Category(Category.EXIT_VAULT, certainty=5, protocol="TULIP")
+        return None
 
-    def cl_francium_farms(self, transaction, sig):
+    def cl_francium_farms(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.SENT]) in [1, 2] and len(CT[Transfer.RECEIVED]) == 0:
             for tr in CT[Transfer.SENT]:
@@ -1718,11 +1606,13 @@ class Classifier:
             for tr in CT[Transfer.RECEIVED]:
                 tr.vault_id = "Francium " + tr.fr[:6]
             return Category(Category.EXIT_VAULT, certainty=5, protocol="FRANCIUM")
+        return None
 
-    def cl_jupiter_swap(self, transaction, sig):
+    def cl_jupiter_swap(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.RECEIVED]) >= 1 and len(CT[Transfer.SENT]) >= 1:
             return Category(Category.SWAP, certainty=5, protocol="JUPITER")
+        return None
 
     def cl_mango(self, transaction, sig):
         CT = transaction.categorized_transfers
@@ -1741,8 +1631,9 @@ class Classifier:
             and (len(CT[Transfer.SENT]) == 1 or self.check_sig(sig, "createaccount"))
         ):
             return Category(Category.ADD_LIQUIDITY_NO_RECEIPT, certainty=5, protocol="MANGO")
+        return None
 
-    def cl_magiceden_v1(self, transaction, sig):
+    def cl_magiceden_v1(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.SENT]) == 0:
             for tr in CT[Transfer.RECEIVED]:
@@ -1756,8 +1647,9 @@ class Classifier:
                 tr.vault_id = "Magic Eden V1"
                 tr.treatment = "deposit"
             return Category(Category.ADD_LIQUIDITY_NO_RECEIPT, certainty=3, protocol="MAGIC EDEN")
+        return None
 
-    def cl_magiceden_v2(self, transaction, sig):
+    def cl_magiceden_v2(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.RECEIVED]) == 1 and len(CT[Transfer.SENT]) == 0:
             return Category(
@@ -1765,8 +1657,9 @@ class Classifier:
             )
         if len(CT[Transfer.RECEIVED]) == 0 and len(CT[Transfer.SENT]) == 1:
             return Category(Category.ADD_LIQUIDITY_NO_RECEIPT, certainty=5, protocol="MAGIC EDEN")
+        return None
 
-    def cl_solanart(self, transaction, sig):
+    def cl_solanart(self, transaction, _sig):
         CT = transaction.categorized_transfers
         if len(CT[Transfer.SENT]) == 0:
             for tr in CT[Transfer.RECEIVED]:
@@ -1778,9 +1671,9 @@ class Classifier:
                 tr.vault_id = "Solanart"
                 tr.treatment = "deposit"
             return Category(Category.ADD_LIQUIDITY_NO_RECEIPT, certainty=3, protocol="Solanart")
+        return None
 
-    def cl_serum_all(self, transaction, sig):
-
+    def cl_serum_all(self, transaction, _sig):
         CT = transaction.categorized_transfers
         log(transaction.hash, "in cl_serum_all", len(CT[Transfer.RECEIVED]), len(CT[Transfer.SENT]))
         if len(CT[Transfer.RECEIVED]) == 1 and len(CT[Transfer.SENT]) == 2:
@@ -1805,23 +1698,7 @@ class Classifier:
 
             self.prior_withdraw[vault_id] = transaction
             return Category(Category.EXIT_VAULT, certainty=3, protocol="SERUM")
-
-        # if self.prior_transaction is None:
-        #     return
-        #
-        # prior = self.prior_transaction
-
-        # if transaction.ts - prior.ts < 120:
-        #     cp_name = cp_name_prior = None
-        #     if len(transaction.counter_parties):
-        #         cp_name = list(transaction.counter_parties.values())[0][0]
-        #     if len(prior.counter_parties):
-        #         cp_name_prior = list(prior.counter_parties.values())[0][0]
-        #     if cp_name is not None and cp_name == cp_name_prior:
-        #         CT_prior = prior.categorized_transfers
-        #         if len(CT[Transfer.SENT]) == 0 and len(CT[Transfer.RECEIVED]) in [1,2,3] and len(CT_prior[Transfer.SENT]) in [1,2] and len(CT_prior[Transfer.RECEIVED]) == 0:
-        #             prior.type = Category(Category.MULTISWAP, certainty=5, protocol='SERUM')
-        #             return Category(Category.MULTISWAP, certainty=5, protocol='SERUM')
+        return None
 
     def process_classification(self, transaction):
         if isinstance(transaction.type, Category):
@@ -1844,22 +1721,15 @@ class Classifier:
             if transfer.treatment is None:
                 transfer.treatment = treatment
 
-        #
-        # if transaction.hash == transaction.chain.hif:
-        #     print("proc clf",cp_name,transaction.interacted)
-
         if not isinstance(transaction.type, Category):
             if transaction.fee_transfer is not None:
                 set_treatment(transaction.fee_transfer, "fee")
-            return
+            return None
 
         cat = transaction.type.category
         CT = transaction.categorized_transfers
-        deductible_fee = True
 
-        # clog(transaction,"in process_classification","category",cat,"sent transfer",CT[Transfer.SENT])
         if cat == Category.FEE:
-            deductible_fee = False
             for t in CT[Transfer.SENT]:
                 set_treatment(t, "fee")
             for t in transaction.transfers.values():
@@ -1901,7 +1771,6 @@ class Classifier:
             Category.STAKE,
             Category.UNSTAKE,
         ]:
-            deductible_fee = False
             for t in CT[Transfer.RECEIVED]:
                 set_treatment(t, "withdraw")
             for t in CT[Transfer.SENT]:
@@ -1914,12 +1783,10 @@ class Classifier:
                 set_treatment(t, "deposit")
 
         elif cat in [Category.EXIT_VAULT]:
-            deductible_fee = False
             for t in CT[Transfer.RECEIVED]:
                 set_treatment(t, "exit")
 
         elif cat in [Category.BORROW, Category.REPAY]:
-            deductible_fee = False
             for t in CT[Transfer.RECEIVED]:
                 set_treatment(t, "borrow")
             for t in CT[Transfer.SENT]:
@@ -1949,10 +1816,8 @@ class Classifier:
 
         if transaction.fee_transfer is not None:
             set_treatment(transaction.fee_transfer, "fee")
-            # if deductible_fee:
-            #     set_treatment(transaction.fee_transfer,'fee')
-            # else:
-            #     set_treatment(transaction.fee_transfer, 'sell')
+
+        return None
 
     def classify_upload(self, transaction):
         function = transaction.function
@@ -1960,9 +1825,6 @@ class Classifier:
         received_nonzero = transaction.lookup({"to_me": True, "amount_non_zero": True})
         sold = transaction.lookup({"to": "counter-trader", "amount_non_zero": True})
         bought = transaction.lookup({"fr": "counter-trader", "amount_non_zero": True})
-
-        # fee transfers (the ones with synthetic=fee) aren't mapped
-        # additional_fees = transaction.lookup({'from_me': True, 'to':transaction.chain.name+ ' fee', 'amount_non_zero': True})
 
         transaction.categorized_transfers = {
             Transfer.RECEIVED: received_nonzero,
@@ -2091,7 +1953,7 @@ class Classifier:
                     if rtr.what == str.what:
                         ft = str.what
                         break
-            if ft != None:
+            if ft is not None:
                 if function == "realized-profit":
                     for transfer in received_nonzero:
                         if transfer.what == ft:

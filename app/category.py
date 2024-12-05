@@ -1,4 +1,4 @@
-from .sqlite import SQLite
+# -*- coding: utf-8 -*-
 
 
 class Category:
@@ -90,7 +90,7 @@ class Category:
         self.protocol = protocol
 
     def __str__(self):
-        if self.custom_type != None:
+        if self.custom_type is not None:
             return self.custom_type
 
         rv = ""

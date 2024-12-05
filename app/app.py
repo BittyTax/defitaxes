@@ -1,38 +1,23 @@
-# from numpy import hstack
-# import sys
-# sys.path.append('/home/ubuntu/.local/lib/python3.6/site-packages')
-# import numpy
-
-import atexit
-import copy
+# -*- coding: utf-8 -*-
 import html
 import json
 import os
-import pickle
-import secrets
-import sys
 import threading
 import time
 import traceback
-from collections import defaultdict
 
-import pip
-import redis
 from dotenv import load_dotenv
-from flask import Flask, g, render_template, request, send_file, session
+from flask import Flask, render_template, request, send_file
 
 from .chain import Chain
 from .coingecko import Coingecko
 from .fiat_rates import Twelve
 from .redis_wrap import Redis
 from .signatures import Signatures
-from .solana import Solana
 from .sqlite import SQLite
 from .tax_calc import Calculator
-
-# from .category import Typing
 from .user import Import, User
-from .util import ProgressBar, is_ethereum, log, log_error, normalize_address, persist, sql_in
+from .util import ProgressBar, log, log_error, normalize_address, persist, sql_in
 
 FLASK_ENV = os.environ.get("FLASK_ENV")
 
@@ -44,7 +29,8 @@ os.environ["app_path"] = "/home/ubuntu/hyperboloid"
 
 
 def init():
-    os.chdir(os.environ.get("app_path")) if FLASK_ENV == "production" else False
+    if FLASK_ENV == "production":
+        os.chdir(os.environ.get("app_path"))
     load_dotenv()
     log("env check", os.environ.get("api_key_etherscan"), filename="env_check.txt")
 
@@ -56,7 +42,6 @@ def main():
     address_cookie = request.cookies.get("address")
     address = ""
     if address_cookie is not None:
-        # log("address_cookie",address_cookie)
         if "|" in address_cookie:
             address, _ = address_cookie.split("|")
         else:
@@ -66,7 +51,6 @@ def main():
         persist(primary)
 
     blockchain_count = len(Chain.CONFIG)
-    # log('cookie',address,chain_name)
     return render_template(
         "main.html",
         title="Blockchain transactions to US tax form",
@@ -152,20 +136,13 @@ def last_update():
         persist(primary)
         data = {"last_transaction_timestamp": 0, "update_import_needed": False}
     else:
-        # redis = Redis(primary, None)
-        # qpos = redis.qpos()
-        # if qpos is not None:
-        #     data = {'queue_position': qpos}
-        # else:
         persist(primary)
         user = User(primary)
         update_import_needed = False
         try:
             last = last_update_inner(user)
-            # update_import_needed = user.check_info('update_import_needed')
             data_version = float(user.get_info("data_version"))
             log("version comp", data_version, user.version)
-            # if data_version != user.version:
             if user.version - data_version >= 0.1:
                 update_import_needed = True
         except:
@@ -180,7 +157,7 @@ def last_update_inner(user):
     query = "SELECT max(last_update) FROM user_addresses WHERE address='" + user.address + "'"
     rows = user.db.select(query)
     log("last_update_inner", rows)
-    if len(rows) == 0 or rows[0][0] == None:
+    if len(rows) == 0 or rows[0][0] is None:
         return 0
     return int(rows[0][0])
 
@@ -190,16 +167,6 @@ def process():
     init()
     address = request.args.get("address")
     primary = normalize_address(address)  # Address(address)
-    # chain_name = request.args.get('chain')
-    uid = request.args.get("uid")
-    # import_new = int(request.args.get('import_new'))
-
-    # U = Users()
-    # primary = U.lookup(address)
-    # if primary is None:
-    #     primary = address
-    # all_previous_addresses = U.all_addresses(primary)
-    # U.disconnect()
 
     persist(primary)
     redis = Redis(primary)
@@ -210,19 +177,12 @@ def process():
 
     redis.start()
 
-    # progress_bar_update(address, 'Starting', 0)
-
     active_address = None
     pb = None
     try:
-        # accepted_chains_str = request.args.get('accepted_chains')
-        accepted_chains_str = None
-
         user = User(primary, do_logging=False)
         all_previous_addresses = list(user.all_addresses.keys())
         log("all_previous_addresses 1", all_previous_addresses)
-        # if len(all_previous_addresses) == 0:
-        #     all_previous_addresses = [primary]
 
         all_chains = {}
         for chain_name in Chain.list():
@@ -256,8 +216,6 @@ def process():
                     import_addresses = all_previous_addresses
             else:
                 import_addresses = import_addresses.split(",")
-        # else:
-        #     import_addresses = [primary]
         elif len(all_previous_addresses) == 0:
             import_addresses = [primary]
         else:
@@ -283,22 +241,6 @@ def process():
                     if user.all_addresses[address][chain_name]["used"]:
                         all_chains[chain_name]["display_addresses"].add(address)
 
-        # display_addresses = request.args.get('display_addresses')
-        # display_addresses = None
-        # if display_addresses is not None and display_addresses != '':
-        #     display_addresses = display_addresses.split(",")
-        # else:
-        #     #if no explicit display address request, get the ones displayed previously
-        #     display_addresses = []
-        #     for previous_address in all_previous_addresses:
-        #         for chain_name, chain_data in all_chains.items():
-        #             chain = chain_data['chain']
-        #             if chain.check_validity(previous_address):
-        #                 if user.check_address_used(previous_address,chain_name):
-        #                     display_addresses.append(previous_address)
-        #                     break
-
-        # everything that's imported must be displayed
         for address in import_addresses:
             address = normalize_address(address)
             if address not in all_previous_addresses:
@@ -308,24 +250,6 @@ def process():
                 chain = chain_data["chain"]
                 if chain.check_validity(address):
                     chain_data["display_addresses"].add(address)
-
-            # if address not in display_addresses:
-            #     display_addresses.append(address)
-
-        # if len(display_addresses) == 0:
-        #     display_addresses = all_previous_addresses
-
-        # everything that's displayed must have been previously imported
-        # relevant_addresses = []
-        # for address in display_addresses:
-        #     address = normalize_address(address)
-        #     if address not in import_addresses and address not in all_previous_addresses:
-        #         log("appending display address",address,"to import addresses", "previous", all_previous_addresses)
-        #         import_addresses.append(address)
-        #     relevant_addresses.append(normalize_address(address))
-        #
-        # user.relevant_addresses = relevant_addresses
-        # user.all_addresses = all_previous_addresses
 
         all_display_addresses = set()
         for chain_name, chain_data in all_chains.items():
@@ -337,7 +261,6 @@ def process():
                 all_display_addresses.add(address)
         all_display_addresses = list(all_display_addresses)
 
-        # chain_list = Chain.list()
         log("req args", request.args)
         log("all_previous_addresses 2", all_previous_addresses)
         if "my account" in import_addresses:
@@ -347,53 +270,19 @@ def process():
 
         import_new = len(import_addresses) > 0
 
-        # if import_new:
-        #     display_chains = all_chains
-        # if accepted_chains_str is None or len(accepted_chains_str) == 0: #not specified -- use previously used chains for these addresses
-        #     display_chains = {}
-        #     for chain_name, chain_data in all_chains.items():
-        #         chain = chain_data['chain']
-        #         for address in display_addresses:
-        #             if chain.check_validity(address):
-        #                 if user.check_address_used(address, chain_name):
-        #                     display_chains[chain_name] = all_chains[chain_name]
-        #                     break
-        # else:
-        #     accepted_chains = accepted_chains_str.split(",")
-        #     display_chains = {}
-        #     for chain_name in Chain.list():
-        #         if chain_name in accepted_chains:
-        #             display_chains[chain_name] = all_chains[chain_name]
-        #
-        # if len(display_chains) == 0:
-        #     display_chains = all_chains
-        #
-        # log('display chains', display_chains)
-
         S = Signatures()
-
-        # chain = Chain.from_name(chain_name,address_db,address)
 
         pb = ProgressBar(redis)
         pb.set("Starting", 0)
         t = time.time()
 
         user.get_custom_rates()
-        #
-        # try:
-        #     Coingecko.init_from_cache(user)
-        # except:
-        #     log("coingecko cache fail")
-        #     import_new = True
-        #     import_addresses = all_display_addresses
-
         non_fatal_errors = set()
 
         use_derived = False
         force_forget_derived = user.check_info("force_forget_derived")
         log("force_forget_derived", force_forget_derived)
         if import_new:
-            # user.set_info('update_import_needed',0)
             user.set_info("data_version", user.version)
             user.start_import(all_chains)
 
@@ -403,7 +292,6 @@ def process():
             pb.update("Updating FIAT rates", 0.1)
             user.fiat_rates.download_all_rates()
 
-            # chain_sets_to_check = defaultdict(dict)
             for chain_name, chain_data in all_chains.items():
                 chain = chain_data["chain"]
                 chain_data["addresses_to_check"] = (
@@ -421,8 +309,6 @@ def process():
                         chain_data["import_addresses"].append(active_address)
                     else:
                         chain_data["addresses_to_check"][active_address] = False
-
-                        # chain_sets_to_check[chain_name][active_address] = False
 
             # called in threads, to check in parallel against all scanners
             def check_chain_for_addresses(chain_data):
@@ -501,39 +387,6 @@ def process():
                             user.set_address_used(checked_address, chain_name)
 
                 log("import addresses per chain", chain_name, chain_data["import_addresses"])
-
-                # chain = chain_data['chain']
-                #
-                # for active_address in import_addresses:
-                #     active_address = normalize_address(active_address)
-                #     if not chain.check_validity(active_address):
-                #         continue
-                #
-                #     log('importing address',chain_name,active_address)
-                #
-                #     pb.update('Checking ' + chain_name + ' for ' + active_address, 5. / (len(all_chains) * len(import_addresses)))
-                #     present = False
-                #     if chain_name not in faulty_chains:
-                #         chain.progress_bar = pb
-                #         # present = user.check_info(chain_name + "_" + active_address + "_presence")
-                #         present = user.check_address_present(active_address,chain_name)
-                #
-                #         if not present:
-                #             try:
-                #                 present = chain.check_presence(active_address)
-                #                 log('present?',present)
-                #             except:
-                #                 present = False
-                #                 faulty_chains.append(chain_name)
-                #                 err = "We were not able to retrieve transactions from "+chain_name+", "+chain.domain+" might be down or API non-functional. Transactions from "+chain.name+\
-                #                       " may be missing or outdated."
-                #                 non_fatal_errors.add(err)
-                #     if present:
-                #         chain_data['import_addresses'].append(active_address)
-                #         user.set_address_present(active_address,chain_name)
-                #     if chain_name in display_chains:
-                #         user.set_address_used(active_address,chain_name)
-
         else:
             previous_use = set()
             for address in user.all_addresses:
@@ -613,14 +466,12 @@ def process():
                                 address=active_address,
                                 debug_info=traceback.format_exc(),
                             )
-                            # chain_data['errors'][active_address] = set(["failed to get transactions, code problem"])
                             continue
                         log("retrieved transactions", chain.name, active_address, len(transactions))
                         chain.correct_transactions(
                             active_address, transactions, 2.0 / total_request_count
                         )
                         current_tokens = chain.get_current_tokens(active_address)
-                        # chain_data['transactions'].update(transactions)  #PROBLEM IF CROSS-WALLET TRANSFERS! Newly-downloaded overwrite previous. Need to merge transfers by only adding new ones.
                         for txhash, transaction in transactions.items():
                             log("txhash proc", txhash)
                             if txhash not in chain_data["transactions"]:
@@ -630,8 +481,6 @@ def process():
                                     transaction, chain_data["transactions"][txhash]
                                 )
 
-                        # if len(errors) > 0:
-                        #     chain_data['errors'][active_address] = errors
                         if current_tokens is not None:
                             chain_data["current_tokens"][active_address] = current_tokens
                             log(
@@ -671,7 +520,6 @@ def process():
             for chain_name, chain_data in all_chains.items():
                 chain_data["transactions"] = {}
                 chain_data["current_tokens"] = {}
-                # chain_data['errors'] = {}
                 if len(chain_data["import_addresses"]) > 0 and not chain_data["is_upload"]:
                     log("calling threaded_transaction_processing", chain_name)
                     t = threading.Thread(target=threaded_transaction_processing, args=(chain_data,))
@@ -685,8 +533,6 @@ def process():
 
             def threaded_balances(all_chains):
                 user.get_thirdparty_data(all_chains, progress_bar=pb)  # alloc 5
-
-            # pb.set('Loading additional data', 40)
 
             t_balances = threading.Thread(target=threaded_balances, args=(all_chains,))
             t_balances.start()
@@ -756,7 +602,6 @@ def process():
                     chain_db_writes = chain.update_progenitors(
                         filtered_counterparty_list, 10.0 / total_request_count
                     )  # alloc 10
-                    # all_db_writes.extend(chain_db_writes)
                     chain_data["progenitor_db_writes"] = chain_db_writes
                     log(
                         "new writes",
@@ -800,7 +645,7 @@ def process():
                 if "progenitor_db_writes" in chain_data:
                     all_db_writes.extend(chain_data["progenitor_db_writes"])
 
-            if len(all_db_writes):
+            if all_db_writes:
                 insert_cnt = 0
                 address_db = SQLite("addresses")
                 for write in all_db_writes:
@@ -830,8 +675,6 @@ def process():
             log("needed_token_times", needed_token_times)
 
             C.init_from_db_2(all_chains, needed_token_times, progress_bar=pb)
-
-            # C.init_from_db(all_chains, contract_dict, progress_bar=pb) #alloc 17
         else:
             pb.update("Loading transactions")
             transactions, _ = user.load_transactions(all_chains, load_derived=True)
@@ -853,56 +696,25 @@ def process():
                 C.init_from_db_2(all_chains, needed_token_times, progress_bar=pb)
             S = None
 
-        # if import_new:
-        #     pb.set('Loading coingecko rates', 63)
-        #     needed_token_times = user.get_needed_token_times(transactions)
-        #     C.init_from_db_2(all_chains, needed_token_times, progress_bar=pb)
-        # else:
-        #     transactions, _ = user.load_transactions(all_chains, load_derived=True)
-        #     try:
-        #         C = Coingecko.init_from_cache(user)
-        #     except:
-        #         C = Coingecko(verbose=True)
-        #         pb.set('Loading coingecko symbols', 60)
-        #         try:
-        #             C.download_symbols_to_db(drop=True, progress_bar=pb)  # alloc 3
-        #         except:
-        #             log_error("Failed to download coingecko symbols", primary)
-        #
-        #         pb.set('Loading coingecko rates', 63)
-        #         needed_token_times = user.get_needed_token_times(transactions)
-        #         C.init_from_db_2(all_chains, needed_token_times, progress_bar=pb)
-        #     S = None
-
         if import_new:
             user.finish_import()
         current_tokens = user.load_current_tokens(C)
         log("loaded current tokens", current_tokens)
 
-        # user.load_last_import(all_chains)
-
         if import_new:
             redis.deq()
-
-        tl = time.time()
 
         log("coingecko initialized", C.initialized)
         pb.set("Classifying transactions", 80)
         store_derived = import_new or not use_derived
         if store_derived:
             user.wipe_derived_data()
-        # if len(transactions) == 0:
-        #     data = {'error': 'We didn\'t find any transactions for this address.'}
-        #     data = json.dumps(data)
-        #     return data
 
         transactions_js = user.transactions_to_log(
             C, S, transactions, progress_bar=pb, store_derived=store_derived
         )  # alloc 10
         log("all transactions", transactions_js)
 
-        # T = Typing()
-        # builtin_types = T.load_builtin_types()
         pb.set("Loading custom types", 90)
         custom_types = user.load_custom_types()
 
@@ -918,9 +730,10 @@ def process():
         pb.set("Calculating taxes", 97)
         calculator.cache()
 
-        js_file = open("data/users/" + primary + "/transactions.json", "w", newline="")
-        js_file.write(json.dumps(transactions_js, indent=2, sort_keys=True))
-        js_file.close()
+        with open(
+            "data/users/" + primary + "/transactions.json", "w", newline="", encoding="utf-8"
+        ) as js_file:
+            js_file.write(json.dumps(transactions_js, indent=2, sort_keys=True))
 
         info_fields = [
             "tx_per_page",
@@ -938,25 +751,12 @@ def process():
             if value is not None:
                 info[field] = value
 
-        # address_info = {}
-        # for address in all_previous_addresses:
-        #     address_info[address] = {'displayed':address in display_addresses,'imported':address in import_addresses}
-
-        # for chain_name, chain_data in all_chains.items():
-        #     if 'errors' in chain_data:
-        #         for address, errors in chain_data['errors'].items():
-        #             if len(all_previous_addresses) == 1:
-        #                 prefix = "Problem on " + chain_name
-        #             else:
-        #                 prefix = "Problem with " + address + " on " + chain_name
-        #             for err in list(errors):
-        #                 non_fatal_errors.add(prefix+": "+err)
-
         non_fatal_errors = non_fatal_errors.union(set(user.load_relevant_errors()))
         data_version = float(user.get_info("data_version"))
         if user.version - data_version >= 0.1:
             non_fatal_errors.add(
-                "Software has been updated since your previous import. We recommend importing new transactions to enable all the features."
+                "Software has been updated since your previous import. "
+                "We recommend importing new transactions to enable all the features."
             )
 
         user.load_import_versions()
@@ -975,7 +775,6 @@ def process():
             "loans": calculator.loans_json(),
             "tokens": calculator.tokens_json(),
             "non_fatal_errors": list(non_fatal_errors),
-            # 'address_info':address_info, 'chain_list':list(display_chains.keys()),
             "latest_tokens": current_tokens,
             "fiat_info": Twelve.FIAT_SYMBOLS,
             "all_address_info": user.all_addresses,
@@ -984,7 +783,6 @@ def process():
         }
 
         pb.set("Uploading to your browser", 98)
-        # data = {'placeholder':'stuff'}
         user.done()
         dump = json.dumps(data)
 
@@ -1014,28 +812,28 @@ def process():
             pb.set("Uploading to your browser", 98)
         except:
             pass
-    js_file = open("data/users/" + primary + "/data_cache.json", "w", newline="")
-    js_file.write(json.dumps(data, indent=2, sort_keys=True))
-    js_file.close()
-    # data = json.dumps(data)
+
+    with open(
+        "data/users/" + primary + "/data_cache.json", "w", newline="", encoding="utf-8"
+    ) as js_file:
+        js_file.write(json.dumps(data, indent=2, sort_keys=True))
+
     if pb is not None:
         pb.set("Uploading to your browser", 100)
     redis.finish()
-    # data.set_cookie('address', address + "|" + chain_name)
     return dump
 
 
 def recreate_data_from_caches(primary):
-    js_file = open("data/users/" + primary + "/data_cache.json", "r")
-    js = js_file.read()
-    js_file.close()
-    data = json.loads(js)
-    if not "error" in data:
-        js_file = open("data/users/" + primary + "/transactions.json", "r")
+    with open("data/users/" + primary + "/data_cache.json", "r", encoding="utf-8") as js_file:
         js = js_file.read()
-        js_file.close()
-        data["transactions"] = json.loads(js)
 
+    data = json.loads(js)
+    if "error" not in data:
+        with open("data/users/" + primary + "/transactions.json", "r", encoding="utf-8") as js_file:
+            js = js_file.read()
+
+        data["transactions"] = json.loads(js)
         user = User(primary)
 
         calculator = Calculator(user, None)
@@ -1057,7 +855,6 @@ def recreate_data_from_caches(primary):
 def calc_tax():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         mtm = request.args.get("mtm")
@@ -1067,18 +864,10 @@ def calc_tax():
             mtm = True
 
         data = request.get_json()
-        # log('data',data)
         transactions_js = json.loads(data)
-        # js_file = open('data/users/' + address + '/transactions.json', 'w', newline='')
-        # js_file.write(json.dumps(transactions_js,indent=2, sort_keys=True))
-        # js_file.close()
-
-        # log('tran0',transactions_js[0])
         log("all transactions", transactions_js)
 
         user = User(address)
-        # address_db = SQLite('addresses')
-        # chain = Chain.from_name(chain_name, address_db, address)
         user.get_custom_rates()
         C = Coingecko.init_from_cache(user)
 
@@ -1112,7 +901,6 @@ def calc_tax():
 def save_type():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form
@@ -1169,7 +957,6 @@ def save_type():
 def delete_type():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form
@@ -1178,7 +965,6 @@ def delete_type():
 
         log("delete_type", address, type_id)
 
-        # T = Typing()
         user = User(address)
         processed_transactions = user.unapply_custom_type(type_id)
         user.delete_custom_type(type_id)
@@ -1198,7 +984,6 @@ def delete_type():
 def apply_type():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form
@@ -1224,7 +1009,6 @@ def apply_type():
 def unapply_type():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form
@@ -1250,7 +1034,6 @@ def unapply_type():
 def save_custom_val():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form
@@ -1271,7 +1054,6 @@ def save_custom_val():
         user = User(address)
         user.save_custom_val(transaction, transfer_id_str, prop, val)
         user.done()
-        # user.save_custom_val(chain_name,address,transaction, transfer_idx, treatment=custom_treatment, rate=custom_rate, vaultid=custom_vaultid)
         js = {"success": 1}
     except:
         log("EXCEPTION in save_custom_val", traceback.format_exc())
@@ -1285,7 +1067,6 @@ def save_custom_val():
 def undo_custom_changes():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
 
     try:
@@ -1312,7 +1093,6 @@ def recolor():
     t = time.time()
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form
@@ -1376,19 +1156,13 @@ def save_manual_transaction():
         all_tx_blobs = []
         while not done:
             s_idx = str(idx)
-            # try:
-            #     date = form['mt'+s_idx+'_date']
-            # except:
-            #     break
-            # time = form['mt'+s_idx+'_time']
             log("form", form)
             try:
                 ts = form["mt" + s_idx + "_ts"]
             except:  # out of transactions
                 break
-            hash = form["mt" + s_idx + "_hash"]
+            tx_hash = form["mt" + s_idx + "_hash"]
             op = form["mt" + s_idx + "_op"]
-            # cp = form['mt_cp']
             cp = None
 
             max_tr_disp_idx = int(form["mt" + s_idx + "_tr_disp_idx"])
@@ -1410,20 +1184,12 @@ def save_manual_transaction():
                         form["mt" + s_idx + "_from" + s_tr_idx] == "my account"
                         or form["mt" + s_idx + "_to" + s_tr_idx] == "my account"
                     ):
-                        raise Exception('Using "my account" is not allowed')
-
-            # froms = form.getlist('mt_from')
-            # tos = form.getlist('mt_to')
-            # whats = form.getlist('mt_what')
-            # amounts = form.getlist('mt_amount')
-            # nft_ids = form.getlist('mt_nft_id')
-            # transfers = list(zip(froms,tos,whats,amounts,nft_ids))
+                        raise RuntimeError('Using "my account" is not allowed')
 
             txid = None
             if "mt" + s_idx + "_txid" in form:
                 txid = form["mt" + s_idx + "_txid"]
-            # tx_blob = [date,time,hash,op,cp,transfers,txid]
-            tx_blob = [ts, hash, op, cp, transfers, txid]
+            tx_blob = [ts, tx_hash, op, cp, transfers, txid]
             all_tx_blobs.append(tx_blob)
             idx += 1
 
@@ -1444,7 +1210,6 @@ def save_manual_transaction():
 def delete_manual_transaction():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form
@@ -1469,8 +1234,6 @@ def delete_manual_transaction():
 def get_progress_bar():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain_name')
-    uid = request.args.get("uid")
     persist(address)
     try:
 
@@ -1504,12 +1267,9 @@ def update_progenitors():
             counterparty = html.escape(counterparty[:30])
             user = User(address)
             db = user.db
-            # address_db = SQLite('addresses')
             db.insert_kw("custom_names", values=[chain_name, progenitor.lower(), counterparty])
             db.commit()
             db.disconnect()
-            # address_db.commit()
-            # address_db.disconnect()
         js = {"success": "true"}
     except:
         log("EXCEPTION in update_progenitors", traceback.format_exc())
@@ -1579,24 +1339,22 @@ def save_info():
 def download():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
+        dl_type = request.args.get("type")
 
-        type = request.args.get("type")
-
-        if type == "transactions_json":
+        if dl_type == "transactions_json":
             path = "data/users/" + address + "/transactions.json"
             return send_file(path, as_attachment=True, max_age=0)
 
-        if type == "transactions_csv":
+        if dl_type == "transactions_csv":
             user = User(address)
             user.json_to_csv()
             user.done()
             path = "data/users/" + address + "/transactions.csv"
             return send_file(path, as_attachment=True, max_age=0)
 
-        if type == "tax_forms":
+        if dl_type == "tax_forms":
             year = request.args.get("year")
             user = User(address)
             C = Coingecko.init_from_cache(user)
@@ -1608,7 +1366,7 @@ def download():
             path = "data/users/" + address + "/tax_forms_" + str(year) + ".zip"
             return send_file(path, as_attachment=True, max_age=0)
 
-        if type == "turbotax":
+        if dl_type == "turbotax":
             year = request.args.get("year")
             user = User(address)
             C = Coingecko.init_from_cache(user)
@@ -1626,6 +1384,7 @@ def download():
         log_error("EXCEPTION in download", address, request.args)
         log("EXCEPTION in download", traceback.format_exc())
         return "EXCEPTION " + str(traceback.format_exc())
+    return None
 
 
 @app.route("/save_js", methods=["GET", "POST"])
@@ -1636,9 +1395,10 @@ def save_js():
     try:
         data = request.get_json()
         transactions_js = json.loads(data)
-        js_file = open("data/users/" + address + "/transactions.json", "w", newline="")
-        js_file.write(json.dumps(transactions_js, indent=2, sort_keys=True))
-        js_file.close()
+        with open(
+            "data/users/" + address + "/transactions.json", "w", newline="", encoding="utf-8"
+        ) as js_file:
+            js_file.write(json.dumps(transactions_js, indent=2, sort_keys=True))
         js = {"success": 1}
 
     except:
@@ -1647,12 +1407,6 @@ def save_js():
         js = {"error": "An error has occurred while downloading a file"}
     data = json.dumps(js)
     return data
-
-    # if type == 'transactions_csv':
-    #     path = 'data/users/' + address + '/transactions.csv'
-    # else:
-    #     path = 'data/users/'+address+'/transactions.json'
-    # return send_file(path, as_attachment=True, cache_timeout=0)
 
 
 @app.route("/upload_csv", methods=["GET", "POST"])
@@ -1695,7 +1449,6 @@ def upload_csv():
 def delete_upload():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form
@@ -1828,7 +1581,6 @@ def minmax_transactions():
 def delete_address():
     init()
     address = normalize_address(request.args.get("address"))
-    # chain_name = request.args.get('chain')
     persist(address)
     try:
         form = request.form

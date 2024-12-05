@@ -1,47 +1,19 @@
+# -*- coding: utf-8 -*-
 import calendar
-import copy
+import csv
 import datetime
-import decimal
 import json
+import sys
 import traceback
+from collections import defaultdict
 from decimal import Decimal
 
-from .chain import *
-from .coingecko import *
-from .util import *
-
-# class LocalRates:
-#     def __init__(self):
-#         self.rates = defaultdict(dict)
-#         self.names = {}
-#
-#     def add_rate(self,currency,ts, rate):
-#         ts = int(ts)
-#         self.rates[currency][ts] = rate
-#
-#     def add_name(self,contract,name):
-#         self.names[contract] = name
-#
-#     def lookup_rate(self,currency,ts, only_rate=False):
-#         log('lookup',currency,ts)
-#         if currency == 'USD':
-#             return 1
-#
-#         rate = self.rates[currency][ts]
-#         if only_rate:
-#             return rate
-#         else:
-#             return 1,rate
-#
-#     def lookup_name(self,contract):
-#         if contract not in self.names:
-#             return contract
-#         return self.names[contract]
+from .sqlite import SQLite
+from .util import dec, log
 
 
 def process_web_json(rates, address, year, mark_to_market, js):
     converted_rows = []
-    # rates = LocalRates()
     for transaction in js:
         id = transaction["hash"]
         ts = transaction["ts"]
@@ -61,32 +33,30 @@ def process_web_json(rates, address, year, mark_to_market, js):
             else:
                 rate = float(rate)
 
-            # log('js row',id,amt,rate)
-
             rates.add_rate(contract, row["symbol"], ts, rate)
             if treatment == "burn":
                 converted_row = [id, ts, contract, "", "burn", "", amt, rate]
             if treatment == "gift":
                 converted_row = [id, ts, contract, "", "gift", "", amt, rate]
-            if treatment == "buy" or treatment == "buy_custom":
+            if treatment in ("buy", "buy_custom"):
                 converted_row = [id, ts, "USD", contract, "buy", amt, amt * rate, rate]
-            if treatment == "sell" or treatment == "sell_custom":
+            if treatment in ("sell", "sell_custom"):
                 converted_row = [id, ts, "USD", contract, "sell", amt, amt * rate, rate]
             converted_rows.append(converted_row)
 
-    js_file = open("data/" + address + "_transactions.json", "w", newline="")
-    js_file.write(json.dumps(js))
-    js_file.close()
+    with open(
+        "data/" + address + "_transactions.json", "w", newline="", encoding="utf-8"
+    ) as js_file:
+        js_file.write(json.dumps(js))
 
-    log_file = open("data/" + address + "_transactions.csv", "w", newline="")
-    writer = csv.writer(log_file)
-    writer.writerow(
-        ["ID", "Timestamp", "Quote", "Base", "Side", "Base amount", "Quote Amount", "USD rate"]
-    )
-    writer.writerows(converted_rows)
-    log_file.close()
-
-    # log('rates',rates.rates)
+    with open(
+        "data/" + address + "_transactions.csv", "w", newline="", encoding="utf-8"
+    ) as log_file:
+        writer = csv.writer(log_file)
+        writer.writerow(
+            ["ID", "Timestamp", "Quote", "Base", "Side", "Base amount", "Quote Amount", "USD rate"]
+        )
+        writer.writerows(converted_rows)
 
     rv = log_to_4797(
         rates,
@@ -110,23 +80,18 @@ def log_to_4797(
     checkpoints=(),
 ):
 
-    f = open(filename)
-    csv_reader = csv.reader(f, delimiter=",")
-    csv_reader.__next__()
-    rows = []
-    # initial_amounts={'JPY':9800000,'BTC':2.5}
+    with open(filename, encoding="utf-8") as f:
+        csv_reader = csv.reader(f, delimiter=",")
+        rows = []
 
-    for idx, row in enumerate(csv_reader):
-        rows.append(row)
-
-    f.close()
+        for idx, row in enumerate(csv_reader):
+            rows.append(row)
 
     current = []
     total_gain = 0
     current = defaultdict(list)
 
     def adjust_holding(currency, ts, amt, price, stored_rv=None):
-        # print("adjust holding",currency,ts,amt,price,stored_rv)
         if amt == 0:
             return stored_rv
 
@@ -137,13 +102,10 @@ def log_to_4797(
 
         # increase long position
         if amt > 0 and (len(holdings) == 0 or holdings[0]["amount"] > 0):
-            # print("long+",amt,currency)
             holdings.append({"ts": ts, "amount": amt, "open_price": price})
             return stored_rv
         # decrease long position
-        elif amt < 0 and (len(holdings) > 0 and holdings[0]["amount"] > 0):
-            # print("long-",amt,currency)
-            priors = copy.deepcopy(holdings)
+        if amt < 0 and (len(holdings) > 0 and holdings[0]["amount"] > 0):
             amt = -amt
             start_amt = amt
             while amt > 0:
@@ -156,7 +118,7 @@ def log_to_4797(
                         price,
                         stored_rv=(start_amt - amt, basis, sale, stamps, False),
                     )
-                elif holdings[0]["amount"] > amt:
+                if holdings[0]["amount"] > amt:
                     holdings[0]["amount"] -= amt
                     open_price = holdings[0]["open_price"]
                     basis += amt * open_price
@@ -171,21 +133,16 @@ def log_to_4797(
                     stamps.append(holdings[0]["ts"])
                     del holdings[0]
 
-            # for h in holdings:
-            #     if h['amount'] < 0:
-            #         print(priors)
-            #         print(holdings)
-            #         exit(0)
             return start_amt, basis, sale, stamps, False
 
         # increase short position
-        elif amt < 0 and (len(holdings) == 0 or holdings[0]["amount"] < 0):
+        if amt < 0 and (len(holdings) == 0 or holdings[0]["amount"] < 0):
             # print("short+",amt,currency)
             holdings.append({"ts": ts, "amount": amt, "open_price": price})
             return stored_rv
 
         # decrease short position
-        elif amt > 0 and (len(holdings) > 0 and holdings[0]["amount"] < 0):
+        if amt > 0 and (len(holdings) > 0 and holdings[0]["amount"] < 0):
             # print("short-", amt,currency)
             start_amt = amt
             while amt > 0:
@@ -213,21 +170,17 @@ def log_to_4797(
                     stamps.append(holdings[0]["ts"])
                     del holdings[0]
             return start_amt, basis, sale, stamps, True
-        else:
-            log("WTF", amt, holdings)
-            exit(1)
+        log("WTF", amt, holdings)
+        sys.exit(1)
 
     total_fees_2 = 0
 
     def write_records(currency, ts, transaction, fee=None):
-        # print('write records',currency,ts,transaction)
         nonlocal total_gain, total_fees_2, year
 
         dt = datetime.datetime.utcfromtimestamp(ts)
         if dt.year != year:
             return 0, None
-        # if ts < start or ts > end:
-        #     return 0,None
 
         currency = coingecko_rates.lookup_name(currency)
 
@@ -237,9 +190,7 @@ def log_to_4797(
 
             days = set()
             for stamp in stamps:
-                # print(stamp,datetime.datetime.utcfromtimestamp(stamp))
                 d = datetime.datetime.utcfromtimestamp(stamp).strftime("%m/%d/%Y")
-                # print(d)
                 days.add(d)
             open_days = ",".join(list(days))
             close_day = datetime.datetime.utcfromtimestamp(ts).strftime("%m/%d/%Y")
@@ -250,18 +201,10 @@ def log_to_4797(
             else:
                 buy_ts = close_day
                 sell_ts = open_days
-            # form_entry = {
-            #     'currency':currency,
-            #     'basis':basis,
-            #     'sale':sale,
-            #     'open_stamps':stamps,
-            #     'close_stamp':ts
-            # }
 
             if fee is not None:
-                _, fee_basis, fee_sale, fee_stamps, _ = fee
+                _, fee_basis, fee_sale, _fee_stamps, _ = fee
                 assert fee_sale == 0
-                # form_entry['fee'] = fee_basis
                 basis += fee_basis
                 total_fees_2 += fee_basis
             gain = sale - basis
@@ -302,12 +245,10 @@ def log_to_4797(
 
                 for entry in holdings[k]:
                     amt += float(entry["amount"])
-                    # gain += entry['amount'] * (rate - entry['open_price'])
 
                 if amt > 1e-8:
                     currency_name = coingecko_rates.lookup_name(k)
                     _, rate = coingecko_rates.lookup_rate(k, ts)
-                    # formatted_holdings[currency_name] = [amt,rate]
                     formatted_holdings.append((currency_name, amt, rate))
         log("formatted holdings", formatted_holdings)
         return formatted_holdings
@@ -321,13 +262,10 @@ def log_to_4797(
         amounts = {}
         for k in current:
             amt = 0
-            gain = 0
             if len(current[k]) > 0:
 
                 for entry in current[k]:
-                    # rate = dec(coingecko_rates.lookup_rate(k, ts, only_rate=True, verbose=False))
                     amt += entry["amount"]
-                    # gain += entry['amount'] * (rate - entry['open_price'])
 
                 if amt > 1e-8:
                     currency_name = coingecko_rates.lookup_name(k)
@@ -347,17 +285,10 @@ def log_to_4797(
 
     def proc_row(row, synthetic=False):
         nonlocal total_gain, total_fees_2, gain_per_form, op_counts
-        # log("proc row",row)
         ts = int(row[1])
-        # if ts < start:
-        #     return
-        # if ts > end:
-        #     return
         op = row[4].lower()
         base = row[3]  # .upper()
         quote = row[2]  # .upper()
-        # base = coingecko_rates.lookup_name(row[3])
-        # quote = coingecko_rates.lookup_name(row[2])
         if ignore is not None and (base in ignore or quote in ignore):
             return
         base_amt = row[5]
@@ -372,14 +303,6 @@ def log_to_4797(
             price = quote_amt / base_amt
         else:
             price = None
-        # except:
-        #     print('problem',row,traceback.format_exc())
-        #     exit(1)
-        # price = row[6]
-        # if price != '':
-        #     price = dec(price)
-        # fee_currency = row[7]
-        # fee_amt = row[8]
         fee_currency = None
         fee_amt = 0
         if fee_amt != "":
@@ -394,17 +317,13 @@ def log_to_4797(
             running_amounts[quote] += quote_amt
             if quote not in fiat:
                 rv = adjust_holding(quote, ts, quote_amt, 0)
-                gain, form_entry = write_records(quote, ts, rv)
-
-                # current[quote].append({'ts': ts, 'amount': quote_amt, 'price': 0, 'fee': 0})
-        elif op == "deposit" or op == "initial":
+                _gain, form_entry = write_records(quote, ts, rv)
+        elif op in ("deposit", "initial"):
             running_amounts[quote] += quote_amt
             if quote not in fiat:
                 _, rate = coingecko_rates.lookup_rate(quote, ts)
-                # rate = 0
                 rv = adjust_holding(quote, ts, quote_amt, dec(rate))
-                gain, form_entry = write_records(quote, ts, rv)
-                # current[quote].append({'ts': ts, 'amount': quote_amt, 'price': rate, 'fee': 0})
+                _gain, form_entry = write_records(quote, ts, rv)
         elif op == "buy":
             running_amounts[quote] -= quote_amt
             running_amounts[base] += base_amt
@@ -415,40 +334,36 @@ def log_to_4797(
                 rv_fee = adjust_holding(fee_currency, ts, -fee_amt, 0)
             else:
                 rv_fee = None
-            # usd_fee = fee_amt * fee_rate
 
             _, quote_rate = coingecko_rates.lookup_rate(quote, ts)
             usd_price = price * dec(quote_rate)
-            # current[base].append({'ts': ts, 'amount': base_amt, 'price': usd_price, 'fee': usd_fee})
             rv = adjust_holding(base, ts, base_amt, usd_price)
 
-            gain, form_entry = write_records(
+            _gain, form_entry = write_records(
                 base, ts, rv, rv_fee
-            )  # record is only written on transaction close. Only base OR quote will close. So fee will only be written once.
+            )  # record is only written on transaction close. Only base OR quote will close.
+            # So fee will only be written once.
             if quote != "USD":
-                # basis, total_fees, stamps = adjust_holding(quote, quote_amt)
                 rv_quote = adjust_holding(quote, ts, -quote_amt, dec(quote_rate))
-                gain, form_entry2 = write_records(quote, ts, rv_quote, rv_fee)
+                _gain, form_entry2 = write_records(quote, ts, rv_quote, rv_fee)
 
         elif op == "burn":
             running_amounts[quote] -= quote_amt
             if quote not in fiat:
                 _, quote_rate = coingecko_rates.lookup_rate(quote, ts)
                 rv = adjust_holding(quote, ts, -quote_amt, 0)
-                gain, form_entry = write_records(quote, ts, rv)
+                _gain, form_entry = write_records(quote, ts, rv)
 
         elif op == "withdrawal":
             running_amounts[quote] -= quote_amt
             if quote not in fiat:
                 try:
                     _, quote_rate = coingecko_rates.lookup_rate(quote, ts)
-                    # log("withdrawal rate",quote_rate)
-                    # quote_rate = 0
                 except:
                     log("problem", row, ts, quote, traceback.format_exc())
-                    exit(10)
+                    sys.exit(10)
                 rv = adjust_holding(quote, ts, -quote_amt, dec(quote_rate))
-                gain, form_entry = write_records(quote, ts, rv)
+                _gain, form_entry = write_records(quote, ts, rv)
 
         elif op == "sell":
             running_amounts[quote] += quote_amt
@@ -464,16 +379,13 @@ def log_to_4797(
             _, quote_rate = coingecko_rates.lookup_rate(quote, ts)
             usd_price = price * dec(quote_rate)
 
-            # basis, total_fees, stamps = adjust_holding(base, base_amt)
             rv = adjust_holding(base, ts, -base_amt, usd_price)
 
             if quote not in fiat:
                 rv_quote = adjust_holding(quote, ts, quote_amt, quote_rate)
-                gain, form_entry2 = write_records(quote, ts, rv_quote, rv_fee)
-                # current[quote].append({'ts': ts, 'amount': quote_amt, 'price': quote_rate, 'fee': 0})
+                _gain, form_entry2 = write_records(quote, ts, rv_quote, rv_fee)
 
-            # adjust_holding(fee_currency, fee_amt)
-            gain, form_entry = write_records(base, ts, rv, rv_fee)
+            _gain, form_entry = write_records(base, ts, rv, rv_fee)
 
         if form_entry is not None:
             gain_per_form += dec(form_entry[-1])
@@ -483,18 +395,8 @@ def log_to_4797(
             gain_per_form += dec(form_entry2[-1])
             form.append(form_entry2)
 
-    # if initial_amounts is not None:
-    #     for quote, amount in initial_amounts.items():
-    #         if amount != 0:
-    #             row =['initial',str(start),quote,'','initial','',str(amount)]
-    #             proc_row(row,synthetic=True)
-
     checkpoint_idx = 0
     total_gpf_so_far = 0
-    start_processed = False
-    end_processed = False
-    # ts_start = int(rows[0][1])
-    # dt = datetime.datetime.fromtimestamp(ts_start)
     current_year = 0
     start_holdings = []
     end_holdings = None
@@ -505,7 +407,6 @@ def log_to_4797(
     end_ts = calendar.timegm(dt.timetuple())
 
     for idx, row in enumerate(rows):
-        # print("ROW",idx,row)
         ts = int(row[1])
         dt = datetime.datetime.utcfromtimestamp(ts)
         row_year = dt.year
@@ -540,23 +441,21 @@ def log_to_4797(
     log("Gain as per form after last checkpoint", gain_per_form - total_gpf_so_far)
     log("Gain as per form total", gain_per_form)
 
-    # pprint.pprint(running_amounts)
     log(dict(op_counts))
 
-    log_file = open(out_file, "w", newline="", encoding="utf-8")
-    writer = csv.writer(log_file)
-    writer.writerow(
-        [
-            "Currency",
-            "Date Acquired",
-            "Date Sold",
-            "Gross Sales Price",
-            "Cost Basis",
-            "Gain or Loss",
-        ]
-    )
-    writer.writerows(form)
-    log_file.close()
+    with open(out_file, "w", newline="", encoding="utf-8") as log_file:
+        writer = csv.writer(log_file)
+        writer.writerow(
+            [
+                "Currency",
+                "Date Acquired",
+                "Date Sold",
+                "Gross Sales Price",
+                "Cost Basis",
+                "Gain or Loss",
+            ]
+        )
+        writer.writerows(form)
 
     return total_gain, start_holdings, end_holdings, dict(op_counts)
 
@@ -574,54 +473,3 @@ def formalize_names(chain, user="0xd603a49886c9b500f96c0d798aed10068d73bf7c"):
     )
     address_db.query("DELETE FROM " + chain + "_custom_names WHERE user='" + user + "'")
     address_db.disconnect()
-
-
-#
-# C = Coingecko()
-#
-# polygon = Chain('Polygon','https://api.polygonscan.com/api','MATIC','A1FQ2P7N8199KNXQNNC5GUXV329VX6U3AN',
-#                 outbound_bridges = ['0X0000000000000000000000000000000000000000','0X7CEB23FD6BC0ADD59E62AC25578270CFF1B9F619'],
-#                 inbound_bridges=['0X0000000000000000000000000000000000000000'])
-#
-#
-# bsc = Chain('BSC','https://api.bscscan.com/api','BNB','EVFEA2Z91JKN557RRY6AK7KCB8NM1PMBEZ',
-#             outbound_bridges=['0X37C9980809D205972D8D092D5A5AE912BC91DA4C','0X2170ED0880AC9A755FD29B2688956BD959F933F8'],#eth
-#             inbound_bridges=['0X8894E0A0C962CB723C1976A4421C95949BE2D4E3']) #eth
-#
-# heco = Chain('HECO','https://api.hecoinfo.com/api','HT','T4UDKXYGYSFA3ACAX3XCD546IMH622HNV5')
-#
-#
-# eth = Chain('ETH','https://api.etherscan.io/api','ETH','ABGDZF9A4GIPCHYZZS4FVUBFXUPXRDZAKQ',
-#             outbound_bridges=['0XA0C68C638235EE32657E8F720A23CEC1BFC77C77', #polygon
-#                               '0X40EC5B33F54E0E8A33A975908C5BA1C14E5BBBDF', #polygon
-#                               '0X59E55EC322F667015D7B6B4B63DC2DE6D4B541C3'], #bsc
-#             inbound_bridges=['0X56EDDB7AA87536C09CCC2793473599FD21A8B17F']) #bsc
-#
-# # polygon_transactions = polygon.get_transactions()
-# # polygon_contract_list = polygon.get_contracts(polygon_transactions)
-# # Coingecko.get_platform_contracts('polygon-pos','MATIC',polygon_contract_list)
-#
-# # bsc_transactions = bsc.get_transactions()
-# # bsc_contract_list = bsc.get_contracts(bsc_transactions)
-# # Coingecko.get_platform_contracts('binance-smart-chain','BNB',bsc_contract_list)
-# #
-# # heco_transactions = heco.get_transactions()
-# # heco_contract_list = heco.get_contracts(heco_transactions)
-# # Coingecko.get_platform_contracts('huobi-token','HT',heco_contract_list)
-# #
-# eth_transactions = eth.get_transactions()
-# eth_contract_list = eth.get_contracts(eth_transactions)
-# C.get_platform_contracts('ethereum','ETH',eth_contract_list)
-#
-#
-# C.get_rates()
-#
-# # polygon.transactions_to_log(Coingecko,polygon_transactions)
-# # bsc.transactions_to_log(Coingecko,bsc_transactions)
-# # heco.transactions_to_log(Coingecko,heco_transactions)
-# eth.transactions_to_log(Coingecko,eth_transactions)
-#
-# # log_to_4797(Coingecko, 'data/Polygon.csv', 'data/polygon_4797.csv', year=2021,mark_to_market=True,dispose_at_end=True,ignore=None, checkpoints=())
-# log_to_4797(Coingecko, 'data/eth.csv', 'data/eth_4797.csv', year=2021,mark_to_market=False,dispose_at_end=True,ignore=None,checkpoints=())
-# # log_to_4797(Coingecko, 'data/bsc.csv', 'data/bsc_4797.csv', start=1609459200, end=1640995199,initial_amounts=None,mark_to_market=True,ignore=None, do_eoy_usd=True, checkpoints=())
-# # log_to_4797(Coingecko, 'data/heco.csv', 'data/heco_4797.csv', start=1609459200, end=1640995199,initial_amounts=None,mark_to_market=True,ignore=None, do_eoy_usd=True, checkpoints=())

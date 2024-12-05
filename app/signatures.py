@@ -1,15 +1,13 @@
-import pprint
+# -*- coding: utf-8 -*-
 import time
-import traceback
 
 import requests
 
 from .sqlite import SQLite
-from .util import *
+from .util import decustom
 
 
 class Signatures:
-
     def __init__(self):
         self.signatures = {}
 
@@ -35,7 +33,7 @@ class Signatures:
         while not done:
 
             url = "https://www.4byte.directory/api/v1/signatures/?page=" + str(page)
-            resp = requests.get(url)
+            resp = requests.get(url, timeout=120)
             try:
                 data = resp.json()
                 rep_cnt = 0
