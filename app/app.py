@@ -6,7 +6,6 @@ import threading
 import time
 import traceback
 
-from dotenv import load_dotenv
 from flask import Flask, render_template, request, send_file
 
 from .chain import Chain
@@ -19,26 +18,12 @@ from .tax_calc import Calculator
 from .user import Import, User
 from .util import ProgressBar, log, log_error, normalize_address, persist, sql_in
 
-FLASK_ENV = os.environ.get("FLASK_ENV")
-
 app = Flask(__name__)
-
-os.environ["debug"] = "0"
-os.environ["version"] = "1.42"
-os.environ["app_path"] = "/home/ubuntu/hyperboloid"
-
-
-def init():
-    if FLASK_ENV == "production":
-        os.chdir(os.environ.get("app_path"))
-    load_dotenv()
-    log("env check", os.environ.get("api_key_etherscan"), filename="env_check.txt")
 
 
 @app.route("/")
 @app.route("/main")
 def main():
-    init()
     address_cookie = request.cookies.get("address")
     address = ""
     if address_cookie is not None:
@@ -69,7 +54,6 @@ def services_page():
 
 @app.route("/chains.html")
 def chain_support():
-    init()
     chains_support_info = []
     support_level_text_map = {10: "High", 5: "Medium", 3: "Low", 0: "None"}
     for chain_name in Chain.list(alphabetical=True):
@@ -129,7 +113,6 @@ def chain_support():
 
 @app.route("/last_update")
 def last_update():
-    init()
     address = request.args.get("address")
     primary = normalize_address(address)  # Address(address)
     if primary is None:
@@ -164,7 +147,6 @@ def last_update_inner(user):
 
 @app.route("/process")
 def process():
-    init()
     address = request.args.get("address")
     primary = normalize_address(address)  # Address(address)
 
@@ -853,7 +835,6 @@ def recreate_data_from_caches(primary):
 
 @app.route("/calc_tax", methods=["GET", "POST"])
 def calc_tax():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -899,7 +880,6 @@ def calc_tax():
 
 @app.route("/save_type", methods=["GET", "POST"])
 def save_type():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -955,7 +935,6 @@ def save_type():
 
 @app.route("/delete_type", methods=["GET", "POST"])
 def delete_type():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -982,7 +961,6 @@ def delete_type():
 
 @app.route("/apply_type", methods=["GET", "POST"])
 def apply_type():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1007,7 +985,6 @@ def apply_type():
 
 @app.route("/unapply_type", methods=["GET", "POST"])
 def unapply_type():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1032,7 +1009,6 @@ def unapply_type():
 
 @app.route("/save_custom_val", methods=["GET", "POST"])
 def save_custom_val():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1065,7 +1041,6 @@ def save_custom_val():
 
 @app.route("/undo_custom_changes", methods=["GET", "POST"])
 def undo_custom_changes():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
 
@@ -1091,7 +1066,6 @@ def undo_custom_changes():
 @app.route("/recolor", methods=["GET", "POST"])
 def recolor():
     t = time.time()
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1119,7 +1093,6 @@ def recolor():
 
 @app.route("/save_note", methods=["GET", "POST"])
 def save_note():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1143,7 +1116,6 @@ def save_note():
 
 @app.route("/save_manual_transaction", methods=["GET", "POST"])
 def save_manual_transaction():
-    init()
     address = normalize_address(request.args.get("address"))
     chain_name = request.args.get("chain")
     persist(address, chain_name)
@@ -1208,7 +1180,6 @@ def save_manual_transaction():
 
 @app.route("/delete_manual_transaction", methods=["GET", "POST"])
 def delete_manual_transaction():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1232,7 +1203,6 @@ def delete_manual_transaction():
 
 @app.route("/progress_bar")
 def get_progress_bar():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1255,7 +1225,6 @@ def get_progress_bar():
 
 @app.route("/update_progenitors")
 def update_progenitors():
-    init()
     address = request.args.get("user")
     chain_name = request.args.get("chain")
     persist(address, chain_name)
@@ -1280,7 +1249,6 @@ def update_progenitors():
 
 @app.route("/wipe", methods=["GET", "POST"])
 def wipe():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1298,7 +1266,6 @@ def wipe():
 
 @app.route("/restore", methods=["GET", "POST"])
 def restore():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1316,7 +1283,6 @@ def restore():
 
 @app.route("/save_info", methods=["GET", "POST"])
 def save_info():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1337,7 +1303,6 @@ def save_info():
 
 @app.route("/download")
 def download():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1389,7 +1354,6 @@ def download():
 
 @app.route("/save_js", methods=["GET", "POST"])
 def save_js():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1411,7 +1375,6 @@ def save_js():
 
 @app.route("/upload_csv", methods=["GET", "POST"])
 def upload_csv():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     redis = Redis(address)
@@ -1447,7 +1410,6 @@ def upload_csv():
 
 @app.route("/delete_upload", methods=["GET", "POST"])
 def delete_upload():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1473,7 +1435,6 @@ def delete_upload():
 
 @app.route("/update_coingecko_id", methods=["GET", "POST"])
 def update_coingecko_id():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     redis = Redis(address)
@@ -1505,7 +1466,6 @@ def update_coingecko_id():
 
 @app.route("/save_options", methods=["GET", "POST"])
 def save_options():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1553,7 +1513,6 @@ def save_options():
 
 @app.route("/minmax_transactions", methods=["GET", "POST"])
 def minmax_transactions():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1579,7 +1538,6 @@ def minmax_transactions():
 
 @app.route("/delete_address", methods=["GET", "POST"])
 def delete_address():
-    init()
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
@@ -1607,7 +1565,6 @@ def delete_address():
 
 @app.route("/cross_user")
 def cross_user():
-    init()
     dirs = os.listdir("data/users/")
 
     query = "SELECT count(id) FROM custom_types_rules WHERE token=='base'"
