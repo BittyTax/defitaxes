@@ -181,7 +181,6 @@ class Solana(Chain):
         pb_alloc=None,
         pb_text=None,
         timeout=30,
-        _wait=0.2,
     ):
         if len(query_list) == 0:
             log("error: query_list is empty for", json_template, filename="solana.txt")

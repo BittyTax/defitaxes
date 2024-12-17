@@ -1071,7 +1071,7 @@ class Calculator:
                             amount,
                             running_rates,
                             self.coingecko_rates,
-                            usd_fee=fee_amount_per_transaction,
+                            fee_amount_per_transaction,
                             exit=treatment == "full_repay",
                         )
                         self.interest_payments.extend(interest_payments)
@@ -1133,6 +1133,7 @@ class Calculator:
                     q.append(ca_trans)
                     done = True
                 else:
+                    amount = -amount
                     fees = ca_trans.usd_fee
                     rate = ca_trans.rate
                     pos_amount = amount * mode

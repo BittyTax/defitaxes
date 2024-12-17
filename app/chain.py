@@ -872,7 +872,7 @@ class Chain:
             try:
                 resp = requests.get(url, headers=headers, timeout=timeout)
             except:
-                if self.routescan_id is not None and not self.use_routescan_backup:
+                if self.routescan_id is not None and self.use_routescan_backup is False:
                     self.use_routescan_backup = True
                     return self.get_all_transaction_from_api(
                         address,
@@ -1173,7 +1173,7 @@ class Chain:
                 input_len = len(input)
             val = float(entry["value"]) / div
 
-            if not transactions[hash].success or (
+            if transactions[hash].success is False or (
                 transactions[hash].success is None and entry["isError"] == "1"
             ):
                 val = 0
@@ -1269,7 +1269,7 @@ class Chain:
                 type = Transfer.BASE
                 token = token_contract = "METIS"
 
-            if not transactions[hash].success:
+            if transactions[hash].success is False:
                 val = 0
 
             row = [
