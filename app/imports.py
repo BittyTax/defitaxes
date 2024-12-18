@@ -36,7 +36,6 @@ class Import:
             for _chain_name, chain_data in all_chains.items():
                 chain = chain_data["chain"]
                 chain.current_import = self
-        self.overwrites_ok = True
 
     def populate_addresses(self, user, all_chains):
         db = user.db

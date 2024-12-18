@@ -5,9 +5,6 @@ import sys
 import time
 import traceback
 import warnings
-from collections import defaultdict
-from queue import Queue
-from sqlite3 import Error
 
 from flask import current_app
 
@@ -25,8 +22,6 @@ class SQLite:
     ):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        self.deferred_buffers = defaultdict(Queue)
-        self.currently_processing = False
         self.conn = None
         self.read_only = read_only
         self.do_logging = do_logging
@@ -196,82 +191,9 @@ class SQLite:
             if command_list["commit"]:
                 conn_to_use.commit()
             return c.rowcount
-        except Error as e:
+        except sqlite3.Error as e:
             print(self.db, "insert_kw error ", e, "table", table, "kwargs", kwargs)
             sys.exit(0)
-
-    def deferred_insert(self, table, values):
-        buffer = self.deferred_buffers[table]
-        if values is not None:
-            converted_values = []
-            for value in values:
-                if isinstance(value, bytes):
-                    converted_values.append(sqlite3.Binary(value))
-                else:
-                    converted_values.append(str(value))
-            buffer.put(converted_values)
-
-    def process_deferred_inserts(
-        self, min_count, max_count_total=100, _error_mode="IGNORE", single_table=False
-    ):
-        if self.currently_processing:
-            print("CURRENTLY IN INSERTS!!!")
-        self.currently_processing = True
-        tables = list(self.deferred_buffers.keys())
-        len_list = []
-        for table in tables:
-            len_list.append((table, self.deferred_buffers[table].qsize()))
-        len_list.sort(key=lambda tup: -tup[1])
-
-        total_cnt = 0
-        table_cnt = 0
-        exec_time = 0
-        self.conn.execute("BEGIN TRANSACTION")
-        for table, _ in len_list:
-            if self.deferred_buffers[table].qsize() >= min_count:
-                values = self.deferred_buffers[table].get()
-                placeholder_list = ["?"] * len(values)
-                query = (
-                    "INSERT OR REPLACE INTO "
-                    + table
-                    + " VALUES ("
-                    + ",".join(placeholder_list)
-                    + ")"
-                )
-                query_list = []
-
-                query_list.append(values)
-                total_cnt += 1
-
-                # current_length = len(buffer) #buffer may grow while processing it!
-                # In that case this may never finish unless short-circuited.
-                while not self.deferred_buffers[table].empty() and total_cnt < max_count_total:
-                    values = self.deferred_buffers[table].get()
-                    query_list.append(values)
-                    total_cnt += 1
-
-                table_cnt += 1
-                t = time.time()
-                try:
-                    self.conn.executemany(query, query_list)
-                except:
-                    raise NotImplementedError(
-                        "Couldn't handle query " + query + ", values" + str(query_list),
-                        traceback.format_exc(),
-                    )
-                exec_time += time.time() - t
-            if total_cnt >= max_count_total:
-                break
-            if single_table:
-                break
-
-        remaining_cnt = 0
-        tables = list(self.deferred_buffers.keys())
-        for table in tables:
-            remaining_cnt += self.deferred_buffers[table].qsize()
-        self.conn.execute("COMMIT")
-        self.currently_processing = False
-        return table_cnt, total_cnt, remaining_cnt, exec_time
 
     def update_kw(self, table, where, **kwargs):
         pair_placeholder_list = []
@@ -304,7 +226,7 @@ class SQLite:
             if command_list["commit"]:
                 conn_to_use.commit()
             return c.rowcount
-        except Error as e:
+        except sqlite3.Error as e:
             print(self.db, "update_kw error ", e, "table", table, "kwargs", kwargs)
             sys.exit(1)
 
@@ -335,11 +257,6 @@ class SQLite:
                         conv_res[row[id_col]] = list(row)
 
             return conv_res
-        except Error as e:
+        except sqlite3.Error as e:
             print(self.db, "Error ", e, query)
             sys.exit(0)
-
-    def attach(self, other_db_file, other_db_name):
-        c = self.conn.cursor()
-        c.execute("ATTACH '" + other_db_file + "' AS " + other_db_name)
-        self.conn.commit()

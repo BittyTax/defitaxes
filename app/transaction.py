@@ -754,9 +754,6 @@ class Transaction:
             outs.append(self.transfers[id])
         return outs
 
-    def tval(self, transfer, field):
-        return transfer[Transfer.ALL_FIELDS[field]]
-
     def __str__(self):
         if self.hash is not None:
             rv = "HASH:" + str(self.hash) + ", TIMESTAMP:" + str(self.ts)

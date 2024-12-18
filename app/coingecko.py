@@ -22,7 +22,6 @@ class Coingecko:
         self.rates = None
         self.shortcut_rates = defaultdict(dict)
         self.inferred_rates = {}
-        self.shortcut_hits = 0
         self.verbose = verbose
         self.initialized = False
 
@@ -459,7 +458,6 @@ class Coingecko:
 
         try:
             rv = self.shortcut_rates[coingecko_id_or_cp][ts]
-            self.shortcut_hits += 1
             log("shortcut hit", rv, filename="lookups.txt")
             return rv
         except:

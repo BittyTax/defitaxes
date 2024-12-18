@@ -602,12 +602,6 @@ class User:
         except:
             return False
 
-    def check_address_used(self, address, chain_name):
-        try:
-            return self.all_addresses[address][chain_name]["used"]
-        except:
-            return False
-
     def set_address_present(self, address, chain_name, value=1, commit=True):
         self.db.insert_kw("user_addresses", address=address, chain=chain_name, ignore=True)
         self.db.update_kw(

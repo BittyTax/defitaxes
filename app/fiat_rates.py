@@ -22,12 +22,6 @@ class Twelve:
         "NZD": {"left_symbol": "$"},
     }
 
-    @classmethod
-    def is_fiat(cls, symbol):
-        if symbol in Twelve.FIAT_SYMBOLS:
-            return True
-        return False
-
     def __init__(self, symbol):
         self.api_key = os.environ.get("api_key_twelve")
         self.session = requests.session()
@@ -129,16 +123,6 @@ class Twelve:
                 )
             self.db.commit()
         self.db.disconnect()
-
-    def check_download_needed(self, symbol, ts):
-        assert symbol in Twelve.FIAT_SYMBOLS
-        rows = self.db.select(
-            "SELECT MAX(timestamp) FROM fiat_rates WHERE currency='" + symbol + "'"
-        )
-        val = rows[0][0]
-        if val is None or val < ts - 3 * 24 * 3600:
-            return True
-        return False
 
     def download_rates(self, symbol):
         assert symbol in Twelve.FIAT_SYMBOLS

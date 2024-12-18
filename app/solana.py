@@ -41,7 +41,6 @@ class Solana(Chain):
         self.explorer_url = "https://public-api.solscan.io/"
         self.domain = "explorer.solana.com"
         self.wait_time = 0.25
-        self.solscan_session = requests.session()
         self.explorer_session = requests.session()
         self.hif = (
             "47M65BG4riNsp4HwtEYdKx9dy4rC6QNM8zY1h1jf3aXE"
@@ -54,9 +53,6 @@ class Solana(Chain):
 
         self.mode = "explorer"
 
-    def get_ancestor(self, address):
-        return None, [], None, None
-
     def check_presence(self, address):
         data = self.explorer_multi_request(
             {"method": "getSignaturesForAddress", "jsonrpc": "2.0", "params": [None, {"limit": 1}]},
@@ -67,111 +63,11 @@ class Solana(Chain):
             return True
         return False
 
-    def sumup_tx(self, T, address):
-        totals = {}
-        grp = T.grouping
-        for entry_idx, entry in enumerate(grp):
-            type = entry[0]
-            row = entry[1]
-            fr, _to, val, symbol, what = row[4:9]
-            if fr == address:
-                val = -val
-            if (what is None or what.lower() == "sol") and symbol.lower() == "sol":
-                id_str = "SOL"
-            elif "Unknown token" in symbol:
-                id_str = symbol
-            elif what is None:
-                id_str = symbol
-            else:
-                id_str = what
-
-            if what == "So11111111111111111111111111111111111111112":
-                symbol = "WSOL"
-
-            if id_str not in totals:
-                totals[id_str] = {
-                    "s": 0,
-                    "c": 0,
-                    "what": what,
-                    "symbol": symbol,
-                    "indexes": [],
-                    "type": type,
-                }
-            totals[id_str]["s"] += val
-            totals[id_str]["c"] += 1
-            totals[id_str]["indexes"].append(entry_idx)
-        return dict(totals)
-
-    def totals_to_str(self, totals):
-        dct_to_print = {}
-        for i, dct in totals.items():
-            # assert dct['symbol'] not in dct_to_print
-            symbol = dct["symbol"]
-            if symbol in dct_to_print:
-                log("REPEAT SYMBOL", totals)
-                symbol = i
-            dct_to_print[symbol] = str(dct["s"]) + ":" + str(dct["c"])
-        return str(dct_to_print)
-
     def get_transactions(self, user, address, pb_alloc):
         log("Getting solana transactions")
         transactions = self.get_transactions_from_explorer(user, address, pb_alloc)
         log("Got solana transactions")
         return transactions
-
-    def get_nft_info_from_solscan(self, nft_address):
-        headers = {
-            "accept": "application/json",
-            "user-agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
-            ),
-        }
-        url = "https://public-api.solscan.io/account/" + nft_address
-        time.sleep(0.25)
-        log("getting nft info from solscan", nft_address, url)
-        try:
-            resp = self.solscan_session.get(url, timeout=10, headers=headers)
-        except:
-            log("Failed to get token info from solscan", url, traceback.format_exc())
-            return None
-        if resp.status_code != 200:
-            log("Failed to get token info from solscan", url, resp.content)
-            return None
-
-        data = resp.json()
-        try:
-            info = data["tokenInfo"]
-            symbol = info["symbol"]
-            name = info["name"]
-
-            meta = data["metadata"]
-
-            try:
-                name_2 = meta["data"]["name"]
-                if len(name_2) > len(name):
-                    name = name_2
-            except:
-                pass
-
-            update_authority = meta["updateAuthority"]
-            minter = meta["mint"]
-
-            try:
-                uri = meta["external_url"]
-            except:
-                uri = None
-
-            return {
-                "name": name,
-                "symbol": symbol,
-                "uri": uri,
-                "update_authority": update_authority,
-                "minter": minter,
-            }
-        except:
-            log("Failed to get token info from solscan", url, data)
-            return None
 
     def explorer_multi_request(
         self,
@@ -1465,9 +1361,6 @@ class Solana(Chain):
             log_error("SOLANA: Failed to get_current_tokens", address)
             return None
 
-    def get_solana_counterparties(self, transaction):
-        pass
-
     def get_contracts(self, transactions):
         return [], [], []
 
@@ -1802,7 +1695,6 @@ class PublicKey:
 
     @staticmethod
     def find_program_address(seeds, program_id):
-
         nonce = 255
         while nonce != 0:
             try:

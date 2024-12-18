@@ -170,7 +170,6 @@ class Classifier:
             "confirmed_not_spam": set(),
         }
 
-        self.prior_transaction = None
         self.prior_withdraw = {}
 
     def add_liquidity(self, transaction, ignore_tokens=()):
@@ -557,8 +556,6 @@ class Classifier:
                     transaction.type = types
 
         self.process_classification(transaction)
-
-        self.prior_transaction = transaction
 
         if logtx:
             log(
