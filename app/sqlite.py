@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import sqlite3
 import sys
 import time
@@ -7,6 +8,8 @@ import warnings
 from collections import defaultdict
 from queue import Queue
 from sqlite3 import Error
+
+from flask import current_app
 
 from .util import log, log_error
 
@@ -28,7 +31,6 @@ class SQLite:
         self.read_only = read_only
         self.do_logging = do_logging
         self.do_error_logging = True
-        self.log_file = "logs/sqlite_log.txt"
         self.db = db
 
         if db is not None:
@@ -61,9 +63,12 @@ class SQLite:
     def connect(self, db=None, check_same_thread=True, isolation_level="DEFERRED"):
         if db is not None:
             self.db = db
+
+        db_uri = os.path.join(current_app.config["DATA_DIR"], f"{db}.db")
+
         if self.read_only:
             self.conn = sqlite3.connect(
-                "file:data/" + db + ".db?mode=ro",
+                f"file:{db_uri}?mode=ro",
                 timeout=5,
                 check_same_thread=check_same_thread,
                 isolation_level=isolation_level,
@@ -71,7 +76,7 @@ class SQLite:
             )
         else:
             self.conn = sqlite3.connect(
-                "data/" + db + ".db",
+                db_uri,
                 timeout=5,
                 check_same_thread=check_same_thread,
                 isolation_level=isolation_level,

@@ -6,9 +6,8 @@ import pprint
 import time
 import traceback
 from collections import defaultdict
-from os.path import exists
 
-from flask import g
+from flask import current_app, g
 
 Q = [
     decimal.Decimal(10) ** 0,
@@ -99,17 +98,19 @@ class Logger:
     def buf_to_file(self, filename, glob=False):
         buffer = self.files[filename]["buffer"]
         do_write = False
-        path = "logs/" + filename
+
+        path = current_app.config["LOGS_DIR"]
         if len(buffer) > 0:
             if self.address is not None and not glob:
-                if exists("data/users/" + self.address):
-                    path = "data/users/" + self.address + "/" + filename
+                path = os.path.join(current_app.config["USERS_DIR"], self.address)
+                if not os.path.exists(path):
+                    path = current_app.config["LOGS_DIR"]
             if glob and self.address is not None:
                 buffer.insert(0, self.address + " ")
             if self.do_write or glob:
                 do_write = True
             if do_write:
-                with open(path, "a", encoding="utf-8") as myfile:
+                with open(os.path.join(path, filename), "a", encoding="utf-8") as myfile:
                     myfile.write("".join(buffer))
         self.files[filename]["buffer"] = []
         self.files[filename]["last_write"] = time.time()

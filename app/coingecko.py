@@ -8,6 +8,7 @@ from collections import defaultdict
 
 import requests
 import sortedcontainers
+from flask import current_app
 
 from .chain import Chain
 from .sqlite import SQLite
@@ -58,12 +59,14 @@ class Coingecko:
         self.api_key = os.environ.get("api_key_coingecko")
 
     def dump(self, user):
-        with open("data/users/" + user.address + "/rates", "wb") as rates_dump_file:
+        path = os.path.join(current_app.config["USERS_DIR"], user.address)
+        with open(os.path.join(path, "rates"), "wb") as rates_dump_file:
             pickle.dump(self, rates_dump_file)
 
     @classmethod
     def init_from_cache(cls, user):
-        with open("data/users/" + user.address + "/rates", "rb") as f:
+        path = os.path.join(current_app.config["USERS_DIR"], user.address)
+        with open(os.path.join(path, "rates"), "rb") as f:
             C = pickle.load(f)
 
         log("coingecko ifc contracts_map", C.contracts_map, filename="lookups.txt")

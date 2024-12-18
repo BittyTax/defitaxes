@@ -6,7 +6,7 @@ import threading
 import time
 import traceback
 
-from flask import Flask, render_template, request, send_file
+from flask import Flask, current_app, render_template, request, send_file
 
 from .chain import Chain
 from .coingecko import Coingecko
@@ -293,7 +293,8 @@ def process():
                         chain_data["addresses_to_check"][active_address] = False
 
             # called in threads, to check in parallel against all scanners
-            def check_chain_for_addresses(chain_data):
+            def check_chain_for_addresses(chain_data, app_context):
+                app_context.push()
                 chain = chain_data["chain"]
                 address_dict = chain_data["addresses_to_check"]
                 for active_address in address_dict.keys():
@@ -330,7 +331,10 @@ def process():
             threads = []
             for chain_name, chain_data in all_chains.items():
                 if not chain_data["is_upload"] and len(chain_data["addresses_to_check"]) > 0:
-                    t = threading.Thread(target=check_chain_for_addresses, args=(chain_data,))
+                    t = threading.Thread(
+                        target=check_chain_for_addresses,
+                        args=(chain_data, current_app.app_context()),
+                    )
                     threads.append(t)
                     t.start()
 
@@ -423,7 +427,8 @@ def process():
 
             user.current_import.populate_addresses(user, all_chains)
 
-            def threaded_transaction_processing(chain_data):
+            def threaded_transaction_processing(chain_data, app_context):
+                app_context.push()
                 addresses = chain_data["import_addresses"]
                 chain = chain_data["chain"]
                 for active_address in addresses:
@@ -475,7 +480,8 @@ def process():
                         else:
                             log("populated current_tokens - NONE!", chain.name, active_address)
 
-            def threaded_covalent(all_chains):
+            def threaded_covalent(all_chains, app_context):
+                app_context.push()
                 rq_cnt = 0
                 for chain_name, chain_data in all_chains.items():
                     if (
@@ -492,7 +498,7 @@ def process():
                         chain.covalent_download(chain_data, pb_alloc=5 / float(rq_cnt))
 
             t_covalent = threading.Thread(
-                target=threaded_covalent, args=(all_chains,)
+                target=threaded_covalent, args=(all_chains, current_app.app_context())
             )  # this asshole is the longest
             t_covalent.start()
 
@@ -504,7 +510,10 @@ def process():
                 chain_data["current_tokens"] = {}
                 if len(chain_data["import_addresses"]) > 0 and not chain_data["is_upload"]:
                     log("calling threaded_transaction_processing", chain_name)
-                    t = threading.Thread(target=threaded_transaction_processing, args=(chain_data,))
+                    t = threading.Thread(
+                        target=threaded_transaction_processing,
+                        args=(chain_data, current_app.app_context()),
+                    )
                     threads.append(t)
                     t.start()
 
@@ -513,10 +522,13 @@ def process():
                 t.join()
                 joined_cnt += 1
 
-            def threaded_balances(all_chains):
+            def threaded_balances(all_chains, app_context):
+                app_context.push()
                 user.get_thirdparty_data(all_chains, progress_bar=pb)  # alloc 5
 
-            t_balances = threading.Thread(target=threaded_balances, args=(all_chains,))
+            t_balances = threading.Thread(
+                target=threaded_balances, args=(all_chains, current_app.app_context())
+            )
             t_balances.start()
 
             t_balances.join()
@@ -578,7 +590,10 @@ def process():
             if total_request_count == 0:
                 total_request_count = total_request_count_disp
 
-            def threaded_update_progenitors(chain_name, chain_data, filtered_counterparty_list):
+            def threaded_update_progenitors(
+                chain_name, chain_data, filtered_counterparty_list, app_context
+            ):
+                app_context.push()
                 chain = chain_data["chain"]
                 try:
                     chain_db_writes = chain.update_progenitors(
@@ -612,7 +627,12 @@ def process():
                     if len(filtered_counterparty_list) > 0:
                         t = threading.Thread(
                             target=threaded_update_progenitors,
-                            args=(chain_name, chain_data, filtered_counterparty_list),
+                            args=(
+                                chain_name,
+                                chain_data,
+                                filtered_counterparty_list,
+                                current_app.app_context(),
+                            ),
                         )
                         threads.append(t)
                         t.start()
@@ -712,8 +732,9 @@ def process():
         pb.set("Calculating taxes", 97)
         calculator.cache()
 
+        path = os.path.join(current_app.config["USERS_DIR"], primary)
         with open(
-            "data/users/" + primary + "/transactions.json", "w", newline="", encoding="utf-8"
+            os.path.join(path, "transactions.json"), "w", newline="", encoding="utf-8"
         ) as js_file:
             js_file.write(json.dumps(transactions_js, indent=2, sort_keys=True))
 
@@ -795,9 +816,8 @@ def process():
         except:
             pass
 
-    with open(
-        "data/users/" + primary + "/data_cache.json", "w", newline="", encoding="utf-8"
-    ) as js_file:
+    path = os.path.join(current_app.config["USERS_DIR"], primary)
+    with open(os.path.join(path, "data_cache.json"), "w", newline="", encoding="utf-8") as js_file:
         js_file.write(json.dumps(data, indent=2, sort_keys=True))
 
     if pb is not None:
@@ -807,12 +827,13 @@ def process():
 
 
 def recreate_data_from_caches(primary):
-    with open("data/users/" + primary + "/data_cache.json", "r", encoding="utf-8") as js_file:
+    path = os.path.join(current_app.config["USERS_DIR"], primary)
+    with open(os.path.join(path, "data_cache.json"), "r", encoding="utf-8") as js_file:
         js = js_file.read()
 
     data = json.loads(js)
     if "error" not in data:
-        with open("data/users/" + primary + "/transactions.json", "r", encoding="utf-8") as js_file:
+        with open(os.path.join(path, "transactions.json"), "r", encoding="utf-8") as js_file:
             js = js_file.read()
 
         data["transactions"] = json.loads(js)
@@ -1307,17 +1328,16 @@ def download():
     persist(address)
     try:
         dl_type = request.args.get("type")
+        path = os.path.join(current_app.config["USERS_DIR"], address)
 
         if dl_type == "transactions_json":
-            path = "data/users/" + address + "/transactions.json"
-            return send_file(path, as_attachment=True, max_age=0)
+            return send_file(os.path.join(path, "transactions.json"), as_attachment=True, max_age=0)
 
         if dl_type == "transactions_csv":
             user = User(address)
             user.json_to_csv()
             user.done()
-            path = "data/users/" + address + "/transactions.csv"
-            return send_file(path, as_attachment=True, max_age=0)
+            return send_file(os.path.join(path, "transactions.csv"), as_attachment=True, max_age=0)
 
         if dl_type == "tax_forms":
             year = request.args.get("year")
@@ -1328,8 +1348,9 @@ def download():
 
             calculator.make_forms(year)
             user.done()
-            path = "data/users/" + address + "/tax_forms_" + str(year) + ".zip"
-            return send_file(path, as_attachment=True, max_age=0)
+            return send_file(
+                os.path.join(path, f"tax_forms_{year}.zip"), as_attachment=True, max_age=0
+            )
 
         if dl_type == "turbotax":
             year = request.args.get("year")
@@ -1341,10 +1362,12 @@ def download():
             batched = calculator.make_turbotax(year)
             user.done()
             if batched:
-                path = "data/users/" + address + "/turbotax_8949_" + str(year) + ".zip"
-            else:
-                path = "data/users/" + address + "/turbotax_8949_" + str(year) + ".csv"
-            return send_file(path, as_attachment=True, max_age=0)
+                return send_file(
+                    os.path.join(path, f"turbotax_8949_{year}.zip"), as_attachment=True, max_age=0
+                )
+            return send_file(
+                os.path.join(path, f"turbotax_8949_{year}.csv"), as_attachment=True, max_age=0
+            )
     except:
         log_error("EXCEPTION in download", address, request.args)
         log("EXCEPTION in download", traceback.format_exc())
@@ -1356,11 +1379,12 @@ def download():
 def save_js():
     address = normalize_address(request.args.get("address"))
     persist(address)
+    path = os.path.join(current_app.config["USERS_DIR"], address)
     try:
         data = request.get_json()
         transactions_js = json.loads(data)
         with open(
-            "data/users/" + address + "/transactions.json", "w", newline="", encoding="utf-8"
+            os.path.join(path, "transactions.json"), "w", newline="", encoding="utf-8"
         ) as js_file:
             js_file.write(json.dumps(transactions_js, indent=2, sort_keys=True))
         js = {"success": 1}
@@ -1565,8 +1589,7 @@ def delete_address():
 
 @app.route("/cross_user")
 def cross_user():
-    dirs = os.listdir("data/users/")
-
+    dirs = os.listdir(current_app.config["USERS_DIR"])
     query = "SELECT count(id) FROM custom_types_rules WHERE token=='base'"
     count = 0
 
@@ -1574,9 +1597,8 @@ def cross_user():
     dump = ""
     for address in dirs:
         if len(address) == 42:
-            path = "users/" + address + "/db"
             try:
-                user_db = SQLite(path, read_only=True)
+                user_db = SQLite(f"users/{address}/db", read_only=True)
                 res = user_db.select(query)
                 stat = res[0][0]
                 user_db.disconnect()

@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import csv
 import datetime
+import os
 import pickle
 import pprint
 import re
 import sys
 import traceback
 import zipfile
+
+from flask import current_app
 
 from .util import decustom, log, log_error, timestamp_to_date
 
@@ -1301,13 +1304,15 @@ class Calculator:
     def cache(self):
         coingecko_rates = self.coingecko_rates
         self.coingecko_rates = None
-        with open("data/users/" + self.address + "/calculator_cache", "wb") as cache_file:
+        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        with open(os.path.join(path, "calculator_cache"), "wb") as cache_file:
             pickle.dump(self, cache_file)
 
         self.coingecko_rates = coingecko_rates
 
     def from_cache(self):
-        with open("data/users/" + self.address + "/calculator_cache", "rb") as f:
+        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        with open(os.path.join(path, "calculator_cache"), "rb") as f:
             C = pickle.load(f)
 
         self.CA_long = C.CA_long
@@ -1388,7 +1393,7 @@ class Calculator:
 
     def make_turbotax(self, year):
         year = int(year)
-        path = "data/users/" + self.address + "/"
+        path = os.path.join(current_app.config["USERS_DIR"], self.address)
 
         form_8949_short, _short_total_proceeds, _short_total_cost = self.CA_to_form(
             self.CA_short, year, format="turbotax"
@@ -1405,7 +1410,7 @@ class Calculator:
 
         if len(all_rows) < 4000:  # turbotax limit
             with open(
-                path + "turbotax_8949_" + str(year) + ".csv", "w", encoding="utf-8"
+                os.path.join(path, f"turbotax_8949_{year}.csv"), "w", encoding="utf-8"
             ) as form_file:
                 writer = csv.writer(form_file)
                 writer.writerow(
@@ -1419,9 +1424,9 @@ class Calculator:
         offset = 0
         file_list = []
         for batch_idx in range(batch_cnt):
-            file_name = "turbotax_8949_" + str(year) + "_batch_" + str(batch_idx + 1) + ".csv"
+            file_name = f"turbotax_8949_{year}_batch_{batch_idx + 1}.csv"
             file_list.append(file_name)
-            with open(path + file_name, "w", encoding="utf-8") as form_file:
+            with open(os.path.join(path, file_name), "w", encoding="utf-8") as form_file:
                 writer = csv.writer(form_file)
                 writer.writerow(
                     ["Currency Name", "Purchase Date", "Cost Basis", "Date Sold", "Proceeds"]
@@ -1431,14 +1436,14 @@ class Calculator:
             offset += batch_size
 
         compression = zipfile.ZIP_DEFLATED
-        with zipfile.ZipFile(path + "turbotax_8949_" + str(year) + ".zip", mode="w") as zf:
+        with zipfile.ZipFile(os.path.join(path, f"turbotax_8949_{year}.zip"), mode="w") as zf:
             for filename in file_list:
-                zf.write(path + filename, arcname=filename, compress_type=compression)
+                zf.write(os.path.join(path, filename), arcname=filename, compress_type=compression)
         return 1
 
     def make_forms(self, year):
         year = int(year)
-        path = "data/users/" + self.address + "/"
+        path = os.path.join(current_app.config["USERS_DIR"], self.address)
 
         form_8949_short, short_total_proceeds, short_total_cost = self.CA_to_form(
             self.CA_short, year
@@ -1449,7 +1454,9 @@ class Calculator:
 
         if not self.mtm:
             if len(form_8949_short) > 0 or len(form_8949_long) > 0:
-                with open(path + "form_1040_schedule_D.txt", "w", encoding="utf-8") as form_file:
+                with open(
+                    os.path.join(path, "form_1040_schedule_D.txt"), "w", encoding="utf-8"
+                ) as form_file:
                     if short_total_proceeds != 0:
                         gain = short_total_proceeds - short_total_cost
                         form_file.write("\nRow 3, column (d): " + str(short_total_proceeds))
@@ -1469,7 +1476,9 @@ class Calculator:
                 file_list.append("form_1040_schedule_D.txt")
         else:
             if len(form_8949_short) > 0:
-                with open(path + "form_4797_part_2.csv", "w", encoding="utf-8") as form_file:
+                with open(
+                    os.path.join(path, "form_4797_part_2.csv"), "w", encoding="utf-8"
+                ) as form_file:
                     file_list.append("form_4797_part_2.csv")
                     writer = csv.writer(form_file)
                     writer.writerow(
@@ -1496,7 +1505,7 @@ class Calculator:
 
                 if self.eoy_mtm is not None:
                     with open(
-                        path + "mark_to_market_eoy_" + str(year - 1) + "_holdings.txt",
+                        os.path.join(path, f"mark_to_market_eoy_{year - 1}_holdings.txt"),
                         "w",
                         encoding="utf-8",
                     ) as form_file:
@@ -1521,7 +1530,7 @@ class Calculator:
             else:
                 filename = "form_8949_part_1.csv"
 
-            with open(path + filename, "w", newline="", encoding="utf-8") as form_file:
+            with open(os.path.join(path, filename), "w", newline="", encoding="utf-8") as form_file:
                 file_list.append(filename)
                 writer = csv.writer(form_file)
                 writer.writerow(
@@ -1539,7 +1548,7 @@ class Calculator:
         if not self.mtm:
             if len(form_8949_long) > 0:
                 with open(
-                    path + "form_8949_part_2.csv", "w", newline="", encoding="utf-8"
+                    os.path.join(path, "form_8949_part_2.csv"), "w", newline="", encoding="utf-8"
                 ) as form_file:
                     file_list.append("form_8949_part_2.csv")
                     writer = csv.writer(form_file)
@@ -1558,7 +1567,7 @@ class Calculator:
         log("incomes", self.incomes)
         if len(self.incomes) > 0:
             with open(
-                path + "income_list.csv", "w", newline="", encoding="utf-8"
+                os.path.join(path, "income_list.csv"), "w", newline="", encoding="utf-8"
             ) as income_list_file:
                 writer = csv.writer(income_list_file)
                 writer.writerow(
@@ -1593,7 +1602,9 @@ class Calculator:
             file_list.append("income_list.csv")
 
             if len(income_types) > 0:
-                with open(path + "form_1040_schedule_1.txt", "w", encoding="utf-8") as form_file:
+                with open(
+                    os.path.join(path, "form_1040_schedule_1.txt"), "w", encoding="utf-8"
+                ) as form_file:
                     file_list.append("form_1040_schedule_1.txt")
                     form_file.write(
                         "\nOnly use this if you DON'T have a registered crypto business. "
@@ -1619,7 +1630,9 @@ class Calculator:
                     expense_types[expense_type] += expense["amount"]
 
             if len(expense_types) > 0:
-                with open(path + "form_1040_schedule_C.txt", "w", encoding="utf-8") as schedule_C:
+                with open(
+                    os.path.join(path, "form_1040_schedule_C.txt"), "w", encoding="utf-8"
+                ) as schedule_C:
                     file_list.append("form_1040_schedule_C.txt")
                     total = 0
                     for type, amount in expense_types.items():
@@ -1638,7 +1651,7 @@ class Calculator:
                     )
 
         if self.interest_payments:
-            with open(path + "form_4952.txt", "w", encoding="utf-8") as form_file:
+            with open(os.path.join(path, "form_4952.txt"), "w", encoding="utf-8") as form_file:
                 file_list.append("form_4952.txt")
                 total = 0
                 form_file.write(
@@ -1652,9 +1665,9 @@ class Calculator:
                 form_file.write("\n\nYou will need to complete the rest of the form yourself")
 
         compression = zipfile.ZIP_DEFLATED
-        with zipfile.ZipFile(path + "tax_forms_" + str(year) + ".zip", mode="w") as zf:
+        with zipfile.ZipFile(os.path.join(path, f"tax_forms_{year}.zip"), mode="w") as zf:
             for filename in file_list:
-                zf.write(path + filename, arcname=filename, compress_type=compression)
+                zf.write(os.path.join(path, filename), arcname=filename, compress_type=compression)
 
     def vaults_json(self):
         js = {}

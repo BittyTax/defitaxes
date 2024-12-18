@@ -12,6 +12,7 @@ from datetime import datetime
 from statistics import median
 
 import requests
+from flask import current_app
 from sortedcontainers import SortedDict
 from werkzeug.utils import secure_filename
 
@@ -57,17 +58,17 @@ class User:
         self.relevant_import_ids = set()
         self.ctype_info = {}
 
-        path = "data/users/" + address
+        path = os.path.join(current_app.config["USERS_DIR"], address)
         first_run = False
         if not os.path.exists(path):
             os.makedirs(path)
             first_run = True
 
-        path = "data/users/" + address + "/db.db"
-        if not os.path.exists(path):
+        self.db_uri = os.path.join(path, "db.db")
+        if not os.path.exists(self.db_uri):
             first_run = True
         self.first_run = first_run
-        self.db = SQLite("users/" + address + "/db", do_logging=self.sql_logging)
+        self.db = SQLite(f"users/{address}/db", do_logging=self.sql_logging)
 
         drop = False
         if first_run:
@@ -200,9 +201,7 @@ class User:
 
             self.make_sample_types()
         else:
-            self.last_db_modification_timestamp = os.path.getmtime(
-                "data/users/" + address + "/db.db"
-            )
+            self.last_db_modification_timestamp = os.path.getmtime(self.db_uri)
             current_version = self.get_info("version")
             data_version = self.get_info("data_version")
             log("version", current_version)
@@ -470,8 +469,7 @@ class User:
         if backup_version is None:
             backup_version = 1
         backup_version_str = str(backup_version).replace(".", "").rjust(3, "0")
-        path = "data/users/" + self.address
-        shutil.copy(path + "/db.db", path + "/db_backup_" + backup_version_str + ".db")
+        shutil.copy(self.db_uri, self.db_uri.replace("db.db", f"db_backup_{backup_version_str}.db"))
 
     def done(self):
         try:
@@ -907,12 +905,12 @@ class User:
             self.db.disconnect()
         except:
             pass
-        path = "data/users/" + self.address
-        os.remove(path + "/db.db")
+
+        path = os.path.join(current_app.config["USERS_DIR"], self.address)
         filenames = ["db.db", "transactions.json", "rates", "data_cache.json", "calculator_cache"]
         for filename in filenames:
             try:
-                os.remove(path + "/" + filename)
+                os.remove(os.path.join(path, filename))
             except:
                 pass
         try:
@@ -929,14 +927,13 @@ class User:
             pass
 
         try:
-            shutil.rmtree(path + "/uploads")
+            shutil.rmtree(os.path.join(path, "uploads"))
         except:
             pass
         self.__init__(self.address, load_addresses=True)
 
     def restore_backup(self):
-        path = "data/users/" + self.address
-        shutil.copy(path + "/db_backup_manual_wipe.db", path + "/db.db")
+        shutil.copy(self.db_uri.replace("db.db", "db_backup_manual_wipe.db"), self.db_uri)
 
     def store_current_tokens(self, chain, current_tokens):
         if current_tokens is None:
@@ -2282,8 +2279,8 @@ class User:
         for entry in custom_types_js:
             custom_types[entry["id"]] = entry
 
-        path = "data/users/" + self.address + "/transactions.json"
-        with open(path, "r", encoding="utf-8") as f:
+        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        with open(os.path.join(path, "transactions.json"), "r", encoding="utf-8") as f:
             js = json.load(f)
 
         color_map = {0: "red", 3: "orange", 5: "yellow", 10: "green"}
@@ -2383,8 +2380,7 @@ class User:
             "USD rate",
         ]
 
-        path = "data/users/" + self.address + "/transactions.csv"
-        with open(path, "w", encoding="utf-8") as f:
+        with open(os.path.join(path, "transactions.csv"), "w", encoding="utf-8") as f:
             csvwriter = csv.writer(f)
             csvwriter.writerow(fields)
             csvwriter.writerows(csv_rows)
@@ -2903,14 +2899,17 @@ class User:
 
     def upload_csv(self, source, file, coingecko, pb):
         log("source", source, filename="file_uploads.txt")
-        path = "data/users/" + self.address + "/uploads/csv/"
+        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        path = os.path.join(path, "uploads")
+        path = os.path.join(path, "csv")
+
         if not os.path.exists(path):
             os.makedirs(path)
 
-        filename = secure_filename(source + ".csv")
+        filename = secure_filename(f"{source}.csv")
         file.save(os.path.join(path, filename))
 
-        with open(path + filename, "r", encoding="utf_8") as file:
+        with open(os.path.join(path, filename), "r", encoding="utf_8") as file:
             csv_reader = csv.reader(file, delimiter=",")
             try:
                 first_row = csv_reader.__next__()
