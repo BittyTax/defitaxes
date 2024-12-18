@@ -40,7 +40,7 @@ def index():
         title="Blockchain transactions to US tax form",
         address=address,
         blockchain_count=blockchain_count,
-        version=os.environ.get("version"),
+        version=current_app.config["APP_VERSION"],
     )
 
 

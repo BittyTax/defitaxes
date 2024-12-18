@@ -64,5 +64,5 @@ def chain_support():
         "chains.html",
         title="Blockchain transactions to US tax form",
         chains=chains_support_info,
-        version=os.environ.get("version"),
+        version=current_app.config["APP_VERSION"],
     )

@@ -42,8 +42,8 @@ from .util import (
 
 class User:
     def __init__(self, address, do_logging=False, load_addresses=True):
-        version = float(os.environ.get("version"))
-        debug_level = int(os.environ.get("debug"))
+        version = current_app.config["APP_VERSION"]
+        debug_level = current_app.config["DEBUG_LEVEL"]
         self.debug = debug_level > 0
         self.sql_logging = debug_level > 2 or do_logging
         self.last_db_modification_timestamp = 0

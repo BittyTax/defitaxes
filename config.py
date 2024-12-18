@@ -8,8 +8,8 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 class Config:  # pylint: disable=too-few-public-methods
-    os.environ["debug"] = "0"
-    os.environ["version"] = "1.42"
+    DEBUG_LEVEL = 0
+    APP_VERSION = 1.42
 
     DATA_DIR = os.path.join(basedir, "data")
     USERS_DIR = os.path.join(DATA_DIR, "users")

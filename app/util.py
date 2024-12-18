@@ -128,7 +128,7 @@ class Logger:
 
 
 def log(*args, **kwargs):
-    debug_level = int(os.environ.get("debug"))
+    debug_level = current_app.config["DEBUG_LEVEL"]
 
     if debug_level > 0:
         logger = Logger(address="glob")
