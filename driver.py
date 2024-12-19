@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
-import sys
 
-from dotenv import load_dotenv
+import click
+from flask import Blueprint, current_app
 
 from app.coingecko import Coingecko
 from app.signatures import Signatures
@@ -11,41 +11,23 @@ from app.tax_calc import Calculator
 from app.user import User
 from app.util import log
 
-
-def update_rates_db():
-    C = Coingecko()
-    C.download_all_coingecko_rates(
-        reset=False
-    )  # reset true on first run, false on runs to correct errors
-    sys.exit(0)
+driver = Blueprint("driver", __name__)
 
 
-def update_signatures():
-    S = Signatures()
-    S.download_signatures_to_db(start_page=588, endid=448521)  # endid is biggest id currently in db
-    sys.exit(0)
-
-
-def add_chain_to_addresses(chain_name):
-    address_db = SQLite("addresses_prod")
-    chain_name = chain_name.upper().replace(" ", "_")
-    address_db.create_table(
-        chain_name + "_addresses",
-        "address PRIMARY KEY, tag, ancestor_address, entity,inclusion_reason",
-        drop=False,
-    )
-    address_db.create_table(chain_name + "_labels", "address, label", drop=False)
-    address_db.create_index(chain_name + "_addresses_idx_1", chain_name + "_addresses", "entity")
-    address_db.create_index(chain_name + "_labels_idx_1", chain_name + "_labels", "address,label")
-    address_db.create_index(chain_name + "_adr_idx_1", chain_name + "_addresses", "address")
-    address_db.create_index(
-        chain_name + "_adr_idx_2", chain_name + "_addresses", "ancestor_address"
-    )
-    address_db.commit()
-    address_db.disconnect()
-
-
-def process(address, chain_name, do_import=True, do_calc=True, do_lookups=True):
+@driver.cli.command("process")
+@click.argument("address")
+@click.argument("chain_name")
+@click.option(
+    "--import", "do_import", is_flag=True, show_default=True, default=True, help="Do import"
+)
+@click.option(
+    "--lookups", "do_lookups", is_flag=True, show_default=True, default=True, help="Do lookups"
+)
+@click.option(
+    "--calc", "do_calc", is_flag=True, show_default=True, default=True, help="Do tax calculations"
+)
+def process(address, chain_name, do_import=True, do_lookups=True, do_calc=True):
+    current_app.config["DEBUG_LEVEL"] = 2
     chain_names = [chain_name]
     S = Signatures()
     C = Coingecko(verbose=False)
@@ -158,12 +140,7 @@ def process(address, chain_name, do_import=True, do_calc=True, do_lookups=True):
 
 
 if __name__ == "__main__":
-    os.environ["debug"] = "2"
-    os.environ["version"] = "1.42"
-    load_dotenv()
     # address = "0xd603a49886c9b500f96c0d798aed10068d73bf7c"
     # address = "95iZStZPdxWoKUfinEtxq8X7SfTn496D1tKDiUuyNeqC"  # solana
     # address = "9HdPeqZGJDTtoHoGz4x6vNoPBxhnQLazjmfzYAjAiZVK"
-    address = "0x032b7d93aeed91127baa55ad570d88fd2f15d589"  # hodl
-    process(address, "Arbitrum", do_import=True, do_lookups=True)
-    sys.exit(0)
+    os.system("flask driver process 0x032b7d93aeed91127baa55ad570d88fd2f15d589 Arbitrum")
