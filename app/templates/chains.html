@@ -39,11 +39,11 @@
                     <th>Balance check for NFTs</th>
                 </tr>
                 {% for chain in chains %}
-                    <tr class="support_{{ chain["support_level"] }}">
+                    <tr class="support_{{ chain['support_level'] }}">
                         <td>{{ chain["name"] }}</td>
                         <td>{{ chain["support_level_text"] }}</td>
                         <td>
-                            <a target=_blank href="{{ chain["data_source_url"] }}">{{ chain["data_source_name"] }}</a>
+                            <a target=_blank href="{{ chain['data_source_url'] }}">{{ chain['data_source_name'] }}</a>
                         </td>
                         <td>{{ chain["cp_availability"] }}</td>
                         <td>{{ chain["erc1155_support"] }}</td>
