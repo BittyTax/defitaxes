@@ -2,13 +2,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: driver",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "driver.py",
-            "console": "integratedTerminal"
-        },
-        {
             "name": "Python Debugger: Flask",
             "type": "debugpy",
             "request": "launch",
@@ -22,6 +15,20 @@
                 "--no-debugger",
                 "--no-reload"
             ],
+            "jinja": true,
+            "autoStartBrowser": false,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Python Debugger: Flask driver",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "wsgi.py",
+                "FLASK_DEBUG": "1"
+            },
+            "args": "driver process xnrTV5khE4RSUWMbvMTU2ZYatRfzASCfCoWCuAeQsuf Solana",
             "jinja": true,
             "autoStartBrowser": false,
             "cwd": "${workspaceFolder}"
