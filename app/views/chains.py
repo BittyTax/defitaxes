@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-import os
 
-from flask import Blueprint, render_template
+from flask import Blueprint, current_app, render_template
 
 from ..chain import Chain
 from ..util import log
