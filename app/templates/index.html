@@ -1,45 +1,68 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
     <head>
-        <link rel="stylesheet" href="{{url_for('static', filename='styles.css', v=version)}}">
+        <link rel="stylesheet"
+              href="{{ url_for('static', filename='styles.css', v=version) }}">
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-        <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+        <link rel="stylesheet"
+              href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
         <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
-        <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.css">
+        <link rel="stylesheet"
+              href="//cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.css">
         <script src="//cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.js"></script>
         <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
         <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/additional-methods.min.js"></script>
         <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
         <title>Blockchain transactions to US tax form</title>
+        <meta name="description"
+              content="Turn your blockchain transactions into tax forms in a reasonable amount of time.">
+        <meta name="keywords"
+              content="blockchain, transactions, tax, Ethereum, Solana, BSC, Polygon, Arbitrum, Optimism, Avalanche, Fantom">
     </head>
     <body>
-        <div class='header header_static'>
+        <div class="header header_static">
             <h1>DeFi Taxes</h1>
             <h4>Turn your blockchain transactions into tax forms in a reasonable amount of time.</h4>
         </div>
-        <div id='address_form'><form id='main_form'>Your main blockchain address:
-            <input type=text placeholder='Ethereum or Solana address. No ENS.' id='your_address'/>
-            <div id='supported_chain_list'>Supports <a id='chain_support_link' href='chains.html' target=_blank>{{ blockchain_count }} blockchains</a> including Ethereum, Solana, BSC, Polygon, Arbitrum, Optimism, Avalanche, Fantom.</div>
-            <div id='initial_options'></div>
-            <input type='submit' id='submit_address' value='Process transactions' /><a id='demo_link'>Try a demo</a>
+        <div id="address_form">
+            <form id="main_form">
+                Your main blockchain address:
+                <input type="text"
+                       placeholder="Ethereum or Solana address. No ENS."
+                       id="your_address" />
+                <div id="supported_chain_list">
+                    Supports <a id="chain_support_link"
+    href="{{ url_for('chains.chain_support') }}"
+    target="_blank">{{ blockchain_count }} blockchains</a> including Ethereum, Solana, BSC, Polygon, Arbitrum, Optimism, Avalanche, Fantom.
+                </div>
+                <div id="initial_options"></div>
+                <input type="submit" id="submit_address" value="Process transactions" />
+                <a id="demo_link">Try a demo</a>
             </form>
         </div>
-        <div id='content'></div>
-        <div class='footer footer_static'>
-            <div class='social'>
-                <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a>
-                <a id='twitter_link' href='https://twitter.com/defitaxes' target='_blank'>Twitter</a>
-                <a id='github' href='https://github.com/iraykhel/defitaxes' target='_blank'>Github</a>
+        <div id="content"></div>
+        <div class="footer footer_static">
+            <div class="social">
+                <a id="discord_link"
+                   href="https://discord.gg/E7yuUZ3W4X"
+                   target="_blank">Discord</a>
+                <a id="twitter_link"
+                   href="https://twitter.com/defitaxes"
+                   target="_blank">Twitter</a>
+                <a id="github"
+                   href="https://github.com/iraykhel/defitaxes"
+                   target="_blank">Github</a>
             </div>
-            <div id='made_by'>Last updated 12/01/2023</div>
+            <div id="made_by">Last updated 12/01/2023</div>
         </div>
     </body>
-    <script src="{{url_for('static', filename='pagination.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='main.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='typing.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='inspections.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='tax_calc.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='manual_transaction.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='uploads.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='help.js', v=version)}}"></script>
+    <script src="{{url_for("static", filename="pagination.js", v=version)}}"></script>
+    <script src="{{url_for("static", filename="main.js", v=version)}}"></script>
+    <script src="{{url_for("static", filename="typing.js", v=version)}}"></script>
+    <script src="{{url_for("static", filename="inspections.js", v=version)}}"></script>
+    <script src="{{url_for("static", filename="tax_calc.js", v=version)}}"></script>
+    <script src="{{url_for("static", filename="manual_transaction.js", v=version)}}"></script>
+    <script src="{{url_for("static", filename="uploads.js", v=version)}}"></script>
+    <script src="{{url_for("static", filename="help.js", v=version)}}"></script>
     <script>address = "{{ address }}"; </script>
 </html>
