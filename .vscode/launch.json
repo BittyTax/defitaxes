@@ -28,7 +28,7 @@
                 "FLASK_APP": "wsgi.py",
                 "FLASK_DEBUG": "1"
             },
-            "args": "driver process xnrTV5khE4RSUWMbvMTU2ZYatRfzASCfCoWCuAeQsuf Solana",
+            "args": "driver process 0x032b7d93aeed91127baa55ad570d88fd2f15d589 Arbitrum",
             "jinja": true,
             "autoStartBrowser": false,
             "cwd": "${workspaceFolder}"
