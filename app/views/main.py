@@ -11,12 +11,12 @@ from flask import Blueprint, current_app, render_template, request
 from ..chain import Chain
 from ..coingecko import Coingecko
 from ..fiat_rates import Twelve
-from ..redis_wrap import Redis
+from ..redis_wrap import Redis, ProgressBar
 from ..signatures import Signatures
 from ..sqlite import SQLite
 from ..tax_calc import Calculator
 from ..user import Import, User
-from ..util import ProgressBar, log, log_error, normalize_address, persist, sql_in
+from ..util import log, log_error, normalize_address, persist, sql_in
 
 main = Blueprint("main", __name__)
 
@@ -87,7 +87,7 @@ def process():
     redis = Redis(primary)
 
     # currently importing transactions for this user -- wait to finish, then recreate from stored
-    if redis.waitself():
+    if redis.wait_finish():
         return _recreate_data_from_caches(primary)
 
     redis.start()
@@ -201,8 +201,8 @@ def process():
             user.set_info("data_version", user.version)
             user.start_import(all_chains)
 
-            redis.enq(reset=False)
-            redis.wait(pb=0)
+            redis.enq()
+            redis.wait_queue()
 
             pb.update("Updating FIAT rates", 0.1)
             user.fiat_rates.download_all_rates()

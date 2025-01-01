@@ -5,9 +5,9 @@ import traceback
 from flask import Blueprint, request
 
 from ..coingecko import Coingecko
-from ..redis_wrap import Redis
+from ..redis_wrap import Redis, ProgressBar
 from ..user import User
-from ..util import ProgressBar, log, log_error, normalize_address, persist
+from ..util import log, log_error, normalize_address, persist
 
 uploads = Blueprint("uploads", __name__)
 

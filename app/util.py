@@ -156,36 +156,6 @@ def clog(transaction, *args, **kwargs):
         log(*args, **kwargs)
 
 
-class ProgressBar:
-    def __init__(self, redis, max_pb=None):
-        self.redis = redis
-        self.max_pb = max_pb
-        if max_pb is not None:
-            self.redis.set("max_pb", max_pb)
-
-    def update(self, entry=None, percent_add=None):
-        if entry is not None:
-            self.redis.set("progress_entry", entry)
-        if percent_add is not None:
-            current = self.redis.get("progress")
-            if current is None:
-                current = 0
-            else:
-                current = float(current)
-            self.redis.set("progress", current + percent_add)
-        self.redis.set("last_update", int(time.time()))
-
-    def set(self, entry=None, percent=None):
-        if entry is not None:
-            self.redis.set("progress_entry", entry)
-        if percent is not None:
-            self.redis.set("progress", percent)
-        self.redis.set("last_update", int(time.time()))
-
-    def retrieve(self):
-        return self.redis.get("progress_entry"), self.redis.get("progress")
-
-
 def decustom(val):
     custom = False
     try:

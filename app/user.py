@@ -909,14 +909,7 @@ class User:
                 pass
         try:
             redis = Redis(self.address)
-            to_delete = [
-                self.address + "_progress",
-                self.address + "_progress_entry",
-                self.address + "_last_update",
-                self.address + "_running",
-            ]
-            redis.R.delete(*to_delete)
-            redis.deq()
+            redis.wipe()
         except:
             pass
 

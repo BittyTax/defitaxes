@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 import time
+from typing import Optional, Tuple, Union
 
 import redis
 
@@ -7,72 +7,68 @@ from .util import log, log_error
 
 
 class Redis:
-    def __init__(self, address):
+    KEY_QUEUE = "queue"
+    KEY_PROGRESS = "progress"
+    KEY_PROGRESS_ENTRY = "progress_entry"
+    KEY_LAST_UPDATE = "last_update"
+    KEY_RUNNING = "running"
+
+    def __init__(self, address: str) -> None:
         self.R = redis.StrictRedis(host="localhost", decode_responses=True)
         self.address = address
-        self.queue = "queue"
-        self.pushed = False
-        self.uid = self.address
 
-    def enq(self, reset=False):
-        if self.pushed:
+    def enq(self) -> None:
+        if self.qpos():
             return
-        R = self.R
-        self.set("last_update", int(time.time()))
-        if reset:
-            R.lrem(self.queue, 0, self.uid)
-        else:
-            redis_len = R.llen(self.queue)
-            for idx in range(redis_len):
-                if R.lindex(self.queue, idx) == self.uid:
-                    return
-        self.R.rpush(self.queue, self.uid)
-        self.pushed = True
 
-    def waitself(self, sleep=1):
-        rv = False
-        running = self.get("running")
+        self.set(self.KEY_LAST_UPDATE, int(time.time()))
+        self.R.rpush(self.KEY_QUEUE, self.address)
 
-        if running is not None:
-            rv = True
-            if self.qpos() is not None:
-                self.wait()
+    def deq(self) -> None:
+        self.R.lrem(self.KEY_QUEUE, 0, self.address)
 
-        while running is not None:
-            time.sleep(sleep)
-            running = self.get("running")
-        return rv
+    def qpos(self) -> Optional[int]:
+        try:
+            queue = self.R.lrange(self.KEY_QUEUE, 0, -1)
+            return queue.index(self.address) + 1
+        except ValueError:
+            return None
 
-    def wait(self, sleep=1, pb=0):
-        R = self.R
-        wait_start = int(time.time())
-        last_update_change = wait_start
+    def wait_finish(self) -> bool:
+        if self.get(self.KEY_RUNNING):
+            qpos = self.qpos()
+            if qpos and qpos > 1:
+                self.wait_queue()
+
+            while self.get(self.KEY_RUNNING):
+                time.sleep(1)
+            return True
+        return False
+
+    def wait_queue(self) -> None:
+        last_update_change = int(time.time())
         prev_top_last_update = None
         error_recorded = False
 
-        top = R.lindex(self.queue, 0)
-        while top != self.uid:
-            qpos = self.qpos()
-            if qpos > 1:
-                top_progress = min(100, round(float(R.get(top + "_progress")), 2))
-                top_last_update = R.get(top + "_last_update")
-                self.set(
-                    "progress_entry",
-                    "Waiting for other users, your queue position:"
-                    + str(qpos)
-                    + ", current user's progress:"
-                    + str(top_progress)
-                    + "%",
-                )
-                if pb is not None:
-                    self.set("progress", pb)
-                self.set("last_update", int(time.time()))
+        pb = ProgressBar(self)
 
-                if (
-                    top_last_update is None or time.time() - float(top_last_update) > 30
-                ):  # assume it crashed
+        top_address = self.R.lindex(self.KEY_QUEUE, 0)
+        while top_address and top_address != self.address:
+            qpos = self.qpos()
+            if qpos and qpos > 1:
+                top_progress = self.R.get(f"{top_address}_{self.KEY_PROGRESS}")
+                pb.set(
+                    f"Waiting for other users, your queue position: {qpos}, "
+                    f"current user's progress: "
+                    f"{min(100, float(top_progress) if top_progress else 0):0.2f}%",
+                    0,
+                )
+
+                top_last_update = self.R.get(f"{top_address}_{self.KEY_LAST_UPDATE}")
+                if not top_last_update or time.time() - int(top_last_update) > 30:
+                    # assume it crashed
                     log("assuming other guy crashed", time.time(), top_last_update)
-                    R.lrem(self.queue, 0, top)
+                    self.R.lrem(self.KEY_QUEUE, 0, top_address)
 
                 if top_last_update != prev_top_last_update:
                     last_update_change = int(time.time())
@@ -84,77 +80,89 @@ class Redis:
                         "address",
                         self.address,
                         "redis top",
-                        top,
+                        top_address,
                         "top_last_update",
                         top_last_update,
                         "time diff",
-                        time.time() - float(top_last_update),
+                        time.time() - float(top_last_update) if top_last_update else 0,
                     )
                     error_recorded = True
 
-            log("redis check in loop", top, self.uid)
-            time.sleep(sleep)
-            top = R.lindex(self.queue, 0)
+            log("redis check in loop", top_address, self.address)
+            time.sleep(1)
+            top_address = self.R.lindex(self.KEY_QUEUE, 0)
 
-    def qpos(self):
-        R = self.R
-        redis_len = R.llen(self.queue)
-        for idx in range(redis_len):
-            if R.lindex(self.queue, idx) == self.uid:
-                return idx + 1
-        return None
+    def set(self, key: str, val: Union[str, int, float]) -> None:
+        self.R.set(f"{self.address}_{key}", val)
 
-    def deq(self):
-        R = self.R
-        R.lrem(self.queue, 0, self.uid)
+    def get(self, key: str) -> Optional[str]:
+        return self.R.get(f"{self.address}_{key}")
 
-    def set(self, key, val):
-        R = self.R
-        key = self.uid + "_" + str(key)
-        R.set(key, val)
+    def unset(self, key: str) -> None:
+        self.R.delete(f"{self.address}_{key}")
 
-    def get(self, key):
-        R = self.R
-        key = self.uid + "_" + str(key)
-        val = R.get(key)
-        return val
+    def start(self) -> None:
+        self.set(self.KEY_RUNNING, "1")
+        self.unset(self.KEY_PROGRESS)
+        self.unset(self.KEY_PROGRESS_ENTRY)
+        self.unset(self.KEY_LAST_UPDATE)
 
-    def unset(self, key):
-        R = self.R
-        key = self.uid + "_" + str(key)
-        R.delete(key)
+    def finish(self) -> None:
+        self.unset(self.KEY_RUNNING)
 
-    def start(self):
-        self.set("running", "1")
-        self.unset("progress")
-        self.unset("progress_entry")
-        self.unset("last_update")
+    def wipe(self) -> None:
+        self.unset(self.KEY_PROGRESS)
+        self.unset(self.KEY_PROGRESS_ENTRY)
+        self.unset(self.KEY_LAST_UPDATE)
+        self.unset(self.KEY_RUNNING)
+        self.deq()
 
-    def finish(self):
-        self.unset("running")
+    def cleanup(self) -> None:
+        current_time = int(time.time())
 
-    def cleanup(self):
-        R = self.R
-        t = int(time.time())
-        keys = R.keys("*_last_update")
-        to_delete = []
-        to_stay_queued = []
-        for key in keys:
+        for key in self.R.keys(f"*_{self.KEY_LAST_UPDATE}"):
             log("key", key)
-            last_update = int(R.get(key))
-            uid, _ = key.split("_", 1)
-            if t > last_update + 1800:
-                to_delete.extend(
-                    [key, uid + "_progress", uid + "_progress_entry", uid + "_running"]
-                )
-            else:
-                to_stay_queued.append(uid)
-        log("deleting redis keys", to_delete)
-        if to_delete:
-            R.delete(*to_delete)
+            last_update = self.R.get(key)
 
-        els = R.lrange("queue", 0, -1)
-        for el in els:
-            if el not in to_stay_queued:
-                log("unqueueing ", el)
-                R.lrem("queue", 0, el)
+            # Remove addresses that have not updated for 30 minutes
+            if last_update and current_time - int(last_update) > 1800:
+                address, _ = key.split("_", 1)
+                to_delete = [
+                    f"{address}_{self.KEY_PROGRESS}",
+                    f"{address}_{self.KEY_PROGRESS_ENTRY}",
+                    f"{address}_{self.KEY_RUNNING}",
+                ]
+                log("deleting redis keys", to_delete)
+                self.R.delete(*to_delete)
+                log("unqueueing ", address)
+                self.R.lrem(self.KEY_QUEUE, 0, address)
+
+
+class ProgressBar:
+    def __init__(self, redis_instance: Redis) -> None:
+        self.redis = redis_instance
+
+    def update(self, entry: Optional[str] = None, percent_add: Optional[float] = None):
+        if entry is not None:
+            self.redis.set(self.redis.KEY_PROGRESS_ENTRY, entry)
+
+        if percent_add is not None:
+            progress = self.redis.get(self.redis.KEY_PROGRESS)
+            if progress is not None:
+                self.redis.set(self.redis.KEY_PROGRESS, float(progress) + percent_add)
+
+        self.redis.set(self.redis.KEY_LAST_UPDATE, int(time.time()))
+
+    def set(self, entry: Optional[str] = None, percent: Optional[float] = None) -> None:
+        if entry is not None:
+            self.redis.set(self.redis.KEY_PROGRESS_ENTRY, entry)
+
+        if percent is not None:
+            self.redis.set(self.redis.KEY_PROGRESS, percent)
+
+        self.redis.set(self.redis.KEY_LAST_UPDATE, int(time.time()))
+
+    def retrieve(self) -> Tuple[Optional[str], Optional[str]]:
+        return self.redis.get(self.redis.KEY_PROGRESS_ENTRY), self.redis.get(
+            self.redis.KEY_PROGRESS
+        )
