@@ -1,15 +1,14 @@
-
-$('body').on('click','#up_clicker',function() {
+$('body').on('click', '#up_clicker', function () {
     show_popup()
 });
 
-$('body').on('click','.up_add',function() {
+$('body').on('click', '.up_add', function () {
     let source = $(this).attr('chain')
     show_popup(source)
 });
 
-function show_popup(source=null) {
-    let html ="<div id='overlay'></div><div id='up_popup' class='popup'>";
+function show_popup(source = null) {
+    let html = "<div id='overlay'></div><div id='up_popup' class='popup'>";
     if (demo) html += "<div>You can't upload CSV in a demo, sorry.</div><div>";
     else {
         html += "<div class=header>Upload your transactions<div class='help help_upload_csv'></div></div>"
@@ -18,18 +17,17 @@ function show_popup(source=null) {
         html += "<li><label id='up_input_label'><input type=file id='up_input' name=up_input /><div id='up_input_text'>Choose CSV file from your computer</div></label></li>"
         html += "<li>Specify source of transactions:<input type=text id=up_source placeholder='For example, Binance'"
         if (source != null)
-            html += "value='"+source+"'"
+            html += "value='" + source + "'"
         html += "/></li></ol></form>"
-
         html += "<div class='sim_buttons'><div id='up_process'>Upload transactions</div>";
     }
     html += "<div id='up_cancel'>Cancel</div></div></div>";
     $('#content').append(html);
 }
 
-$('body').on('change','#up_input', function() {
+$('body').on('change', '#up_input', function () {
     let filename_spl = $(this).val().split("\\");
-    let filename = filename_spl[filename_spl.length-1];
+    let filename = filename_spl[filename_spl.length - 1];
     if (filename.length > 0) {
         $('#up_input_text').html(filename);
         $('#up_error_file').remove()
@@ -37,7 +35,7 @@ $('body').on('change','#up_input', function() {
         $('#up_input_text').html("Browse your computer");
 });
 
-$('body').on('click','#up_process', function() {
+$('body').on('click', '#up_process', function () {
     let bad = false;
     let mode = "append";
     $('.up_error').remove()
@@ -56,8 +54,8 @@ $('body').on('click','#up_process', function() {
 
     for (let chain in chain_config) {
         if (chain.toLowerCase() == source.toLowerCase()) {
-            $('#up_source').after("<div class='up_error' id=up_error_source>"+chain+" is one of the chains we support. "+
-            "To avoid a godawful confusion please pick a different name for your upload.</div>")
+            $('#up_source').after("<div class='up_error' id=up_error_source>" + chain + " is one of the chains we support. " +
+                "To avoid a godawful confusion please pick a different name for your upload.</div>")
             bad = true;
             break;
         }
@@ -66,54 +64,49 @@ $('body').on('click','#up_process', function() {
     if (bad)
         return;
 
-    $('#up_popup').children().css({'display':'none'})
+    $('#up_popup').children().css({ 'display': 'none' })
     start_progress_bar('popup')
-
-
-
     $.ajax({
-        url: "upload_csv?address="+primary+"&source="+source+"&mode="+mode,
+        url: "upload_csv?address=" + primary + "&source=" + source + "&mode=" + mode,
         type: 'POST',
         data: new FormData($('#up_form')[0]),
         cache: false,
         contentType: false,
         processData: false,
-        success: function( data, textStatus, jqXHR  ) {
+        success: function (data, textStatus, jqXHR) {
             console.log("uploaded", textStatus, data)
             data = JSON.parse(data);
             stop_progress_bar();
             if (data.hasOwnProperty('error')) {
                 let error = data['error'];
-                $('#up_popup').children().css({'display':''})
-                $('#up_popup').find('.sim_buttons').after("<div class='up_error'>"+error+"</div>");
-            } else{
+                $('#up_popup').children().css({ 'display': '' })
+                $('#up_popup').find('.sim_buttons').after("<div class='up_error'>" + error + "</div>");
+            } else {
                 all_address_info = data['all_address_info'];
                 make_top()
                 new_txids = add_transactions(data['transactions'])
                 make_pagination();
                 need_recalc();
-                need_reproc(display=true,level=3,text="Reprocessing transactions required to detect cross-account transfers");
+                need_reproc(display = true, level = 3, text = "Reprocessing transactions required to detect cross-account transfers");
                 $('.popup').remove();
                 $('#overlay').remove();
                 $('#top_menu_icon').click()
             }
-
-
         },
-        error: function (jqXHR,textStatus,errorThrown ) {
+        error: function (jqXHR, textStatus, errorThrown) {
             stop_progress_bar();
-            console.log("error",textStatus,errorThrown)
+            console.log("error", textStatus, errorThrown)
             console.log(upload_config)
-            $('#up_popup').children().css({'display':''})
-            $('#up_popup').find('.sim_buttons').after("<div class='up_error'>Unknown upload error:"+errorThrown+"</div>");
+            $('#up_popup').children().css({ 'display': '' })
+            $('#up_popup').find('.sim_buttons').after("<div class='up_error'>Unknown upload error:" + errorThrown + "</div>");
         }
-  });
+    });
 });
 
-$('body').on('click','.up_delete',function() {
+$('body').on('click', '.up_delete', function () {
     let upload = $(this).attr('chain')
-    html ="<div id='overlay'></div><div id='up_delete_popup' class='popup'><form id='up_delete_form'><input type=hidden name=chain value='"+upload+"'> ";
-    html += "Really delete "+upload+"? This will also delete all transactions from it.";
+    html = "<div id='overlay'></div><div id='up_delete_popup' class='popup'><form id='up_delete_form'><input type=hidden name=chain value='" + upload + "'> ";
+    html += "Really delete " + upload + "? This will also delete all transactions from it.";
     html += "<div class='sim_buttons'>";
     html += "<div id='up_delete_confirm'>Delete upload</div>";
     html += "<div id='up_delete_cancel'>Cancel</div></div>";
@@ -121,18 +114,18 @@ $('body').on('click','.up_delete',function() {
     $('#content').append(html);
 });
 
-$('body').on('click','#up_delete_cancel',function() {
+$('body').on('click', '#up_delete_cancel', function () {
     $('#up_delete_popup').remove();
     $('#overlay').remove();
 });
 
-$('body').on('click','#up_delete_confirm',function() {
+$('body').on('click', '#up_delete_confirm', function () {
     data = $('#up_delete_form').serialize();
-    $.post("delete_upload?address="+primary, data, function(resp) {
-//        console.log(resp);
+    $.post("delete_upload?address=" + primary, data, function (resp) {
+        //        console.log(resp);
         var data = JSON.parse(resp);
         if (data.hasOwnProperty('error')) {
-            $("#up_delete_form").after("<div class='err_mes'>"+data['error']+"</div>");
+            $("#up_delete_form").after("<div class='err_mes'>" + data['error'] + "</div>");
         } else {
             txids_to_delete = data['txids']
             for (txid of txids_to_delete) {
@@ -144,10 +137,8 @@ $('body').on('click','#up_delete_confirm',function() {
             prev_selection = null;
             $('#up_delete_popup').remove();
             $('#overlay').remove();
-
-
             need_recalc();
-            need_reproc(display=true,level=3);
+            need_reproc(display = true, level = 3);
             make_pagination();
         }
     });

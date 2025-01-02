@@ -13,19 +13,18 @@ displayed_addresses = [];
 fast_mode = false;
 
 params = {
-    'tx_per_page':100,
-    'high_impact_amount':10000,
-    'dc_fix_shutup':0,
-    'matchups_visible':1
+    'tx_per_page': 100,
+    'high_impact_amount': 10000,
+    'dc_fix_shutup': 0,
+    'matchups_visible': 1
 }
 
-global_options  = {
-    fiat : 'USD',
-    opt_tx_costs : 'sell',
-    opt_vault_gain : 'income',
-    opt_vault_loss : 'loss'
+global_options = {
+    fiat: 'USD',
+    opt_tx_costs: 'sell',
+    opt_vault_gain: 'income',
+    opt_vault_loss: 'loss'
 }
-
 
 //tx_per_page = 100
 //high_impact_amount = 10000;
@@ -54,16 +53,12 @@ function setup() {
 
     lookup_info = {
         last_index: 0,
-
         transactions: {
-
         }
     }
 }
 
 setup();
-
-
 
 //chain_config = {
 //    ETH:{scanner:'etherscan.io', base_token:'ETH', scanner_name:'Etherscan', debank:1},
@@ -86,7 +81,7 @@ setup();
 //    Metis:{scanner:'andromeda-explorer.metis.io', base_token:'METIS', scanner_name:'BlockScout',debank:1},
 //    Boba:{scanner:'blockexplorer.bobabeam.boba.network', base_token:'BOBA', scanner_name:'BlockScout',  debank:1},
 //    SXNetwork:{scanner:'explorer.sx.technology', base_token:'SX', scanner_name:'BlockScout', debank:0},
-////    Astar:{scanner:'blockscout.com/astar', base_token:'ASTR', scanner_name:'BlockScout', used:1, debank:1},
+//    Astar:{scanner:'blockscout.com/astar', base_token:'ASTR', scanner_name:'BlockScout', used:1, debank:1},
 //    Evmos:{scanner:'blockscout.evmos.org', base_token:'EVMOS', scanner_name:'BlockScout', debank:1},
 //    Kava:{scanner:'explorer.kava.io', base_token:'KAVA', scanner_name:'BlockScout', debank:1},
 //    Canto:{scanner:'evm.explorer.canto.io', base_token:'CANTO', scanner_name:'BlockScout', debank:1},
@@ -96,10 +91,6 @@ setup();
 //    Solana:{scanner:'solscan.io', base_token:'SOL', scanner_name:'Solscan', debank:1},
 //}
 
-
-
-
-
 function round_usd(amount) {
     return Math.round(amount);
 }
@@ -107,59 +98,54 @@ function round_usd(amount) {
 function print_fiat(amount) {
     let fiat_data = fiat_info[fiat]
     if ('left_symbol' in fiat_data)
-        return fiat_data['left_symbol']+amount
+        return fiat_data['left_symbol'] + amount
     else
-        return amount+fiat_data['right_symbol']
+        return amount + fiat_data['right_symbol']
 }
 
-
-function timeConverter(UNIX_timestamp){
-  var a = new Date(UNIX_timestamp * 1000);
-  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var year = a.getUTCFullYear();
-  var month = months[a.getUTCMonth()];
-  var date = a.getUTCDate();
-  var hour = a.getUTCHours();
-  var min = ("0" +a.getUTCMinutes()).substr(-2);
-  var sec = ("0" +a.getUTCSeconds()).substr(-2);
-  var time = hour + ':' + min+':'+sec + ', ' + month + ' ' + date+' '+year;
-//  return a.toUTCString();
-  return time;
+function timeConverter(UNIX_timestamp) {
+    var a = new Date(UNIX_timestamp * 1000);
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var year = a.getUTCFullYear();
+    var month = months[a.getUTCMonth()];
+    var date = a.getUTCDate();
+    var hour = a.getUTCHours();
+    var min = ("0" + a.getUTCMinutes()).substr(-2);
+    var sec = ("0" + a.getUTCSeconds()).substr(-2);
+    var time = hour + ':' + min + ':' + sec + ', ' + month + ' ' + date + ' ' + year;
+    //  return a.toUTCString();
+    return time;
 }
 
-
-
-function startend(hash,minlen=12) {
+function startend(hash, minlen = 12) {
     if (hash.length > minlen)
-        return hash.substring(0,5)+"..."+hash.substring(hash.length-3);
+        return hash.substring(0, 5) + "..." + hash.substring(hash.length - 3);
     else return hash
 }
 
-function display_hash(zerox, name='address', copiable=true, replace_users_address=true, capitalize=true) {
+function display_hash(zerox, name = 'address', copiable = true, replace_users_address = true, capitalize = true) {
     if (zerox == null) {
         return "<span class='hash'></span>";
     }
-
-//    zerox = zerox.toLowerCase();
+    //    zerox = zerox.toLowerCase();
 
     let html = "";
-    Y= (capitalize?"Y":"y")
+    Y = (capitalize ? "Y" : "y")
     if (displayed_addresses.length == 1 && displayed_addresses[0] == zerox && replace_users_address) {
-
-        html = "<span class='hash self_address'>"+Y+"our address</span>";
+        html = "<span class='hash self_address'>" + Y + "our address</span>";
     } else if (displayed_addresses.length > 1 && displayed_addresses.includes(zerox) && replace_users_address) {
-//        html = "<span class='hash self_address_one_of' title='One of your addresses'>"+startend(zerox)+"</span>";
-        html = "<span class='hash self_address'>"+Y+"ou ("+startend(zerox)+")</span>";
+        //        html = "<span class='hash self_address_one_of' title='One of your addresses'>"+startend(zerox)+"</span>";
+        html = "<span class='hash self_address'>" + Y + "ou (" + startend(zerox) + ")</span>";
     } else {
         if (copiable)
-            html = "<span class='hash copiable' title='Copy full "+name+" to clipboard' full='"+zerox+"'>"+startend(zerox)+"</span>";
+            html = "<span class='hash copiable' title='Copy full " + name + " to clipboard' full='" + zerox + "'>" + startend(zerox) + "</span>";
         else
-            html = "<span class='hash' title='"+zerox+"'>"+startend(zerox)+"</span>";
+            html = "<span class='hash' title='" + zerox + "'>" + startend(zerox) + "</span>";
     }
     return html;
 }
 
-function display_token(token_name, token_address, nft_id, copiable=true) {
+function display_token(token_name, token_address, nft_id, copiable = true) {
     let html = "";
     if ((token_name == null || token_name.length == 0 || token_name.toLowerCase() == token_address.toLowerCase()) && token_address != null)
         html = display_hash(token_address)
@@ -169,15 +155,15 @@ function display_token(token_name, token_address, nft_id, copiable=true) {
         else {
             if (copiable)
                 if (nft_id != null)
-                    html += "<span class='token copiable' title='Copy NFT collection address' full='"+token_address+"'>";
+                    html += "<span class='token copiable' title='Copy NFT collection address' full='" + token_address + "'>";
                 else
-                    html += "<span class='token copiable' title='Copy token address' full='"+token_address+"'>"
+                    html += "<span class='token copiable' title='Copy token address' full='" + token_address + "'>"
             html += token_name
             if (copiable) html += "</span>";
         }
     }
     if (nft_id != null) {
-        if (copiable) html += " <span class='copiable' title='Copy NFT ID to clipboard' full='"+nft_id+"'>"; else html += " ";
+        if (copiable) html += " <span class='copiable' title='Copy NFT ID to clipboard' full='" + nft_id + "'>"; else html += " ";
         html += startend(nft_id);
         if (copiable) html += "</span>"
     }
@@ -185,8 +171,8 @@ function display_token(token_name, token_address, nft_id, copiable=true) {
 }
 
 function isNumeric(str) {
-  return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
-         !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
+    return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
+        !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
 }
 
 function round(rate) {
@@ -195,27 +181,27 @@ function round(rate) {
             return 0;
         }
         if (rate > 0)
-            return rate.toFixed(Math.max(0,Math.round(4-Math.log10(rate))));
+            return rate.toFixed(Math.max(0, Math.round(4 - Math.log10(rate))));
         else
-            return rate.toFixed(Math.max(0,Math.round(4-Math.log10(-rate))));
+            return rate.toFixed(Math.max(0, Math.round(4 - Math.log10(-rate))));
     } else {
         return rate;
     }
 }
 
 function show(el) {
-    el.css({'display':'block'});
-//    el.style.display = 'block';
+    el.css({ 'display': 'block' });
+    //    el.style.display = 'block';
 }
 
 function showib(el) {
-    el.css({'display':'inline-block'});
-//    el.style.display = 'inline-block';
+    el.css({ 'display': 'inline-block' });
+    //    el.style.display = 'inline-block';
 }
 
 function hide(el) {
-    el.css({'display':'none'});
-//    el.style.display = 'none';
+    el.css({ 'display': 'none' });
+    //    el.style.display = 'none';
 }
 
 function show_ajax_transactions(data) {
@@ -225,44 +211,42 @@ function show_ajax_transactions(data) {
         let transaction = data['transactions'][idx];
         let txid = parseInt(transaction['txid']);
         let num = all_transactions[txid]['num'];
-//        let len = dict_len(all_transactions);
-//        console.log('ajax num',num, all_transactions.length, all_transactions.size, );
-//        idx_html = $('#t_'+txid).find('.t_idx').html();
+        //        let len = dict_len(all_transactions);
+        //        console.log('ajax num',num, all_transactions.length, all_transactions.size, );
+        //        idx_html = $('#t_'+txid).find('.t_idx').html();
         transaction['num'] = num;
         all_transactions[txid] = transaction;
         transaction_html = make_transaction_html(transaction);
-        $('#t_'+txid).replaceWith(transaction_html)
-        process_tax_errors(txid=txid)
-//        $('#t_'+txid).addClass('secondary_selected');
+        $('#t_' + txid).replaceWith(transaction_html)
+        process_tax_errors(txid = txid)
+        //        $('#t_'+txid).addClass('secondary_selected');
         selected_transactions.add(txid)
-//        all_transactions[txid]['selected']=true
-//        $('#t_'+txid).find('.t_idx').html(idx_html);
-
-//        populate_vault_info(vault_info=null,txid=txid);
+        //        all_transactions[txid]['selected']=true
+        //        $('#t_'+txid).find('.t_idx').html(idx_html);
+        //        populate_vault_info(vault_info=null,txid=txid);
     }
     if (selected_id != null) {
-        select_transaction($('#'+selected_id),keep_secondary=true);
-//        $('#'+selected_id).click();
+        select_transaction($('#' + selected_id), keep_secondary = true);
+        //        $('#'+selected_id).click();
     }
     update_selections_block()
-//    if (selected_secondary.length > 0) {
-//        let secondary_id_list =
-//    }
-
+    //    if (selected_secondary.length > 0) {
+    //        let secondary_id_list =
+    //    }
 }
 
-$( document ).ready(function() {
-    $('body').on('click', '.copiable', function() {
+$(document).ready(function () {
+    $('body').on('click', '.copiable', function () {
         let hash = $(this).attr('full');
         let el = $(this);
-        el.css({'background-color':'#8065f7','color':'white'});
-//        console.log(hash);
+        el.css({ 'background-color': '#8065f7', 'color': 'white' });
+        //        console.log(hash);
         let temp = $("<input>");
         $("body").append(temp);
         temp.val(hash).select();
         document.execCommand("copy");
         temp.remove();
-        setTimeout(function(){ el.css({'background-color':'','color':''}); }, 50);
+        setTimeout(function () { el.css({ 'background-color': '', 'color': '' }); }, 50);
     });
 
     //from cookie
@@ -272,105 +256,96 @@ $( document ).ready(function() {
         //show_last_update(last_transaction_timestamp);
     }
 
-    $('#your_address').on('paste',function(e) {
+    $('#your_address').on('paste', function (e) {
         address = e.originalEvent.clipboardData.getData('text').trim();
-//        chain = $('#chain').val();
-
+        //        chain = $('#chain').val();
         get_last_update(address);
     });
 
-
-    $('#your_address, #chain').on('change',function() {
+    $('#your_address, #chain').on('change', function () {
         address = $('#your_address').val().trim();
-//        chain = $('#chain').val();
+        //        chain = $('#chain').val();
         get_last_update(address);
     });
-
-
-
 });
 
 function isAlphaNumeric(str) {
-  var code, i, len;
+    var code, i, len;
 
-  for (i = 0, len = str.length; i < len; i++) {
-    code = str.charCodeAt(i);
-    if (!(code > 47 && code < 58) && // numeric (0-9)
-        !(code > 64 && code < 91) && // upper alpha (A-Z)
-        !(code > 96 && code < 123)) { // lower alpha (a-z)
-      return false;
+    for (i = 0, len = str.length; i < len; i++) {
+        code = str.charCodeAt(i);
+        if (!(code > 47 && code < 58) && // numeric (0-9)
+            !(code > 64 && code < 91) && // upper alpha (A-Z)
+            !(code > 96 && code < 123)) { // lower alpha (a-z)
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
 };
 
 function get_last_update(address) {
     if (address.length < 32 || address.length > 44 || !isAlphaNumeric(address))
         return
-    $.get("last_update?address="+address, function(js) {
+    $.get("last_update?address=" + address, function (js) {
         var data = JSON.parse(js);
         last_transaction_timestamp = data['last_transaction_timestamp'];
         update_import_needed = data['update_import_needed']
-        show_last_update(last_transaction_timestamp,update_import_needed);
+        show_last_update(last_transaction_timestamp, update_import_needed);
     });
 
 }
 
-function show_last_update(last_transaction_timestamp,update_import_needed) {
+function show_last_update(last_transaction_timestamp, update_import_needed) {
     html = "";
     if (last_transaction_timestamp != 0) {
         ttime = timeConverter(last_transaction_timestamp);
-        html = "You last imported transactions at "+ttime+" (UTC).<br>";
+        html = "You last imported transactions at " + ttime + " (UTC).<br>";
         html += "<label>Import new transactions that you made since then? <input type=checkbox id='import_new_transactions'></label>";
 
         if (update_import_needed)
-            html += "<div id='updated_note'>Software has been updated since your last visit. "+
-            "Importing new transactions will also fix some issues with the old ones, and is strongly recommended. "
-            +"It will preserve custom changes you made wherever possible; additionally your data has been backed up.</div>"
+            html += "<div id='updated_note'>Software has been updated since your last visit. " +
+                "Importing new transactions will also fix some issues with the old ones, and is strongly recommended. "
+                + "It will preserve custom changes you made wherever possible; additionally your data has been backed up.</div>"
     }
     $('#initial_options').html(html);
 }
 
-
-
-
 function start_progress_bar(mode) {
-//    console.log('pb position',position)
+    //    console.log('pb position',position)
     pb_html = "<div id='progressbar_wrap'><div id='progressbar'></div><div id='pb_phase'>Processing...<div></div>"
 
-    if (mode=='middle') {
-        $('#address_form').css({'width':'95%'});
+    if (mode == 'middle') {
+        $('#address_form').css({ 'width': '95%' });
         $('#main_form').append(pb_html);
     }
 
-    if (mode=='initial') {
+    if (mode == 'initial') {
         $('#content').html(pb_html);
-        $('#progressbar_wrap').css({'top':'100px','padding-top':'0px','position':'fixed','left':'50%','transform':'translateX(-50%)'});
+        $('#progressbar_wrap').css({ 'top': '100px', 'padding-top': '0px', 'position': 'fixed', 'left': '50%', 'transform': 'translateX(-50%)' });
     }
 
-    if (mode =='popup') {
+    if (mode == 'popup') {
         $('.popup').append(pb_html);
     }
 
-    $( "#progressbar" ).progressbar({
-      value: 0
+    $("#progressbar").progressbar({
+        value: 0
     })
-    pb_interval = setInterval(function() {
-//        let address = window.sessionStorage.getItem('address');
-//        let chain_name = window.sessionStorage.getItem('chain');
+    pb_interval = setInterval(function () {
+        //        let address = window.sessionStorage.getItem('address');
+        //        let chain_name = window.sessionStorage.getItem('chain');
         let uid = window.sessionStorage.getItem('uid');
 
-        $.get("progress_bar?address="+primary+"&uid="+uid, function(js) {
+        $.get("progress_bar?address=" + primary + "&uid=" + uid, function (js) {
             var data = JSON.parse(js);
             current_phase = data['phase'];
             pb = data['pb'];
-            $('#progressbar').progressbar({value: pb});
+            $('#progressbar').progressbar({ value: pb });
             $('#pb_phase').html(current_phase);
 
             if (pb >= 100) {
                 clearInterval(pb_interval);
             }
-
         });
     }, 1000);
 }
@@ -381,26 +356,26 @@ function stop_progress_bar() {
     $('#progressbar_wrap').remove()
 }
 
-function map_lookups(transaction, unmap_instead=false) {
+function map_lookups(transaction, unmap_instead = false) {
     func = add_to_mapping
     if (unmap_instead)
         func = remove_from_mapping
     txid = transaction['txid'];
     transaction_counterparties = transaction['counter_parties'];
     for (let progenitor in transaction_counterparties) {
-        func('counterparty',progenitor,txid);
+        func('counterparty', progenitor, txid);
         hex_sig = transaction_counterparties[progenitor][1]
-        func('signature',hex_sig,txid);
+        func('signature', hex_sig, txid);
         cp_name = transaction_counterparties[progenitor][0];
         if (cp_name == 'unknown')
             cp_name = progenitor
-        func('counterparty_name',cp_name,txid);
+        func('counterparty_name', cp_name, txid);
     }
 
     if (transaction['upload_id'] != null && transaction['function'] != null)
-        func('signature',transaction['function'],txid);
+        func('signature', transaction['function'], txid);
 
-    func('chain',transaction['chain'],txid)
+    func('chain', transaction['chain'], txid)
     rows = transaction['rows'];
     outbound_count = 0;
     inbound_count = 0;
@@ -412,9 +387,9 @@ function map_lookups(transaction, unmap_instead=false) {
             let token_name = transfer['symbol'];
             let token_id = transfer['coingecko_id'];
 
-            func('address',transfer['fr'],txid);
+            func('address', transfer['fr'], txid);
             if (transfer['to'] != 'network') {
-                func('address',transfer['to'],txid);
+                func('address', transfer['to'], txid);
                 if (transfer['outbound']) {
                     outbound_count += 1;
                 } else {
@@ -422,28 +397,25 @@ function map_lookups(transaction, unmap_instead=false) {
                 }
             }
 
-
-            func('token_address',token_address,txid);
-            func('token_name',token_name,txid);
+            func('token_address', token_address, txid);
+            func('token_name', token_name, txid);
             if (token_id != null)
-                func('token_id',token_id,txid);
+                func('token_id', token_id, txid);
             else
-                func('token_id',token_address,txid);
+                func('token_id', token_address, txid);
             if (transfer['token_nft_id'] != null)
-                func('token_nft',token_address+"_"+transfer['token_nft_id'],txid)
-//            func('address',other_address,txid);
+                func('token_nft', token_address + "_" + transfer['token_nft_id'], txid)
+            //            func('address',other_address,txid);
         }
     }
 
-    func('outbound_count',outbound_count,txid);
-    func('inbound_count',inbound_count,txid);
+    func('outbound_count', outbound_count, txid);
+    func('inbound_count', inbound_count, txid);
 }
-
-
 
 function add_to_mapping(mapping_type, value, txid) {
     if (value == null) return;
-    mcode = mapping_type +"_mapping"
+    mcode = mapping_type + "_mapping"
     if (!(mcode in lookup_info))
         lookup_info[mcode] = {}
 
@@ -453,7 +425,7 @@ function add_to_mapping(mapping_type, value, txid) {
     mapping[value].add(txid);
 
     transaction_list = lookup_info['transactions'];
-    lookups = ['chain','counterparty','counterparty_name','signature','outbound_count','token_name','token_address','token_id','inbound_count','address','token_nft']; //'outbound_token','inbound_token'
+    lookups = ['chain', 'counterparty', 'counterparty_name', 'signature', 'outbound_count', 'token_name', 'token_address', 'token_id', 'inbound_count', 'address', 'token_nft']; //'outbound_token','inbound_token'
     if (!(txid in transaction_list)) {
         transaction_list[txid] = {}
         for (i = 0; i < lookups.length; i++)
@@ -463,20 +435,17 @@ function add_to_mapping(mapping_type, value, txid) {
     transaction_list[txid][mapping_type].add(value);
 }
 
-
-function remove_from_mapping(mapping_type,value,txid) {
+function remove_from_mapping(mapping_type, value, txid) {
     if (value == null) return;
-//    console.log('rfm',value)
-    mapping = lookup_info[mapping_type+"_mapping"];
-//    console.log('rfm 2',mapping[value])
+    //    console.log('rfm',value)
+    mapping = lookup_info[mapping_type + "_mapping"];
+    //    console.log('rfm 2',mapping[value])
     mapping[value].delete(txid);
     transaction_list[txid][mapping_type].delete(value);
 }
 
-
-
-function display_counterparty(transaction, editable=false) {
-//    console.log('display_counterparty', transaction)
+function display_counterparty(transaction, editable = false) {
+    //    console.log('display_counterparty', transaction)
     html = "<div class='tx_row_2'>"
     transaction_counterparties = transaction['counter_parties'];
     cp_len = dict_len(transaction_counterparties)
@@ -487,55 +456,51 @@ function display_counterparty(transaction, editable=false) {
             hex_sig = transaction_counterparties[progenitor][1]
             signature = transaction_counterparties[progenitor][2]
 
-
             if (editable) {
                 if (signature != null)
-                    html += "Operation: <span class='signature'>"+signature+"</span> @ ";
+                    html += "Operation: <span class='signature'>" + signature + "</span> @ ";
                 else
                     html += "Counterparty: "
 
-
-                html += "<span class='cp prog_"+progenitor+"' progenitor='"+progenitor+"' title='Update counterparty'>"+cp+"</span>";
+                html += "<span class='cp prog_" + progenitor + "' progenitor='" + progenitor + "' title='Update counterparty'>" + cp + "</span>";
             } else {
                 if (signature != null) {
-                    html += "Operation: <span class='op'>"+signature+" @ "+cp+"</span>";
+                    html += "Operation: <span class='op'>" + signature + " @ " + cp + "</span>";
                 } else
-                    html += "Counterparty: <span class='op'>"+cp+"</span>";
+                    html += "Counterparty: <span class='op'>" + cp + "</span>";
             }
 
-
-            if (cp_idx != cp_len -1) transaction_html += ","
+            if (cp_idx != cp_len - 1) transaction_html += ","
             cp_idx += 1
         }
         if (editable)
             html += "<div class='help help_cpop'></div>";
     } else if (transaction['function'] != null && transaction['upload_id'] != null) {
-        html += "Operation: <span class='signature'>"+transaction['function']+"</span>";
+        html += "Operation: <span class='signature'>" + transaction['function'] + "</span>";
     }
     html += "</div>";
     return html;
-
 }
 
 function find_transfer(transaction_id, transfer_id) {
     if (!(transaction_id in all_transactions))
         return null
-    let transfers =  all_transactions[transaction_id]['rows'];
+    let transfers = all_transactions[transaction_id]['rows'];
     if (!(transfer_id in transfers))
         return null
     return transfers[transfer_id]
-//    transfers = all_transactions[transaction_id]['rows'];
-//    for (let transfer of transfers) {
-//        if (transfer['index']  == transfer_idx) {
-//            return transfer;
-//            break;
-//        }
-//    }
-//    return null
+    //    transfers = all_transactions[transaction_id]['rows'];
+    //    for (let transfer of transfers) {
+    //        if (transfer['index']  == transfer_idx) {
+    //            return transfer;
+    //            break;
+    //        }
+    //    }
+    //    return null
 }
 
-function set_transfer_val(transaction_id, transfer_id, what, val, append=false) {
-    let transfer = find_transfer(transaction_id,transfer_id)
+function set_transfer_val(transaction_id, transfer_id, what, val, append = false) {
+    let transfer = find_transfer(transaction_id, transfer_id)
     if (transfer != null) {
         if (append) {
             if (!(what in transfer))
@@ -546,15 +511,13 @@ function set_transfer_val(transaction_id, transfer_id, what, val, append=false) 
     }
 }
 
-function display_transfers(transaction, editable=false) {
-    let options_in = {'ignore':'Ignore','buy':'Buy','gift':'Acquire for free','income':'Income','borrow':'Borrow','withdraw':'Withdraw from vault','exit':'Exit vault'};
-    let options_out = {'ignore':'Ignore','sell':'Sell','burn':'Dispose for free','fee':'Transaction cost','repay':'Repay loan','full_repay':'Fully repay loan','deposit':'Deposit to vault','interest':'Loan interest','expense':'Business expense'};
+function display_transfers(transaction, editable = false) {
+    let options_in = { 'ignore': 'Ignore', 'buy': 'Buy', 'gift': 'Acquire for free', 'income': 'Income', 'borrow': 'Borrow', 'withdraw': 'Withdraw from vault', 'exit': 'Exit vault' };
+    let options_out = { 'ignore': 'Ignore', 'sell': 'Sell', 'burn': 'Dispose for free', 'fee': 'Transaction cost', 'repay': 'Repay loan', 'full_repay': 'Fully repay loan', 'deposit': 'Deposit to vault', 'interest': 'Loan interest', 'expense': 'Business expense' };
     let chain = transaction['chain'];
     let fiat_rate = transaction['fiat_rate'];
-
-//    if (editable == false && fast_mode)
-//        return "<div class=transfers style='display:none;'></div>";
-
+    //    if (editable == false && fast_mode)
+    //        return "<div class=transfers style='display:none;'></div>";
     rows = transaction['rows'];
     rows_table = "<div class='transfers'><table class='rows'>";
     rows_table += "<tr class='transfers_header'><td class=c>From</td><td></td><td class=c>To</td>"
@@ -573,14 +536,14 @@ function display_transfers(transaction, editable=false) {
             if (treatment != null && treatment.includes('custom:')) {
                 treatment = treatment.substr(7);
             }
-            if (['repay','deposit','borrow','withdraw','exit','liquidation','full_repay'].includes(treatment)) {
+            if (['repay', 'deposit', 'borrow', 'withdraw', 'exit', 'liquidation', 'full_repay'].includes(treatment)) {
                 show_vaultid_col = true;
                 rows_table += "<td class=r_vaultid>Vault/loan ID<div class='help help_vaultid'></div></td>";
                 break;
             }
         }
     }
-    rows_table += "<td class=r_rate>"+fiat+" rate</td></tr>";
+    rows_table += "<td class=r_rate>" + fiat + " rate</td></tr>";
 
     let txid = transaction['txid'];
 
@@ -599,7 +562,6 @@ function display_transfers(transaction, editable=false) {
         let input_len = transfer['input_len'];
         let coingecko_id = transfer['coingecko_id'];
         let changed = transfer['changed']
-
         treatment = transfer['treatment'];
 
         if (treatment != null && treatment.includes('custom:')) {
@@ -617,7 +579,6 @@ function display_transfers(transaction, editable=false) {
             }
         }
 
-
         vault_id = transfer['vault_id'];
         if (vault_id != null && vault_id.toString().includes('custom:')) {
             cust_vaultid_class = " custom";
@@ -630,9 +591,9 @@ function display_transfers(transaction, editable=false) {
             disp_to = 'Network fee';
         }
 
-        row_html = "<tr id="+trid+"><td>"+display_hash(from)+"</td><td class='r_arrow'><div></div></td><td>"+disp_to+"</td><td class='r_amount'>"+round(amount)+"</td><td class='r_token'>"+display_token(token_name,token_contract,nft_id);
+        row_html = "<tr id=" + trid + "><td>" + display_hash(from) + "</td><td class='r_arrow'><div></div></td><td>" + disp_to + "</td><td class='r_amount'>" + round(amount) + "</td><td class='r_token'>" + display_token(token_name, token_contract, nft_id);
         if (chain == 'Solana' && input_len == 200) //solana nft address
-            row_html += "<a class='open_scan' title='Open in scanner' target=_blank href='https://solscan.io/token/"+input+"'></a>";
+            row_html += "<a class='open_scan' title='Open in scanner' target=_blank href='https://solscan.io/token/" + input + "'></a>";
         row_html += "</td>";
 
         if (editable) {
@@ -640,29 +601,25 @@ function display_transfers(transaction, editable=false) {
                 coingecko_id_text = 'not found'
             else
                 coingecko_id_text = coingecko_id
-            row_html += "<td class='r_coingecko_id'><a class='edit_coingecko_id' chain='"+chain+"' contract='"+token_contract+"' symbol='"+token_name+"' title='Change Coingecko ID'>"+coingecko_id_text+"</a></td>";
+            row_html += "<td class='r_coingecko_id'><a class='edit_coingecko_id' chain='" + chain + "' contract='" + token_contract + "' symbol='" + token_name + "' title='Change Coingecko ID'>" + coingecko_id_text + "</a></td>";
         }
 
-
-        row_html+="<td class='r_treatment"+cust_treatment_class+"'>"
+        row_html += "<td class='r_treatment" + cust_treatment_class + "'>"
         if (editable)
             row_html += "<select class='treatment'>";
-
-//        console.log('disp transfer',txid,row,to,addr)
+        //        console.log('disp transfer',txid,row,to,addr)
         let options = {}
         if (displayed_addresses.includes(to) && displayed_addresses.includes(from))
-            options = Object.assign({},options_in,options_out)
+            options = Object.assign({}, options_in, options_out)
         else if (displayed_addresses.includes(to) || to == 'my account')
             options = options_in
         else
             options = options_out
-
-//        if (to != null && to.toLowerCase() == addr) {
-//            options = options_in;
-//        } else {
-//            options = options_out;
-//        }
-
+        //        if (to != null && to.toLowerCase() == addr) {
+        //            options = options_in;
+        //        } else {
+        //            options = options_out;
+        //        }
         hidden_vaultid_class = " class='hidden'";
         treatment_found = 0;
         if (treatment == 'loss')
@@ -673,8 +630,8 @@ function display_transfers(transaction, editable=false) {
                 row_html += "<option ";
 
             if (option == treatment) {
-                if (['repay','deposit','borrow','withdraw','exit','liquidation','full_repay'].includes(option)) {
-//                    console.log(transaction['num'],index,'show vaultid')
+                if (['repay', 'deposit', 'borrow', 'withdraw', 'exit', 'liquidation', 'full_repay'].includes(option)) {
+                    //                    console.log(transaction['num'],index,'show vaultid')
                     hidden_vaultid_class = "";
                 }
 
@@ -685,79 +642,68 @@ function display_transfers(transaction, editable=false) {
                     treatment_found = 1;
                     break;
                 }
-
             }
             if (editable)
-                row_html +="value='"+option+"'>"+opt_exp+"</option>\n";
+                row_html += "value='" + option + "'>" + opt_exp + "</option>\n";
         }
         if (editable) {
             row_html += "</select>"
-//            row_html += "<input type=text class=row_rate value="+round(rate)+" default="+rate+">";
+            //            row_html += "<input type=text class=row_rate value="+round(rate)+" default="+rate+">";
         } else if (!treatment_found)
             row_html += Object.values(options)[0];
 
-        row_html +="</td>";
+        row_html += "</td>";
 
         if (show_vaultid_col) {
-            row_html += "<td class='r_vaultid"+cust_vaultid_class+"'><span"+hidden_vaultid_class+">";
+            row_html += "<td class='r_vaultid" + cust_vaultid_class + "'><span" + hidden_vaultid_class + ">";
             if (editable)
-                row_html += "<input type=text class=row_vaultid value='"+vault_id+"' default='"+vault_id+"'>";
+                row_html += "<input type=text class=row_vaultid value='" + vault_id + "' default='" + vault_id + "'>";
             else
                 row_html += vault_id;
             row_html += "</span></td>";
         }
-
-//        if (show_vaultid) {
-//            if (editable)
-//                row_html += "<td class='r_vaultid"+cust_vaultid_class+"'><input type=text class=row_vaultid value='"+vault_id+"' default='"+vault_id+"'></td>";
-//            else
-//                row_html += "<td class='r_vaultid"+cust_vaultid_class+"'>"+vault_id+"</td>";
-//        } else
-//            row_html += "<td class='r_vaultid'></td>";
-
-
+        //        if (show_vaultid) {
+        //            if (editable)
+        //                row_html += "<td class='r_vaultid"+cust_vaultid_class+"'><input type=text class=row_vaultid value='"+vault_id+"' default='"+vault_id+"'></td>";
+        //            else
+        //                row_html += "<td class='r_vaultid"+cust_vaultid_class+"'>"+vault_id+"</td>";
+        //        } else
+        //            row_html += "<td class='r_vaultid'></td>";
         rounded_rate = round(rate);
         if (rounded_rate == null)
             rounded_rate = 0;
         if (editable) {
-            row_html += "<td class='r_rate"+cust_rate_class+"'><input type=text class=row_rate value="+rounded_rate+" default="+rate+"></td>";
+            row_html += "<td class='r_rate" + cust_rate_class + "'><input type=text class=row_rate value=" + rounded_rate + " default=" + rate + "></td>";
         } else
-            row_html += "<td class='r_rate"+cust_rate_class+"'>"+rounded_rate+"</td>";
+            row_html += "<td class='r_rate" + cust_rate_class + "'>" + rounded_rate + "</td>";
 
-
-        row_html+="</tr>";
+        row_html += "</tr>";
 
         if (typeof matchup_texts !== 'undefined')
-            row_html += make_matchup_html(txid,trid);
+            row_html += make_matchup_html(txid, trid);
 
         rows_table += row_html;
-
-
-
     }
     rows_table += "</table></div>";
     return rows_table
-
 }
 
-function rate_note(rate_struct,symbol,level,text) {
+function rate_note(rate_struct, symbol, level, text) {
     if (!(symbol in rate_struct))
-        rate_struct[symbol] = {'level':level,'text': [text]}
+        rate_struct[symbol] = { 'level': level, 'text': [text] }
     else {
         if (level < rate_struct[symbol]['level']) {
             rate_struct[symbol]['level'] = level
         }
         if (!rate_struct[symbol]['text'].includes(text))
             rate_struct[symbol]['text'].push(text)
-//            rate_struct[symbol] = {'level':level,'text': text}
+        //            rate_struct[symbol] = {'level':level,'text': text}
     }
 }
 
 function make_transaction_html(transaction) {
     let min_color = transaction['classification_certainty']
     let chain_name = transaction['chain'];
-
-
     let spam = false
     if (transaction['type'] == 'spam' || transaction['type'] == 'spam (NFT-related)')
         spam = true
@@ -770,19 +716,13 @@ function make_transaction_html(transaction) {
         minimized = true
     }
 
-
-
-
     let rate_struct = {}
-
     txid = transaction['txid'];
-
-
     rows = transaction['rows'];
     let other_notes = []
-//    if (chain_name == 'Arbitrum') {
-//        other_notes.push("Arbiscan is extremely buggy. It misses ALL ETH transfers that you receive from smart contracts! You may need to create manual transactions if you want Arbitrum to be processed correctly.")
-//    }
+    //    if (chain_name == 'Arbitrum') {
+    //        other_notes.push("Arbiscan is extremely buggy. It misses ALL ETH transfers that you receive from smart contracts! You may need to create manual transactions if you want Arbitrum to be processed correctly.")
+    //    }
     let transaction_symbols_out = new Set()
     let transaction_symbols_in = new Set()
     for (let trid in rows) {
@@ -794,9 +734,9 @@ function make_transaction_html(transaction) {
             transaction_symbols_in.add(symbol)
         let coingecko_id = transfer['coingecko_id'];
         let display_symbol = symbol;
-//        if (coingecko_id != null) {
-//            display_symbol += " ("+coingecko_id+")"
-//        }
+        //        if (coingecko_id != null) {
+        //            display_symbol += " ("+coingecko_id+")"
+        //        }
         let what = transfer['what'];
         let nft_id = transfer['token_nft_id'];
         if (!(chain_name in all_symbols))
@@ -808,21 +748,20 @@ function make_transaction_html(transaction) {
 
         synth = transfer['synthetic']
         if (synth == 3) {
-            other_notes.push(display_token(symbol,what,null,copiable=false)+" appears to be a rebasing asset. The first transfer in this transaction represents all its rebases up to this point.")
+            other_notes.push(display_token(symbol, what, null, copiable = false) + " appears to be a rebasing asset. The first transfer in this transaction represents all its rebases up to this point.")
             min_color = 0
         }
 
         if (synth == 4) {
-//            other_notes.push("Etherscan seems to have missed where you acquired "+display_token(symbol,what,nft_id,copiable=false)+". We added a transfer simulating a mint to this transaction.");
+            //            other_notes.push("Etherscan seems to have missed where you acquired "+display_token(symbol,what,nft_id,copiable=false)+". We added a transfer simulating a mint to this transaction.");
             other_notes.push("Etherscan seems to have missed a mint in this transaction. We added it based on simplehash data. There's a small chance this is in a wrong transaction.");
             min_color = 3
         }
 
         if (synth == 5) {
             other_notes.push("Arbiscan screws up direction of transactions that bridge funds in. The transfer here has opposite direction from what Arbiscan shows.");
-            min_color = Math.min(min_color,5)
+            min_color = Math.min(min_color, 5)
         }
-
 
         rate = transfer['rate'];
         if (rate == null) {
@@ -831,67 +770,61 @@ function make_transaction_html(transaction) {
                 if (transaction['type'] != 'transfer in' && !spam) //airdrops don't have rates
                     min_color = 0;
                 if (!spam)
-                    rate_note(rate_struct,symbol,0,"Could not find rate of "+symbol+", assuming 0")
+                    rate_note(rate_struct, symbol, 0, "Could not find rate of " + symbol + ", assuming 0")
             }
         } else if (!rate.toString().includes('custom:')) {
             let good_rate = transfer['rate_found'];
             let rate_source = transfer['rate_source'];
             if (rate_source.includes("inferred")) {
                 if (rate_source.includes("inferred from ")) {
-                    let source_trust = parseFloat(rate_source.substr(rate_source.indexOf('inferred from ')+14))
+                    let source_trust = parseFloat(rate_source.substr(rate_source.indexOf('inferred from ') + 14))
                     let level = 10
                     if (source_trust < 1)
                         level = 5
                     if (source_trust < 0.5)
                         level = 3
-                    rate_note(rate_struct,symbol,level,"Rate for "+symbol+" is inferred from the other currencies and might be wrong")
-                    min_color = Math.min(min_color,level)
+                    rate_note(rate_struct, symbol, level, "Rate for " + symbol + " is inferred from the other currencies and might be wrong")
+                    min_color = Math.min(min_color, level)
                 } else if (rate_source.includes("after")) {
-                    let ts = rate_source.substr(rate_source.indexOf("after") + 11,10);
+                    let ts = rate_source.substr(rate_source.indexOf("after") + 11, 10);
                     let ttime = timeConverter(ts);
-                    rate_note(rate_struct,symbol,5,"Rate for "+symbol+" is inferred from earlier transactions (from "+ttime+")")
-                    min_color = Math.min(min_color,5)
+                    rate_note(rate_struct, symbol, 5, "Rate for " + symbol + " is inferred from earlier transactions (from " + ttime + ")")
+                    min_color = Math.min(min_color, 5)
                 } else if (rate_source.includes("before")) {
-                    let ts = rate_source.substr(rate_source.indexOf("before") + 13,10);
+                    let ts = rate_source.substr(rate_source.indexOf("before") + 13, 10);
                     let ttime = timeConverter(ts);
-                    rate_note(rate_struct,symbol,3,"Rate for "+symbol+" is inferred from subsequent transactions (from "+ttime+") and is probably wrong!")
-                    min_color = Math.min(min_color,3)
+                    rate_note(rate_struct, symbol, 3, "Rate for " + symbol + " is inferred from subsequent transactions (from " + ttime + ") and is probably wrong!")
+                    min_color = Math.min(min_color, 3)
                 } else
-                    rate_note(rate_struct,symbol,10,"Rate for "+symbol+" is inferred from the other currencies")
+                    rate_note(rate_struct, symbol, 10, "Rate for " + symbol + " is inferred from the other currencies")
             }
             else if (rate_source.includes("before")) {
-                let ts = rate_source.substr(rate_source.indexOf("before") + 13,10);
+                let ts = rate_source.substr(rate_source.indexOf("before") + 13, 10);
                 let ttime = timeConverter(ts);
-                rate_note(rate_struct,symbol,3,"We don't have rates data for "+display_symbol+" at the time of this transaction, we are using the earliest rate we have (from "+ttime+"), and it's probably wrong")
-                min_color = Math.min(min_color,3)
+                rate_note(rate_struct, symbol, 3, "We don't have rates data for " + display_symbol + " at the time of this transaction, we are using the earliest rate we have (from " + ttime + "), and it's probably wrong")
+                min_color = Math.min(min_color, 3)
             } else if (rate_source.includes("after")) {
-                let ts = rate_source.substr(rate_source.indexOf("after") + 11,10);
+                let ts = rate_source.substr(rate_source.indexOf("after") + 11, 10);
                 let ttime = timeConverter(ts);
-                rate_note(rate_struct,symbol,5,"We don't have rates data for "+display_symbol+" at the time of this transaction, we are using the latest rate we have (from "+ttime+"), and it may be wrong")
-                min_color = Math.min(min_color,5)
+                rate_note(rate_struct, symbol, 5, "We don't have rates data for " + display_symbol + " at the time of this transaction, we are using the latest rate we have (from " + ttime + "), and it may be wrong")
+                min_color = Math.min(min_color, 5)
             }
 
             if (rate_source.includes("adjusted by")) {
-                let factor = Math.abs(parseFloat(rate_source.substr(rate_source.indexOf('adjusted by ')+12)))
+                let factor = Math.abs(parseFloat(rate_source.substr(rate_source.indexOf('adjusted by ') + 12)))
                 if (factor > 0.5) {
-                    rate_note(rate_struct,symbol,0,"To balance this transaction, rate for "+symbol+" had to be adjusted by over 50% and is probably wrong.")
-                    min_color = Math.min(min_color,0)
-                }  else if (factor > 0.05) {
-                    rate_note(rate_struct,symbol,3,"To balance this transaction, rate for "+symbol+" had to be adjusted by over 5% and might be wrong")
-                    min_color = Math.min(min_color,3)
+                    rate_note(rate_struct, symbol, 0, "To balance this transaction, rate for " + symbol + " had to be adjusted by over 50% and is probably wrong.")
+                    min_color = Math.min(min_color, 0)
+                } else if (factor > 0.05) {
+                    rate_note(rate_struct, symbol, 3, "To balance this transaction, rate for " + symbol + " had to be adjusted by over 5% and might be wrong")
+                    min_color = Math.min(min_color, 3)
                 }
             }
         }
     }
 
-
-
-
-
     if ('protocol_note' in transaction)
         other_notes.push(transaction['protocol_note'])
-
-
 
     type_class = "";
     type = transaction['type'];
@@ -905,11 +838,11 @@ function make_transaction_html(transaction) {
 
     ct_id = transaction['ct_id'];
     transaction['original_color'] = min_color;
-    transaction_html = "<div id='t_"+txid+"' class='transaction t_class_"+min_color+" "+type_class;
+    transaction_html = "<div id='t_" + txid + "' class='transaction t_class_" + min_color + " " + type_class;
     if ('custom_color_id' in transaction)
-        transaction_html += " custom_recolor custom_recolor_"+transaction['custom_color_id'];
+        transaction_html += " custom_recolor custom_recolor_" + transaction['custom_color_id'];
     if (ct_id != null)
-        transaction_html += " custom_type custom_type_"+ct_id;
+        transaction_html += " custom_type custom_type_" + ct_id;
     if ('manual' in transaction && transaction['manual'])
         transaction_html += " manual";
     if (minimized)
@@ -917,27 +850,23 @@ function make_transaction_html(transaction) {
     transaction_html += "'>";
     ts = transaction['ts'];
     ttime = timeConverter(ts);
-
-
-
-//                                transaction_html += "<input type=checkbox class='t_sel'>";
+    //                                transaction_html += "<input type=checkbox class='t_sel'>";
     transaction_html += "<div class='top_section'>"
-
     transaction_html += "<div class='tx_row_0'>"
     if (minimized) {
-        transaction_html += "<span class='t_class' title='"+type.toUpperCase()+"'>"+type.toUpperCase()+"</span>";
-        transaction_html += "<span class='t_time_icon' title='"+ttime+"'><div class=time_icon></div></span>"
+        transaction_html += "<span class='t_class' title='" + type.toUpperCase() + "'>" + type.toUpperCase() + "</span>";
+        transaction_html += "<span class='t_time_icon' title='" + ttime + "'><div class=time_icon></div></span>"
     } else
-        transaction_html += "<span class='t_time copiable' title='Copy timestamp to clipboard' full='"+ts+"'>"+ttime+"</span>";
-    transaction_html += "<span class='tx_chain tx_chain_"+chain_name+"'>"+chain_name+"</span>";
+        transaction_html += "<span class='t_time copiable' title='Copy timestamp to clipboard' full='" + ts + "'>" + ttime + "</span>";
+    transaction_html += "<span class='tx_chain tx_chain_" + chain_name + "'>" + chain_name + "</span>";
     if (transaction['hash'] != null) {
         if (minimized)
-            transaction_html += "<span class='tx_hash'>"+display_hash(transaction['hash'], "hash");
+            transaction_html += "<span class='tx_hash'>" + display_hash(transaction['hash'], "hash");
         else
-            transaction_html += "<span class='tx_hash'>TX hash: "+display_hash(transaction['hash'], "hash");
+            transaction_html += "<span class='tx_hash'>TX hash: " + display_hash(transaction['hash'], "hash");
         if (chain_name in chain_config) {
             let scanner = chain_config[chain_name]['scanner'];
-            transaction_html += "<a class='open_scan' title='Open in scanner' href='https://"+scanner+"/tx/"+transaction['hash']+"' target=_blank></a>";
+            transaction_html += "<a class='open_scan' title='Open in scanner' href='https://" + scanner + "/tx/" + transaction['hash'] + "' target=_blank></a>";
         }
         transaction_html += "</span>"
     }
@@ -948,10 +877,10 @@ function make_transaction_html(transaction) {
         if (transaction_symbols_in.length + transaction_symbols_out.length > 0) {
             transaction_html += "<span class='t_tokens'>"
             if (transaction_symbols_in.length > 0)
-                transaction_html += "<span class='t_token_list'>"+transaction_symbols_in.toString()+"</span><span class='r_arrow'><div></div></span>"
+                transaction_html += "<span class='t_token_list'>" + transaction_symbols_in.toString() + "</span><span class='r_arrow'><div></div></span>"
             transaction_html += "you"
             if (transaction_symbols_out.length > 0)
-                transaction_html += "<span class='r_arrow'><div></div></span><span class='t_token_list'>"+transaction_symbols_out.toString()+"</span>"
+                transaction_html += "<span class='r_arrow'><div></div></span><span class='t_token_list'>" + transaction_symbols_out.toString() + "</span>"
             transaction_html += "</span>";
         }
     }
@@ -959,18 +888,13 @@ function make_transaction_html(transaction) {
     if (transaction['num'] == null)
         transaction_html += "<span class='t_idx'></span>";
     else
-        transaction_html += "<span class='t_idx'><span class='t_num'>#"+transaction['num']+"</span>/<span class='len'>"+transaction_order.length+"</span></span>";
+        transaction_html += "<span class='t_idx'><span class='t_num'>#" + transaction['num'] + "</span>/<span class='len'>" + transaction_order.length + "</span></span>";
 
     if (minimized)
         transaction_html += "<span class='t_hide t_hide_hidden' title='Show transaction'></span>";
     else
         transaction_html += "<span class='t_hide t_hide_shown' title='Minimize transaction'></span>";
     transaction_html += "</div>";
-
-
-
-
-
 
     if (!minimized) {
         let changed = transaction['changed'];
@@ -982,40 +906,37 @@ function make_transaction_html(transaction) {
             else
                 previous_type = old_type
         }
-
         transaction_html += "<div class='tx_row_1'>"
-
         ct_id = transaction['ct_id'];
         if (ct_id != null)
-            transaction_html += "<input type=hidden name=ct_id class=ct_id value="+ct_id+"><span class='t_class'>Your classification: "+type.toUpperCase()+"</span>";
+            transaction_html += "<input type=hidden name=ct_id class=ct_id value=" + ct_id + "><span class='t_class'>Your classification: " + type.toUpperCase() + "</span>";
         else {
-            transaction_html += "<span class='t_class'>Our classification: "+type.toUpperCase()+"</span>";
+            transaction_html += "<span class='t_class'>Our classification: " + type.toUpperCase() + "</span>";
             if (previous_type != null)
-                transaction_html += "<span class='t_cat_updated'>[UPDATED FROM "+previous_type.toUpperCase()+"]</span>"
+                transaction_html += "<span class='t_cat_updated'>[UPDATED FROM " + previous_type.toUpperCase() + "]</span>"
         }
 
         transaction_html += "</div>";
-
-        transaction_html += display_counterparty(transaction,false);
+        transaction_html += display_counterparty(transaction, false);
         transaction_html += "<div class='notes'>"
         for (let symbol in rate_struct) {
             for (let text of rate_struct[symbol]['text'])
-                transaction_html += "<div class='note note_"+rate_struct[symbol]['level']+"'>Note: "+text+"</div>";
+                transaction_html += "<div class='note note_" + rate_struct[symbol]['level'] + "'>Note: " + text + "</div>";
         }
 
         for (let note of other_notes) {
-            transaction_html += "<div class='note'>Note: "+note+"</div>";
+            transaction_html += "<div class='note'>Note: " + note + "</div>";
         }
 
         if ('custom_note' in transaction)
-            transaction_html += "<div class='custom_note'>"+transaction['custom_note']+"</div><div class='add_note'>Edit note</div>";
+            transaction_html += "<div class='custom_note'>" + transaction['custom_note'] + "</div><div class='add_note'>Edit note</div>";
         else
             transaction_html += "<div class='custom_note'></div><div class='add_note'>Add a note</div>";
         transaction_html += "</div>";
 
         transaction_html += "</div>";
 
-        rows_table = display_transfers(transaction,false);
+        rows_table = display_transfers(transaction, false);
 
         transaction_html += rows_table;
     } else
@@ -1025,70 +946,62 @@ function make_transaction_html(transaction) {
     return transaction_html
 }
 
-
-
 function show_eula() {
     let eula_agreed = get_cookie('eula_agreed')
-    if (!eula_agreed)
-    {
-        let html ="<div id='overlay'></div><div id='eula' class='popup'>";
-//        html += "<h3>BEWARE! DISCLAIMITY DISCLAIMER!</h3>";
-//        html += "<p>So, we could've hired a lawyer and written a regular 74-page terms agreement and asked you to say you read it but we both know it's bullshit.</p>";
-//        html += "<p>Here's what you need to know:</p><p>We made this service to help you with your blockchain tax filing. It will NOT magically turn your transactions "+
-//        "into tax forms. We will attempt to classify and pick the correct tax treatment for your transfers; we also absolutely 100% guarantee that it's going to "+
-//        "occasionally be wrong. Sometimes we will have no idea what this or that transfer is. You need to go over your transactions and inspect them. "+
-//        "We will give you tools to make corrections, and those tools are better than what anyone else currently offers. Even after you make corrections, due to bugs "+
-//        "and half-assed programming the tax filing may still end up wrong.</p>"+
-//        "<p>So, to recap. We don't guarantee correctness in any way. This warning isn't here just to cover our asses,"+
-//        " we really mean it! You promise not to blame us if the IRS comes a knocking. Oh, and also we'll stick some cookies in your browser. We good?</p>"
+    if (!eula_agreed) {
+        let html = "<div id='overlay'></div><div id='eula' class='popup'>";
+        //        html += "<h3>BEWARE! DISCLAIMITY DISCLAIMER!</h3>";
+        //        html += "<p>So, we could've hired a lawyer and written a regular 74-page terms agreement and asked you to say you read it but we both know it's bullshit.</p>";
+        //        html += "<p>Here's what you need to know:</p><p>We made this service to help you with your blockchain tax filing. It will NOT magically turn your transactions "+
+        //        "into tax forms. We will attempt to classify and pick the correct tax treatment for your transfers; we also absolutely 100% guarantee that it's going to "+
+        //        "occasionally be wrong. Sometimes we will have no idea what this or that transfer is. You need to go over your transactions and inspect them. "+
+        //        "We will give you tools to make corrections, and those tools are better than what anyone else currently offers. Even after you make corrections, due to bugs "+
+        //        "and half-assed programming the tax filing may still end up wrong.</p>"+
+        //        "<p>So, to recap. We don't guarantee correctness in any way. This warning isn't here just to cover our asses,"+
+        //        " we really mean it! You promise not to blame us if the IRS comes a knocking. Oh, and also we'll stick some cookies in your browser. We good?</p>"
         html += "<h3>Disclaimer</h3>";
-        html += "<p>This service will help you with your blockchain tax filing. It will NOT automatically turn your transactions "+
-        "into correct tax forms, that is impossible because there are so many DeFi protocols, each one requiring customized treatment. " +
-        "This software will attempt to classify and pick the correct tax treatment for your transfers, but it will be frequently wrong (just like any other software attempting to do this). " +
-        "Sometimes it will have no idea what this or that transfer is. You need to go over your transactions and inspect them. "+
-        "There are tools for you to make corrections, and the color of each transaction will indicate how certain the software is of correct handling. " +
-        "However, even after you made the corrections, there is still a risk that the tax forms will still be wrong. "+
-        "</p>"+
-        "<p>To recap: there is absolutely no guarantee of correct tax filing when using this service. Additionally, this site uses cookies. Do you accept?</p>"
-
+        html += "<p>This service will help you with your blockchain tax filing. It will NOT automatically turn your transactions " +
+            "into correct tax forms, that is impossible because there are so many DeFi protocols, each one requiring customized treatment. " +
+            "This software will attempt to classify and pick the correct tax treatment for your transfers, but it will be frequently wrong (just like any other software attempting to do this). " +
+            "Sometimes it will have no idea what this or that transfer is. You need to go over your transactions and inspect them. " +
+            "There are tools for you to make corrections, and the color of each transaction will indicate how certain the software is of correct handling. " +
+            "However, even after you made the corrections, there is still a risk that the tax forms will still be wrong. " +
+            "</p>" +
+            "<p>To recap: there is absolutely no guarantee of correct tax filing when using this service. Additionally, this site uses cookies. Do you accept?</p>"
         html += "<div class='sim_buttons'>";
         html += "<div id='agree_eula'>Yes. I'm not going to blame you for a wrong tax filing.</div>";
         html += "<div id='disagree_eula'>Nevermind</div>";
         html += "</div>";
         html += "</div>";
         $('#content').append(html);
-
-        $('#agree_eula').on('click',function() {
+        $('#agree_eula').on('click', function () {
             document.cookie = "eula_agreed=1;path=/;expires=Fri, 31 Dec 9999 23:59:59 GMT";
             $('#overlay').remove();
             $('#eula').remove();
         });
-
-        $('#disagree_eula').on('click',function() {
+        $('#disagree_eula').on('click', function () {
             window.open("https://www.google.com")
         });
     }
 }
 
-
 function uid() {
     return Math.floor(Math.random() * Date.now())
 }
 
-
-$('body').on('click','#demo_link',function() {
+$('body').on('click', '#demo_link', function () {
     $('#main_form').append("<input type=hidden name=demo id='demo' value=1>");
     $('#your_address').val('0x032b7d93aeed91127baa55ad570d88fd2f15d589');
     $('#main_form').submit()
 });
 
 //main
-$(function() {
-    $( document ).ready(function() {
+$(function () {
+    $(document).ready(function () {
         show_eula();
         activate_clickables();
-//            $('a#submit_address').click(function() {
-        $('#main_form').submit( function(e) {
+        //            $('a#submit_address').click(function() {
+        $('#main_form').submit(function (e) {
             console.log('main')
             e.preventDefault();
             primary = $('#your_address').val().trim();
@@ -1101,21 +1014,14 @@ $(function() {
                 return
             }
 
-
-
             if (!demo)
-                document.cookie = "address="+primary+";path=/;expires=Fri, 31 Dec 9999 23:59:59 GMT";
+                document.cookie = "address=" + primary + ";path=/;expires=Fri, 31 Dec 9999 23:59:59 GMT";
             prev_selection = null;
             uniqueid = uid();
-            window.sessionStorage.setItem('address',primary);
-            window.sessionStorage.setItem('uid',uniqueid);
-
-
-
-
-
+            window.sessionStorage.setItem('address', primary);
+            window.sessionStorage.setItem('uid', uniqueid);
             let import_addresses = ''
-//            let display_addresses = '';
+            //            let display_addresses = '';
 
             if ($('#import_new_transactions').length) {
                 if ($('#import_new_transactions').is(':checked')) {
@@ -1123,89 +1029,71 @@ $(function() {
                 }
             }
 
-
             ac_str = ''
             if ($('#aa').length) {
                 import_addresses = $('#aa').val();
             } else {
                 ac_ar = []
-                boxes = $('#address_matrix').find('.ac_cb:checked').each(function() {
-                    ac_ar.push($(this).attr('chain')+":"+$(this).attr('address'))
+                boxes = $('#address_matrix').find('.ac_cb:checked').each(function () {
+                    ac_ar.push($(this).attr('chain') + ":" + $(this).attr('address'))
                 });
                 ac_str = ac_ar.join(',')
             }
-
-
-
 
             $('#demo').remove()
             $('#demo_link').remove()
             $('#initial_options').remove()
             $('#supported_chain_list').remove()
-
-            $(document.body).css({'cursor' : 'wait'});
+            $(document.body).css({ 'cursor': 'wait' });
 
             let pb_mode = 'initial'
             if ($('#address_form').css('position') == 'absolute')
                 pb_mode = 'middle'
 
             start_progress_bar(pb_mode)
-
             close_top_menu();
-//            force_forget_derived = 0
-//            if ($('#force_forget_derived').length)
-//                force_forget_derived = $('#force_forget_derived').val()
+            //            force_forget_derived = 0
+            //            if ($('#force_forget_derived').length)
+            //                force_forget_derived = $('#force_forget_derived').val()
             need_reproc(false)
             $.ajax({
-                url:"process?address="+primary+"&uid="+uniqueid+"&import_addresses="+import_addresses+"&ac_str="+ac_str,
+                url: "process?address=" + primary + "&uid=" + uniqueid + "&import_addresses=" + import_addresses + "&ac_str=" + ac_str,
 
-                success: function( js ) {
-                    $('#address_form').css({'margin-top':'0px','padding-top':'0px','position':'fixed','left':'0','right':'0','top':'0','transform':'none',
-                        'background-color':'#FAFAFA','border-bottom':'1px solid #DFDFDF','padding':'0px'});
-                    $('#main_form').css({'margin':'auto','margin-top':'0px','padding':'5px','border-width':'0px','width':'50%'});
+                success: function (js) {
+                    $('#address_form').css({
+                        'margin-top': '0px', 'padding-top': '0px', 'position': 'fixed', 'left': '0', 'right': '0', 'top': '0', 'transform': 'none',
+                        'background-color': '#FAFAFA', 'border-bottom': '1px solid #DFDFDF', 'padding': '0px'
+                    });
+                    $('#main_form').css({ 'margin': 'auto', 'margin-top': '0px', 'padding': '5px', 'border-width': '0px', 'width': '50%' });
                     $('.header').remove();
                     $('.footer').remove();
 
                     try {
                         data = JSON.parse(js);
                     } catch (error) {
-                        $('#content').html("<div class='main_error'>"+js+"<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
+                        $('#content').html("<div class='main_error'>" + js + "<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
                         stop_progress_bar();
                         return;
                     }
-
 
                     if (data.hasOwnProperty('error')) {
-                        $('#content').html("<div class='main_error'>"+data['error']+"<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
-                        $(document.body).css({'cursor' : 'default'});
+                        $('#content').html("<div class='main_error'>" + data['error'] + "<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
+                        $(document.body).css({ 'cursor': 'default' });
                         stop_progress_bar();
                         return;
                     }
 
-
-
                     console.log("received main data, no errors")
-
                     version = parseFloat(data['version']['software']);
                     data_version = parseFloat(data['version']['data']);
-
-//                    address_info = data['address_info'];
+                    //                    address_info = data['address_info'];
                     all_address_info = data['all_address_info'];
                     fiat_info = data['fiat_info'];
                     chain_config = data['chain_config'];
-
-
-
-//                            let chain_selector_el = $('#chain_selector').css({'margin':'10px','display':'block'}).detach()
+                    //                            let chain_selector_el = $('#chain_selector').css({'margin':'10px','display':'block'}).detach()
                     make_top()
-
-
-
-
                     all_transactions = {}
                     transaction_order = []
-
-
                     len = data['transactions'].length;
                     setup();
                     if (len == 0) {
@@ -1222,131 +1110,114 @@ $(function() {
                                 global_options[field] = info[field]
                         }
                         fiat = global_options['fiat']
-
                         make_help_strings();
-
                         var all_html = "";
                         let non_fatal_errors = data['non_fatal_errors'];
                         for (let nfe of non_fatal_errors) {
-                            all_html += "<div class='non_fatal_error'>"+nfe+"</div>";
+                            all_html += "<div class='non_fatal_error'>" + nfe + "</div>";
                         }
 
                         all_html += "<div id='top_text'>Make sure to check red, orange, and yellow transactions."
                         if (demo) {
-                            all_html += "<div id='demo_warning'>You are running a demo address that made real transactions on several blockchains. "+
-                             "Permission to use this address was obtained from the owner. "+
-                             "Anybody can modify stuff here and it will be saved. Feel free to play with it.</div>"
+                            all_html += "<div id='demo_warning'>You are running a demo address that made real transactions on several blockchains. " +
+                                "Permission to use this address was obtained from the owner. " +
+                                "Anybody can modify stuff here and it will be saved. Feel free to play with it.</div>"
                         }
 
-                        all_html+="</div>";
+                        all_html += "</div>";
                         mark_all_deselected()
                         for (let idx in data['transactions']) {
                             let transaction = data['transactions'][idx];
                             txid = parseInt(transaction['txid'])
-//                                    transaction['selected']=false;
+                            //                                    transaction['selected']=false;
                             map_lookups(transaction);
-                            transaction['num'] = parseInt(idx)+1;
+                            transaction['num'] = parseInt(idx) + 1;
                             all_transactions[txid] = transaction;
-//                                    transaction_html = make_transaction_html(transaction, idx, len);
+                            //                                    transaction_html = make_transaction_html(transaction, idx, len);
                             transaction_order.push(txid)
-//                                    all_html += transaction_html;
+                            //                                    all_html += transaction_html;
                         }
-                        $('#content').html("</div><div id='transaction_list'>"+all_html+
-                        "<div id='current_page'></div><div class='pagination'></div></div>");
-
-
-//                                render_page(0);
-
+                        $('#content').html("</div><div id='transaction_list'>" + all_html +
+                            "<div id='current_page'></div><div class='pagination'></div></div>");
+                        //                                render_page(0);
                         display_tax_block();
                         process_tax_js(data);
                         show_inspections(data);
                         lookup_info['last_index'] = len;
-
-//                                console.log('custom types?',data['custom_types']);
-                        selection_operations(data['builtin_types'],data['custom_types']);
+                        //                                console.log('custom types?',data['custom_types']);
+                        selection_operations(data['builtin_types'], data['custom_types']);
                         assist_block();
-//                        br_block();
+                        //                        br_block();
                         $('#sel_opt_all').click();
-//                        console.log("make_pagination in main")
+                        //                        console.log("make_pagination in main")
                         make_pagination();
                         show_tax_related_html();
                     }
-
-                    $(document.body).css({'cursor' : 'default'});
+                    $(document.body).css({ 'cursor': 'default' });
                 },
-
-                error: function ( js) {
+                error: function (js) {
                     $('#content').html("<div class='main_error'>A fatal server error has occurred<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
                 }
             })
-
-
         });
     });
 });
 
-
-
-
-function select_transaction(txel,keep_secondary=false) {
+function select_transaction(txel, keep_secondary = false) {
     t1 = performance.now();
     if (txel.hasClass('primary_selected')) {
         return;
     }
 
     t_id = txel.attr('id');
-//    console.log('selected',t_id);
+    //    console.log('selected',t_id);
     let txid = parseInt(t_id.substr(2));
-//    console.log("select_transaction",txid);
+    //    console.log("select_transaction",txid);
     let transaction = all_transactions[txid]
 
     if (transaction.hasOwnProperty('minimized') && transaction.minimized) {
         transaction.minimized = false
         transaction_html = make_transaction_html(transaction);
         txel.replaceWith(transaction_html)
-        txel = $('#t_'+txid)
+        txel = $('#t_' + txid)
         transaction.minimized = true
     }
-//    console.log('trdisp1',transaction);
+    //    console.log('trdisp1',transaction);
     deselect_primary();
     prev_selection = txid;
-//    console.log('prev_selection',prev_selection);
+    //    console.log('prev_selection',prev_selection);
     if (!event.ctrlKey && !keep_secondary) {
         mark_all_deselected();
     }
 
     txel.addClass('primary_selected').addClass('secondary_selected');
     selected_transactions.add(txid)
-//    transaction['selected'] = true;
-
-
+    //    transaction['selected'] = true;
     t2 = performance.now();
     el = txel.find('.select_similar');
-//    console.log('trdisp2',transaction);
-    txel.find('.tx_row_2').replaceWith(display_counterparty(transaction,true));
-    txel.find('.transfers').replaceWith(display_transfers(transaction,true));
+    //    console.log('trdisp2',transaction);
+    txel.find('.tx_row_2').replaceWith(display_counterparty(transaction, true));
+    txel.find('.transfers').replaceWith(display_transfers(transaction, true));
     showib(txel.find('.add_note'))
     if (el.length)
         show(el);
     else {
         var html = "<div class='select_similar'><div class='header'>Select transactions with the same:</div>";
         let lookups = {
-            chain: ['chain','checked'],
-            counterparty_name:['counterparty','checked'],
-            signature:['operation','checked'],
-            outbound_count:['number of sent transfers',''],
-            inbound_count:['number of received transfers','']
+            chain: ['chain', 'checked'],
+            counterparty_name: ['counterparty', 'checked'],
+            signature: ['operation', 'checked'],
+            outbound_count: ['number of sent transfers', ''],
+            inbound_count: ['number of received transfers', '']
         };
         for (let lookup in lookups) {
-//            console.log('initial lookup',lookup);
+            //            console.log('initial lookup',lookup);
             lookup_vals = lookup_info['transactions'][txid][lookup];
             if (lookup_vals.size > 0)
-                html += "<label><input type=checkbox "+lookups[lookup][1]+" class='sim_"+lookup+"'>"+lookups[lookup][0]+"</label>";
+                html += "<label><input type=checkbox " + lookups[lookup][1] + " class='sim_" + lookup + "'>" + lookups[lookup][0] + "</label>";
         }
 
         let local_addresses = []
-
-
         let local_tokens = {}
         let local_nfts = {}
         let local_nft_list = []
@@ -1360,32 +1231,31 @@ function select_transaction(txel,keep_secondary=false) {
                 local_addresses.push(local_address)
 
             if (transfer['to'] != 'network') {
-//                local_tokens[transfer['symbol']] = transfer['what'];
+                //                local_tokens[transfer['symbol']] = transfer['what'];
                 let token_id = transfer['coingecko_id'];
                 if (token_id == null)
                     token_id = transfer['what'];
                 local_tokens[transfer['symbol']] = token_id;
             }
             if (transfer['token_nft_id'] != null) {
-                let nft_html = display_token(transfer['symbol'],transfer['what'],transfer['token_nft_id'],copiable=false);
+                let nft_html = display_token(transfer['symbol'], transfer['what'], transfer['token_nft_id'], copiable = false);
                 local_nft_list.push(nft_html)
-                local_nfts[nft_html] = transfer['what']+"_"+transfer['token_nft_id'];
+                local_nfts[nft_html] = transfer['what'] + "_" + transfer['token_nft_id'];
             }
         }
-//        console.log(local_addresses)
-
+        //        console.log(local_addresses)
         for (let local_address of local_addresses) {
             if (displayed_addresses.length == 1 && displayed_addresses[0] == local_address)
                 continue
-            html += "<label><input type=checkbox class='sim_address' address='"+local_address+"'>address:"+display_hash(local_address,'address',false)+"</label>";
+            html += "<label><input type=checkbox class='sim_address' address='" + local_address + "'>address:" + display_hash(local_address, 'address', false) + "</label>";
         }
 
         for (let token_symbol in local_tokens)
-            html += "<label><input type=checkbox class='sim_token_id' token_id='"+local_tokens[token_symbol]+"'>token:"+token_symbol+"</label>";
+            html += "<label><input type=checkbox class='sim_token_id' token_id='" + local_tokens[token_symbol] + "'>token:" + token_symbol + "</label>";
 
         local_nft_list.sort()
         for (let token_nft_symbol of local_nft_list) {
-            html += "<label><input type=checkbox class='sim_token_nft' token_nft_address='"+local_nfts[token_nft_symbol]+"'>NFT:"+token_nft_symbol+"</label>";
+            html += "<label><input type=checkbox class='sim_token_nft' token_nft_address='" + local_nfts[token_nft_symbol] + "'>NFT:" + token_nft_symbol + "</label>";
         }
 
         html += "<div class='sim_buttons'><div class='select_similar_button'></div>";
@@ -1403,43 +1273,40 @@ function select_transaction(txel,keep_secondary=false) {
             showib(txel.find('.undo_changes'))
         t3 = performance.now();
         similar_transactions = find_similar_transactions(txid);
-
-
     }
     t4 = performance.now();
     update_selections_block();
     t5 = performance.now();
-//    console.log('perf',t2-t1,t3-t2,t4-t3,t5-t4,'total',t5-t1);
+    //    console.log('perf',t2-t1,t3-t2,t4-t3,t5-t4,'total',t5-t1);
 }
 
 function activate_clickables() {
-//    col = document.getElementsByClassName('transaction');
-//    $(col).on('click',function(event) {
-
-    $('body').on('click','div.transaction',function(event) {
-//    $('body').on('click','div#t_3, div#t_2',function(event) {
-//      $('#t_3,#t_2').on('click',function(event) {
-//    $('div.transaction').on('click',function(event) {
-//        console.log('!');
+    //    col = document.getElementsByClassName('transaction');
+    //    $(col).on('click',function(event) {
+    $('body').on('click', 'div.transaction', function (event) {
+        //    $('body').on('click','div#t_3, div#t_2',function(event) {
+        //      $('#t_3,#t_2').on('click',function(event) {
+        //    $('div.transaction').on('click',function(event) {
+        //        console.log('!');
         el = $(this);
-        select_transaction(el, keep_secondary=false);
+        select_transaction(el, keep_secondary = false);
     });
 
-    $('body').on('click','.select_similar input',function() {
+    $('body').on('click', '.select_similar input', function () {
         txid = parseInt($(this).closest('.transaction').attr('id').substr(2));
         similar_transactions = find_similar_transactions(txid);
     });
 
-    $('body').on('click','.deselect_this_button',function(event) {
+    $('body').on('click', '.deselect_this_button', function (event) {
         deselect_primary(true);
         update_selections_block();
         event.stopPropagation();
     });
 
-    $('body').on('click','.select_similar_button',function() {
+    $('body').on('click', '.select_similar_button', function () {
         if ($(this).hasClass('grayed')) return;
         t_id = $(this).closest('.transaction').attr('id');
-        str = $('#'+t_id+' .current_sims').val();
+        str = $('#' + t_id + ' .current_sims').val();
         o_ids = str.split(',');
         id = parseInt(t_id.substr(2));
         cnt = 0;
@@ -1447,42 +1314,37 @@ function activate_clickables() {
         mark_all_deselected()
         for (let o_id of o_ids) {
             o_id = parseInt(o_id)
-//            $('#t_'+o_id).addClass('secondary_selected');
+            //            $('#t_'+o_id).addClass('secondary_selected');
             selected_transactions.add(o_id)
-//            all_transactions[oid]['selected']=true
+            //            all_transactions[oid]['selected']=true
             cnt += 1;
         }
         $('#sel_opt_sel').click();
         update_selections_block();
-//        $(this).html("Deselect "+cnt+" additional transactions").removeClass('select_similar_button').addClass('deselect_similar_button');
+        //        $(this).html("Deselect "+cnt+" additional transactions").removeClass('select_similar_button').addClass('deselect_similar_button');
     });
 
-    $('body').on('click','.cp',function() {
+    $('body').on('click', '.cp', function () {
         if ($(this).find('input').length == 0) {
             let progenitor = $(this).attr('progenitor');
             let cp_name_el = $(this)
             let current_name = cp_name_el.text()
-
-
             txid = parseInt($(this).closest('.transaction').attr('id').substr(2));
             let chain = all_transactions[txid]['chain']
             matches = lookup_info["counterparty_mapping"][progenitor];
-//            count = progenitor_counts[progenitor];
+            //            count = progenitor_counts[progenitor];
             count = matches.size;
-            ac_html = "<form class='ac_wrapper'><input type=text class='cp_enter' value='"+current_name+"'><input type=submit class='apply_custom_cp' value='Apply to "+count+" transactions'/><button class='cancel_custom_cp'>Cancel</button><form>";
-
+            ac_html = "<form class='ac_wrapper'><input type=text class='cp_enter' value='" + current_name + "'><input type=submit class='apply_custom_cp' value='Apply to " + count + " transactions'/><button class='cancel_custom_cp'>Cancel</button><form>";
             cp_name_el.empty()
             cp_name_el.append(ac_html);
-//            cp_name_el.find('.autocomplete_list').autocomplete({source: counterparty_list});
-//            cp_name_el.find('.autocomplete_list').focus()
-
-//            $(document).on('keyup', function(e) {
-//              if (e.key == "Escape") $('.cancel').click();
-//            });
+            //            cp_name_el.find('.autocomplete_list').autocomplete({source: counterparty_list});
+            //            cp_name_el.find('.autocomplete_list').focus()
+            //            $(document).on('keyup', function(e) {
+            //              if (e.key == "Escape") $('.cancel').click();
+            //            });
 
             $('.cp_enter').focus();
-
-            cp_name_el.find('.cancel_custom_cp').on('click',function(e) {
+            cp_name_el.find('.cancel_custom_cp').on('click', function (e) {
                 e.preventDefault();
                 cp_name_el.text(current_name);
                 cp_name_el.find('form').remove();
@@ -1490,54 +1352,50 @@ function activate_clickables() {
                 e.stopPropagation()
             });
 
-            cp_name_el.find('form').submit( function(e) {
+            cp_name_el.find('form').submit(function (e) {
                 e.preventDefault();
                 cp = $(this).find('.cp_enter').val()
                 if (cp.length > 0) {
-//                    $('.prog_'+progenitor).html(cp).css({'background-color':getColor()});
-//                    address = window.sessionStorage.getItem('address');
-//                    chain = window.sessionStorage.getItem('chain');
-                    $.get("update_progenitors?chain="+chain+"&user="+primary+"&progenitor="+progenitor+"&counterparty="+cp, function(js) {
+                    //                    $('.prog_'+progenitor).html(cp).css({'background-color':getColor()});
+                    //                    address = window.sessionStorage.getItem('address');
+                    //                    chain = window.sessionStorage.getItem('chain');
+                    $.get("update_progenitors?chain=" + chain + "&user=" + primary + "&progenitor=" + progenitor + "&counterparty=" + cp, function (js) {
                         var data = JSON.parse(js);
-//                        console.log(data);
+                        //                        console.log(data);
                         if (data.hasOwnProperty('error')) {
-                            $(this).append("<div class='err_mes'>"+data['error']+"</div>");
+                            $(this).append("<div class='err_mes'>" + data['error'] + "</div>");
                         } else {
-//                            console.log("match len",matches.size,"prog",progenitor);
+                            //                            console.log("match len",matches.size,"prog",progenitor);
                             for (o_txid of matches) {
-
-//                                console.log("o_txid",o_txid);
+                                //                                console.log("o_txid",o_txid);
                                 transaction = all_transactions[o_txid];
                                 transaction_counterparties = transaction['counter_parties'];
-//                                console.log(transaction_counterparties)
+                                //                                console.log(transaction_counterparties)
                                 for (let o_progenitor in transaction_counterparties) {
                                     if (o_progenitor == progenitor)
                                         transaction_counterparties[progenitor][0] = cp;
                                 }
-//                                console.log("remove_from_mapping",current_name,o_txid);
+                                //                                console.log("remove_from_mapping",current_name,o_txid);
                                 if (current_name == 'unknown')
                                     current_name = progenitor
-                                remove_from_mapping('counterparty_name',current_name,o_txid);
-//                                console.log("add_to_mapping",cp,o_txid);
-                                add_to_mapping('counterparty_name',cp,o_txid);
-                                $('#t_'+o_txid).find('.tx_row_2').replaceWith(display_counterparty(transaction,o_txid == txid));
+                                remove_from_mapping('counterparty_name', current_name, o_txid);
+                                //                                console.log("add_to_mapping",cp,o_txid);
+                                add_to_mapping('counterparty_name', cp, o_txid);
+                                $('#t_' + o_txid).find('.tx_row_2').replaceWith(display_counterparty(transaction, o_txid == txid));
                                 if (o_txid != txid)
-                                    $('#t_'+o_txid).find('.select_similar').remove();
+                                    $('#t_' + o_txid).find('.select_similar').remove();
                             }
                             find_similar_transactions(txid);
                         }
-
                     });
                 }
                 $(this).remove();
-//                $(document).off('keyup');
+                //                $(document).off('keyup');
             });
         }
     });
 
-
-
-    $('body').on('click','.add_note',function() {
+    $('body').on('click', '.add_note', function () {
         let txel = $(this).closest('.transaction');
         let txid = parseInt(txel.attr('id').substr(2));
         let note = '';
@@ -1545,7 +1403,7 @@ function activate_clickables() {
             note = all_transactions[txid]['custom_note'];
         }
 
-        let html = "<div id='add_note_hold'><textarea class='note_area' placeholder='You can use HTML here'>"+note+"</textarea>";
+        let html = "<div id='add_note_hold'><textarea class='note_area' placeholder='You can use HTML here'>" + note + "</textarea>";
         html += "<div class='note_buttons'><button class='button_save_note'>Save note</button>"
         if (note.length > 0)
             html += "<button class='button_delete_note'>Delete note</button>";
@@ -1555,52 +1413,47 @@ function activate_clickables() {
         hide(txel.find('.custom_note'))
     });
 
-    $('body').on('click','.button_cancel_note',function() {
+    $('body').on('click', '.button_cancel_note', function () {
         let txel = $(this).closest('.transaction');
         showib(txel.find('.add_note'));
         $('#add_note_hold').remove()
         show(txel.find('.custom_note'))
     });
 
-    $('body').on('click','.button_delete_note',function() {
+    $('body').on('click', '.button_delete_note', function () {
         let txel = $(this).closest('.transaction');
         let txid = parseInt(txel.attr('id').substr(2));
         let clicker_el = txel.find('.add_note')
 
         if ('custom_note' in all_transactions[txid]) {
             let data = 'note='
-            $.post("save_note?address="+primary+"&transaction="+txid, data, function(resp) {
+            $.post("save_note?address=" + primary + "&transaction=" + txid, data, function (resp) {
                 var data = JSON.parse(resp);
                 if (data.hasOwnProperty('error')) {
-                    $('#add_note_hold').append("<div class='err_mes'>"+data['error']+"</div>");
+                    $('#add_note_hold').append("<div class='err_mes'>" + data['error'] + "</div>");
                 } else {
-                   delete all_transactions[txid]['custom_note'];
+                    delete all_transactions[txid]['custom_note'];
                     $(txel).find('.custom_note').html('');
-
                     clicker_el.html('Add a note')
                     showib(clicker_el);
-
                     $('#add_note_hold').remove()
                     show(txel.find('.custom_note'))
                 }
             });
-
         }
-
-
     });
 
-    $('body').on('click','.button_save_note',function() {
+    $('body').on('click', '.button_save_note', function () {
         let txel = $(this).closest('.transaction');
         let txid = parseInt(txel.attr('id').substr(2));
         let note = $('.note_area').val();
         let clicker_el = txel.find('.add_note')
-        let data = 'note='+encodeURIComponent(note)
+        let data = 'note=' + encodeURIComponent(note)
 
-        $.post("save_note?address="+primary+"&transaction="+txid, data, function(resp) {
+        $.post("save_note?address=" + primary + "&transaction=" + txid, data, function (resp) {
             var data = JSON.parse(resp);
             if (data.hasOwnProperty('error')) {
-                $('#add_note_hold').append("<div class='err_mes'>"+data['error']+"</div>");
+                $('#add_note_hold').append("<div class='err_mes'>" + data['error'] + "</div>");
             } else {
                 $(txel).find('.custom_note').html(note);
                 if (note.length > 0) {
@@ -1615,15 +1468,12 @@ function activate_clickables() {
                 show(txel.find('.custom_note'))
             }
         });
-
     });
 
-
-
-    $('body').on('change','.treatment, .row_rate, .row_vaultid',function() {
+    $('body').on('change', '.treatment, .row_rate, .row_vaultid', function () {
         el = $(this);
-//        td = $(this).closest('td')
-//        td.addClass('custom');
+        //        td = $(this).closest('td')
+        //        td.addClass('custom');
         txel = $(this).closest('.transaction');
         t_id = txel.attr('id');
         txid = parseInt(t_id.substr(2));
@@ -1641,27 +1491,23 @@ function activate_clickables() {
 
         multiple = change_multiple(txid, trid, prop, val)
 
-
         if (!multiple)
-            save_custom_val(txid,trid,prop,val)
-
-
-
+            save_custom_val(txid, trid, prop, val)
     });
 
-    $('body').on('click','.undo_changes',function() {
+    $('body').on('click', '.undo_changes', function () {
         el = $(this);
         txel = $(this).closest('.transaction');
         t_id = txel.attr('id');
         txid = parseInt(t_id.substr(2));
-//        console.log("undo changes",txid);
-        data = 'transaction='+txid;
-//        let address = window.sessionStorage.getItem('address');
-        $.post("undo_custom_changes?address="+primary, data, function(resp) {
-//            console.log(resp);
+        //        console.log("undo changes",txid);
+        data = 'transaction=' + txid;
+        //        let address = window.sessionStorage.getItem('address');
+        $.post("undo_custom_changes?address=" + primary, data, function (resp) {
+            //            console.log(resp);
             var data = JSON.parse(resp);
             if (data.hasOwnProperty('error')) {
-                txel.append("<div class='err_mes'>"+data['error']+"</div>");
+                txel.append("<div class='err_mes'>" + data['error'] + "</div>");
             } else {
                 show_ajax_transactions(data)
                 need_recalc();
@@ -1669,11 +1515,10 @@ function activate_clickables() {
             }
         });
     });
-
 }
 
 function change_multiple(txid, trid, prop, new_val) {
-    let transfer = find_transfer(txid,trid)
+    let transfer = find_transfer(txid, trid)
     let token = transfer['what'];
     let symbol = transfer['symbol'];
     let fr = transfer['fr'];
@@ -1686,33 +1531,31 @@ function change_multiple(txid, trid, prop, new_val) {
             let other_token = other_transfer['what'];
             let other_fr = other_transfer['fr'];
             let other_to = other_transfer['to'];
-//            console.log("sim check",tr_idx,other_transfer['index'],prop,token,other_token,fr,other_fr,to,other_to)
+            //            console.log("sim check",tr_idx,other_transfer['index'],prop,token,other_token,fr,other_fr,to,other_to)
             if (prop == 'rate' && token == other_token && other_to != null) {
                 similar_transfers.push(other_trid)
             }
-
             else if (token == other_token && other_fr == fr && other_to == to) {
                 similar_transfers.push(other_trid)
             }
         }
     }
-//    console.log("sim len",similar_transfers.length);
-
+    //    console.log("sim len",similar_transfers.length);
     if (similar_transfers.length > 0) {
-        let prop_map = {'rate':'rate','treatment':'tax treatment','vault_id':'Vault/loan ID'}
-        let html ="<div id='overlay'></div><div id='popup' class='popup'><form id='change_val_multi'>"
+        let prop_map = { 'rate': 'rate', 'treatment': 'tax treatment', 'vault_id': 'Vault/loan ID' }
+        let html = "<div id='overlay'></div><div id='popup' class='popup'><form id='change_val_multi'>"
         let plural = "";
         if (similar_transfers.length > 1)
             plural = "s";
-        html += "<input type=hidden id=cm_txid value="+txid+"> ";
-        html += "<input type=hidden id=cm_trid value="+trid+"> ";
-        html += "<input type=hidden id=cm_trid_str value='"+similar_transfers.join(',')+','+trid+"'> ";
-        html += "<input type=hidden id=cm_prop value="+prop+"> ";
-        html += "<input type=hidden id=cm_val value='"+new_val+"'> ";
+        html += "<input type=hidden id=cm_txid value=" + txid + "> ";
+        html += "<input type=hidden id=cm_trid value=" + trid + "> ";
+        html += "<input type=hidden id=cm_trid_str value='" + similar_transfers.join(',') + ',' + trid + "'> ";
+        html += "<input type=hidden id=cm_prop value=" + prop + "> ";
+        html += "<input type=hidden id=cm_val value='" + new_val + "'> ";
         if (prop == 'rate')
-            html += "Also change rate for "+similar_transfers.length+" other "+symbol+" transfer"+plural+" in this transaction?";
+            html += "Also change rate for " + similar_transfers.length + " other " + symbol + " transfer" + plural + " in this transaction?";
         else
-            html += "Also change "+prop_map[prop]+" for "+similar_transfers.length+" similar other transfer"+plural+" in this transaction?";
+            html += "Also change " + prop_map[prop] + " for " + similar_transfers.length + " similar other transfer" + plural + " in this transaction?";
         html += "<div class='sim_buttons'>";
         html += "<div id='change_val_multi_confirm'>Yes</div>";
         html += "<div id='change_val_multi_deny'>No, just this one</div></div>";
@@ -1723,37 +1566,35 @@ function change_multiple(txid, trid, prop, new_val) {
     return false;
 }
 
-$('body').on('click','#change_val_multi_confirm', function() {
-    save_custom_val($('#cm_txid').val(),$('#cm_trid_str').val(),$('#cm_prop').val(),$('#cm_val').val())
+$('body').on('click', '#change_val_multi_confirm', function () {
+    save_custom_val($('#cm_txid').val(), $('#cm_trid_str').val(), $('#cm_prop').val(), $('#cm_val').val())
     $('#overlay').remove();
     $('#popup').remove();
 });
 
-$('body').on('click','#change_val_multi_deny', function () {
-    save_custom_val($('#cm_txid').val(),$('#cm_trid').val(),$('#cm_prop').val(),$('#cm_val').val())
+$('body').on('click', '#change_val_multi_deny', function () {
+    save_custom_val($('#cm_txid').val(), $('#cm_trid').val(), $('#cm_prop').val(), $('#cm_val').val())
     $('#overlay').remove();
     $('#popup').remove();
 });
 
-
-function save_custom_val(txid,trid_str,prop,value) {
-    let data = 'transaction='+txid+"&transfer_id="+trid_str+"&prop="+prop+"&val="+value;
-    let prop_map = {'rate':'row_rate','treatment':'treatment','vault_id':'row_vaultid'}
-
-//    let address = window.sessionStorage.getItem('address');
-    $.post("save_custom_val?address="+primary, data, function(resp) {
-//        console.log(resp);
+function save_custom_val(txid, trid_str, prop, value) {
+    let data = 'transaction=' + txid + "&transfer_id=" + trid_str + "&prop=" + prop + "&val=" + value;
+    let prop_map = { 'rate': 'row_rate', 'treatment': 'treatment', 'vault_id': 'row_vaultid' }
+    //    let address = window.sessionStorage.getItem('address');
+    $.post("save_custom_val?address=" + primary, data, function (resp) {
+        //        console.log(resp);
         var data = JSON.parse(resp);
         if (data.hasOwnProperty('error')) {
-            $('#t_'+txid).append("<div class='err_mes'>"+data['error']+"</div>");
+            $('#t_' + txid).append("<div class='err_mes'>" + data['error'] + "</div>");
         } else {
             let trid_list = trid_str.split(",")
             for (let trid of trid_list) {
-                set_transfer_val(txid, trid, prop, "custom:"+value);
+                set_transfer_val(txid, trid, prop, "custom:" + value);
             }
-            let transfers_html = display_transfers(all_transactions[txid],true);
-//            console.log('transfers_html',transfers_html);
-            $('#t_'+txid).find('.transfers').replaceWith(transfers_html);
+            let transfers_html = display_transfers(all_transactions[txid], true);
+            //            console.log('transfers_html',transfers_html);
+            $('#t_' + txid).find('.transfers').replaceWith(transfers_html);
             need_recalc();
             showib(txel.find('.undo_changes'));
             if (prop == 'rate')
@@ -1762,10 +1603,7 @@ function save_custom_val(txid,trid_str,prop,value) {
     });
 }
 
-
-
-
-function set_intersect(set1,set2) {
+function set_intersect(set1, set2) {
     if (set1 == null)
         return set2;
     return new Set([...set1].filter(x => set2.has(x)));
@@ -1780,13 +1618,12 @@ function set_union(setA, setB) {
 }
 
 function find_similar_transactions(txid) {
-//    console.log("txid "+txid);
-    jqid = '#t_'+txid;
+    //    console.log("txid "+txid);
+    jqid = '#t_' + txid;
     tfst1 = performance.now();
-
-//    all = [...Array(lookup_info['last_index']).keys()];
+    //    all = [...Array(lookup_info['last_index']).keys()];
     all = null;
-    $(jqid).find('input:checked').each(function() {
+    $(jqid).find('input:checked').each(function () {
         tin1 = performance.now();
         lookup = $(this).attr('class').substr(4);
         if (lookup == 'address')
@@ -1804,19 +1641,17 @@ function find_similar_transactions(txid) {
                 return;
             }
         }
-
-//        console.log('lookup',lookup,'vals',lookup_vals);
-
+        //        console.log('lookup',lookup,'vals',lookup_vals);
         single_lookup_set = new Set();
         for (let lookup_val of lookup_vals) {
-//            all = set_intersect(all,lookup_info[lookup+"_mapping"][lookup_val]);
-//            console.log('lookup',lookup,'lookup_val',lookup_val,lookup_info[lookup+"_mapping"][lookup_val].size,all.size)
-            single_lookup_set = set_union(single_lookup_set,lookup_info[lookup+"_mapping"][lookup_val])
-//            console.log('lookup',lookup,'lookup_val',lookup_val,lookup_info[lookup+"_mapping"][lookup_val].size)
+            //            all = set_intersect(all,lookup_info[lookup+"_mapping"][lookup_val]);
+            //            console.log('lookup',lookup,'lookup_val',lookup_val,lookup_info[lookup+"_mapping"][lookup_val].size,all.size)
+            single_lookup_set = set_union(single_lookup_set, lookup_info[lookup + "_mapping"][lookup_val])
+            //            console.log('lookup',lookup,'lookup_val',lookup_val,lookup_info[lookup+"_mapping"][lookup_val].size)
         }
-        all = set_intersect(all,single_lookup_set);
+        all = set_intersect(all, single_lookup_set);
         tin2 = performance.now();
-//        console.log('fst inner',(tin2-tin1));
+        //        console.log('fst inner',(tin2-tin1));
     });
     tfst2 = performance.now();
     if (all == null) {
@@ -1826,25 +1661,24 @@ function find_similar_transactions(txid) {
     } else showib($(jqid).find('.select_similar_button'));
 
     cnt = all.size - 1;
-//    console.log("find_similar_transactions",jqid,cnt);
+    //    console.log("find_similar_transactions",jqid,cnt);
     if (cnt == 0) {
         $(jqid).find('.select_similar_button').addClass('grayed').html('There are no matching transactions');
     } else {
-        $(jqid).find('.select_similar_button').removeClass('grayed').html('Select '+cnt+' additional transactions');
+        $(jqid).find('.select_similar_button').removeClass('grayed').html('Select ' + cnt + ' additional transactions');
     }
     tfst3 = performance.now();
-
     str = Array.from(all).join(',');
     tfst4 = performance.now();
     $(jqid).find('.current_sims').val(str);
     tfst5 = performance.now();
-//    console.log('fst all',tfst2-tfst1,tfst3-tfst2,tfst4-tfst3,tfst5-tfst4);
+    //    console.log('fst all',tfst2-tfst1,tfst3-tfst2,tfst4-tfst3,tfst5-tfst4);
     return all
 }
 
-function deselect_primary(and_secondary=false) {
+function deselect_primary(and_secondary = false) {
     if (prev_selection != null) {
-        let jqid = '#t_'+prev_selection;
+        let jqid = '#t_' + prev_selection;
         let transaction = all_transactions[prev_selection];
         let txel = $(jqid)
         if (transaction.hasOwnProperty('minimized') && transaction.minimized) {
@@ -1863,8 +1697,7 @@ function deselect_primary(and_secondary=false) {
             }
             txel.find('.tx_row_2').replaceWith(display_counterparty(all_transactions[prev_selection]));
             txel.find('.transfers').replaceWith(display_transfers(all_transactions[prev_selection]));
-    //        $(jqid).find('.button_cancel_note').click()
-
+            //        $(jqid).find('.button_cancel_note').click()
             $('#add_note_hold').remove()
             show(txel.find('.custom_note'))
             hide(txel.find('.add_note'))
@@ -1875,28 +1708,22 @@ function deselect_primary(and_secondary=false) {
     }
 }
 
-
-
-
-function selection_operations(builtin_types,custom_types) {
+function selection_operations(builtin_types, custom_types) {
     let high_impact_amount = params['high_impact_amount'];
     var html = "<div id='operations_block'>";
     html += "<div id='selections_placeholder'>Nothing selected. Click a transaction to select it. CTRL+click to select multiple.</div>";
-
     html += "<div id='scroll_block'><div class='header'>Scroll to:</div>";
     html += "<div class='scroll_row'>Bottom/Top <a id='scr_bottom' class='next_ic'></a><a id='scr_top' class='prev_ic'></a></div>";
     html += "<div class='scroll_row'>Selected <a id='scr_selected_next' class='next_ic'></a><a id='scr_selected_prev' class='prev_ic'></a></div>";
-//    html += "<div class='scroll_row'>Unknown <a id='scr_unknown_next'>Next</a><a id='scr_unknown_prev'>Previous</a></div>";
-    html += "<div class='scroll_row'>High impact (<a id='hi_conf'>"+print_fiat(high_impact_amount)+"+</a>) <a id='scr_hi_next' class='next_ic'></a><a id='scr_hi_prev' class='prev_ic'></a></div>";
+    //    html += "<div class='scroll_row'>Unknown <a id='scr_unknown_next'>Next</a><a id='scr_unknown_prev'>Previous</a></div>";
+    html += "<div class='scroll_row'>High impact (<a id='hi_conf'>" + print_fiat(high_impact_amount) + "+</a>) <a id='scr_hi_next' class='next_ic'></a><a id='scr_hi_prev' class='prev_ic'></a></div>";
     html += "<div class='scroll_row'>Red <a id='scr_red_next' class='next_ic'></a><a id='scr_red_prev' class='prev_ic'></a></div>";
     html += "<div class='scroll_row'>Red or orange <a id='scr_orange_next' class='next_ic'></a><a id='scr_orange_prev' class='prev_ic'></a></div>";
     html += "<div class='scroll_row'>Red, orange, or yellow <a id='scr_yellow_next' class='next_ic'></a><a id='scr_yellow_prev' class='prev_ic'></a></div>";
     html += "</div>";
-
     html += "<div id='recolor_block'><div class='header'>Recolor selected transactions:</div>";
     html += "<div id='color_options'><div class='colopt t_class_10' id='colopt_10'></div><div class='colopt t_class_5' id='colopt_5'></div><div class='colopt t_class_3' id='colopt_3'></div><div class='colopt t_class_0' id='colopt_0'></div><div id='color_undo' title='Undo custom recoloring'></div></div>";
     html += "</div>";
-
     html += "<div id='selections_block'>";
     html += "<div id='selections_count'><span>0</span> transactions selected <a id='deselect_all'>Deselect all transactions</a></div>";
     html += "<div id='show_block'><div class='header'>Show:</div>";
@@ -1904,56 +1731,52 @@ function selection_operations(builtin_types,custom_types) {
     html += "<a id='sel_opt_sel' class='sel_opt'>Selected</a>";
     html += "<a id='sel_opt_desel' class='sel_opt'>Deselected</a>";
     html += "</div></div>";
-
     html += "<div id='types_block'>";
     html += show_custom_types(custom_types);
     html += "<a id='types_create'>Create new custom type</a>";
-//    address = window.sessionStorage.getItem('address');
-//    chain = window.sessionStorage.getItem('chain');
-    html +="<a id='mt_create'>Manually add a transaction</a>";
-//    html +="<a href='download?address="+address+"&chain="+chain+"&type=transactions_json' id='download_transactions_json'>Download all transactions (json)</a>";
-
+    //    address = window.sessionStorage.getItem('address');
+    //    chain = window.sessionStorage.getItem('chain');
+    html += "<a id='mt_create'>Manually add a transaction</a>";
+    //    html +="<a href='download?address="+address+"&chain="+chain+"&type=transactions_json' id='download_transactions_json'>Download all transactions (json)</a>";
     html += "</div>";
-
-    html +="</div>";
-//    $('body').append(html);
+    html += "</div>";
+    //    $('body').append(html);
     $('#content').append(html);
 
-    $('#deselect_all').on('click',function() {
+    $('#deselect_all').on('click', function () {
         deselect_primary();
         mark_all_deselected();
         update_selections_block();
     });
     update_selections_block();
 
-    $('#scroll_block a').on('click', function() {
+    $('#scroll_block a').on('click', function () {
         let high_impact_amount = params['high_impact_amount']
         which = $(this).attr('id');
 
         var bottom_of_screen = $(window).scrollTop() + window.innerHeight;
         var top_of_screen = $(window).scrollTop();
         if (which.includes('top')) {
-            window.scrollTo(0,0);
+            window.scrollTo(0, 0);
             return;
         }
 
         if (which.includes('bottom')) {
-            window.scrollTo(0,document.body.scrollHeight);
+            window.scrollTo(0, document.body.scrollHeight);
             return;
         }
 
-
-        var mid_screen = (top_of_screen+bottom_of_screen)/2;
+        var mid_screen = (top_of_screen + bottom_of_screen) / 2;
         let txels = $('.transaction')
         let current_idx = null
-        $('.transaction').each(function() {
+        $('.transaction').each(function () {
             let el = $(this)
             let bottom_of_element = el.offset().top + el.outerHeight();
             if (bottom_of_element > mid_screen) {
                 let txid = parseInt(el.attr('id').substr(2));
-//                console.log('tx in mid', txid)
+                //                console.log('tx in mid', txid)
                 current_idx = visible_order.indexOf(txid);
-                console.log('scroll current_idx',current_idx)
+                console.log('scroll current_idx', current_idx)
                 return false
             }
         });
@@ -1970,9 +1793,9 @@ function selection_operations(builtin_types,custom_types) {
 
         let collection = null
         if (which.includes('_next')) {
-            collection = visible_order.slice(current_idx+1)
+            collection = visible_order.slice(current_idx + 1)
         } else {
-            collection = visible_order.slice(0,current_idx)
+            collection = visible_order.slice(0, current_idx)
             collection.reverse()
         }
 
@@ -1989,10 +1812,9 @@ function selection_operations(builtin_types,custom_types) {
                     return
                 }
             }
-
             else {
                 let transaction = all_transactions[o_txid]
-//                let color = transaction['classification_certainty']
+                //                let color = transaction['classification_certainty']
                 let color = transaction['original_color']
                 if ('custom_color_id' in transaction)
                     color = transaction['custom_color_id']
@@ -2001,80 +1823,73 @@ function selection_operations(builtin_types,custom_types) {
                     return
                 }
             }
-
         }
-
-
     });
 
-    $('#sel_opt_all').on('click',function() {
+    $('#sel_opt_all').on('click', function () {
         display_mode = 'all'
         t1 = performance.now();
         if ($('#sel_opt_all').hasClass('sel_opt_chosen'))
             return;
-//        $(document.body).css({'cursor' : 'wait'});
+        //        $(document.body).css({'cursor' : 'wait'});
         $('.sel_opt_chosen').removeClass('sel_opt_chosen');
         $(this).addClass('sel_opt_chosen');
         t2 = performance.now();
-//        showib($('.transaction'));
+        //        showib($('.transaction'));
         t3 = performance.now();
 
         make_pagination(saved_page_idx)
         if (scroll_position != null) {
-            window.scrollTo(0,scroll_position);
+            window.scrollTo(0, scroll_position);
         }
         t4 = performance.now();
-//        console.log("Timing sel_opt_all",t2-t1,t3-t2,t4-t3)
-
-//        $(document.body).css({'cursor' : 'default'});
+        //        console.log("Timing sel_opt_all",t2-t1,t3-t2,t4-t3)
+        //        $(document.body).css({'cursor' : 'default'});
     });
 
-    $('#sel_opt_sel').on('click',function() {
+    $('#sel_opt_sel').on('click', function () {
         display_mode = 'selected'
         t1 = performance.now();
         if ($('#sel_opt_all').hasClass('sel_opt_chosen')) {
             scroll_position = window.scrollY;
             saved_page_idx = current_page_idx;
         }
-//        $(document.body).css({'cursor' : 'wait'});
+        //        $(document.body).css({'cursor' : 'wait'});
         $('.sel_opt_chosen').removeClass('sel_opt_chosen');
         $(this).addClass('sel_opt_chosen');
         t2 = performance.now();
-//        showib($('.secondary_selected'));
+        //        showib($('.secondary_selected'));
         t3 = performance.now();
-//        hide($('.transaction:not(.secondary_selected)'));
+        //        hide($('.transaction:not(.secondary_selected)'));
         t4 = performance.now();
-//        console.log("Timing sel_opt_sel",t2-t1,t3-t2,t4-t3)
+        //        console.log("Timing sel_opt_sel",t2-t1,t3-t2,t4-t3)
         make_pagination()
-//        $(document.body).css({'cursor' : 'default'});
+        //        $(document.body).css({'cursor' : 'default'});
     });
 
-    $('#sel_opt_desel').on('click',function() {
+    $('#sel_opt_desel').on('click', function () {
         display_mode = 'deselected'
-//        $(document.body).css({'cursor' : 'wait'});
+        //        $(document.body).css({'cursor' : 'wait'});
         $('.sel_opt_chosen').removeClass('sel_opt_chosen');
         $(this).addClass('sel_opt_chosen');
-//        hide($('.secondary_selected'));
-//        showib($('.transaction:not(.secondary_selected)'));
-//        $(document.body).css({'cursor' : 'default'});
+        //        hide($('.secondary_selected'));
+        //        showib($('.transaction:not(.secondary_selected)'));
+        //        $(document.body).css({'cursor' : 'default'});
         make_pagination()
     });
-
 }
 
-
-
 function update_selections_block() {
-//    cnt = $('#transaction_list').find('div.secondary_selected').length;
-//    cnt = $('.secondary_selected').length;
+    //    cnt = $('#transaction_list').find('div.secondary_selected').length;
+    //    cnt = $('.secondary_selected').length;
     let selected_cnt = selected_transactions.size
-//    console.log('update_selections_block',selected_cnt)
+    //    console.log('update_selections_block',selected_cnt)
     if (selected_cnt > 0) {
         $('#selections_count').children('span').html(selected_cnt);
         show($('#selections_count'));
         hide($('#selections_placeholder'));
         show($('#scr_selected_next').closest('.scroll_row'));
-        $('#custom_types_list .ct_name').addClass('applicable').attr('title','Apply to selected transactions');
+        $('#custom_types_list .ct_name').addClass('applicable').attr('title', 'Apply to selected transactions');
         $('.secondary_selected').removeClass('secondary_selected')
         mark_selected();
     } else {
@@ -2085,71 +1900,63 @@ function update_selections_block() {
     }
 }
 
-
 function scroll_to(el) {
     if (!el.is(':visible'))
         showib(el)
     let elem_position = el.offset().top;
     let elem_height = el.outerHeight();
     let window_height = window.innerHeight;
-    let y = elem_position - window_height/2+elem_height/2;
-    window.scrollTo(0,y);
-
+    let y = elem_position - window_height / 2 + elem_height / 2;
+    window.scrollTo(0, y);
 }
 
-
-
-
-
-$('body').on('click','.colopt',function() {
-   color_id = $(this).attr('id').substr(7);
-   txids = [];
-   if (selected_transactions.size == 0)
+$('body').on('click', '.colopt', function () {
+    color_id = $(this).attr('id').substr(7);
+    txids = [];
+    if (selected_transactions.size == 0)
         return;
-//   console.log("recolor",color_id,"to transactions",txids);
-   data = 'color_id='+color_id+'&transactions='+Array.from(selected_transactions).join(',');
-//   let address = window.sessionStorage.getItem('address');
-   $.post("recolor?address="+primary, data, function(resp) {
-//        console.log(resp);
+    //   console.log("recolor",color_id,"to transactions",txids);
+    data = 'color_id=' + color_id + '&transactions=' + Array.from(selected_transactions).join(',');
+    //   let address = window.sessionStorage.getItem('address');
+    $.post("recolor?address=" + primary, data, function (resp) {
+        //        console.log(resp);
         var data = JSON.parse(resp);
         if (data.hasOwnProperty('error')) {
-            $('#recolor_block').append("<div class='err_mes'>"+data['error']+"</div>");
+            $('#recolor_block').append("<div class='err_mes'>" + data['error'] + "</div>");
         } else {
             for (let txid of selected_transactions) {
                 all_transactions[txid]['custom_color_id'] = color_id;
-                $('#t_'+txid).removeClass('custom_recolor_0 custom_recolor_3 custom_recolor_5 custom_recolor_10').addClass('custom_recolor custom_recolor_'+color_id);
+                $('#t_' + txid).removeClass('custom_recolor_0 custom_recolor_3 custom_recolor_5 custom_recolor_10').addClass('custom_recolor custom_recolor_' + color_id);
             }
-
         }
     });
 });
 
-$('body').on('click','#color_undo',function() {
-   txids = [];
-   if (selected_transactions.size == 0)
+$('body').on('click', '#color_undo', function () {
+    txids = [];
+    if (selected_transactions.size == 0)
         return;
-//   console.log("recolor",'undo',"to transactions",txids);
-   data = 'color_id=undo&transactions='+Array.from(selected_transactions).join(',');
-//   let address = window.sessionStorage.getItem('address');
-   $.post("recolor?address="+primary, data, function(resp) {
-//        console.log(resp);
+    //   console.log("recolor",'undo',"to transactions",txids);
+    data = 'color_id=undo&transactions=' + Array.from(selected_transactions).join(',');
+    //   let address = window.sessionStorage.getItem('address');
+    $.post("recolor?address=" + primary, data, function (resp) {
+        //        console.log(resp);
         var data = JSON.parse(resp);
         if (data.hasOwnProperty('error')) {
-            $('#recolor_block').append("<div class='err_mes'>"+data['error']+"</div>");
+            $('#recolor_block').append("<div class='err_mes'>" + data['error'] + "</div>");
         } else {
             for (let txid of selected_transactions) {
                 delete all_transactions[txid]['custom_color_id'];
-                $('#t_'+txid).removeClass('custom_recolor_0 custom_recolor_3 custom_recolor_5 custom_recolor_10');
+                $('#t_' + txid).removeClass('custom_recolor_0 custom_recolor_3 custom_recolor_5 custom_recolor_10');
             }
         }
     });
 });
 
-
-$('body').on('change','select.treatment',function() {
+$('body').on('change', 'select.treatment', function () {
     let selected_treatment = $(this).val();
     let vault_id_el = $(this).closest('tr').find('.r_vaultid').find('span');
-    if (['repay','deposit','borrow','withdraw','exit','liquidation','full_repay'].includes(selected_treatment))
+    if (['repay', 'deposit', 'borrow', 'withdraw', 'exit', 'liquidation', 'full_repay'].includes(selected_treatment))
         vault_id_el.removeClass('hidden')
     else
         vault_id_el.addClass('hidden')
@@ -2174,12 +1981,11 @@ function br_block() {
     $('#content').append(html);
 }
 
-
-function need_reproc(display=true, level=1, text=null) {
+function need_reproc(display = true, level = 1, text = null) {
     if (show && $('#need_reproc').length == 0) {
         if (text == null)
             text = "Reprocessing recommended"
-        $('#main_form').append("<div id='need_reproc' class='reproc_level_"+level+"'>"+text+"</div>");
+        $('#main_form').append("<div id='need_reproc' class='reproc_level_" + level + "'>" + text + "</div>");
         $('#main_form').addClass('main_form_outdated');
         show($('#submit_address'));
     }
@@ -2189,8 +1995,7 @@ function need_reproc(display=true, level=1, text=null) {
         $('#main_form').removeClass('main_form_outdated');
         hide($('#submit_address'))
     }
-
-//    $('#force_forget_derived').val(+display)
+    //    $('#force_forget_derived').val(+display)
 }
 
 function isInViewport(element) {
@@ -2212,15 +2017,15 @@ function dict_len(dct) {
 //}
 
 function get_cookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parseInt(parts.pop().split(';').shift());
-  return 0
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parseInt(parts.pop().split(';').shift());
+    return 0
 }
 
 function mark_selected() {
     for (let txid of selected_transactions) {
-        $('#t_'+txid).addClass('secondary_selected')
+        $('#t_' + txid).addClass('secondary_selected')
     }
 }
 
@@ -2229,25 +2034,23 @@ function mark_all_deselected() {
     selected_transactions = new Set();
 }
 
-
-
 function render_page(page_idx) {
     let tx_per_page = params['tx_per_page']
     current_page_idx = page_idx
-    console.log('render page',page_idx)
+    console.log('render page', page_idx)
     $('#current_page').html('')
     let len = visible_order.length
-    let start_idx = tx_per_page*page_idx
+    let start_idx = tx_per_page * page_idx
     let end_idx = start_idx + tx_per_page
     if (end_idx > len)
         end_idx = len
 
     let page_html = "";
-//    console.log(start_idx,end_idx)
-//    console.log('tx indexes',start_idx,end_idx)
+    //    console.log(start_idx,end_idx)
+    //    console.log('tx indexes',start_idx,end_idx)
     for (let idx = start_idx; idx < end_idx; idx++) {
         let txid = visible_order[idx];
-//        console.log(txid)
+        //        console.log(txid)
         let transaction = all_transactions[txid]
         transaction_html = make_transaction_html(transaction);
         page_html += transaction_html;
@@ -2257,10 +2060,9 @@ function render_page(page_idx) {
     process_tax_errors()
     mark_selected();
     highlight_impact();
-
 }
 
-function make_pagination(go_to_page=null,init_render=true) {
+function make_pagination(go_to_page = null, init_render = true) {
     let tx_per_page = params['tx_per_page']
     console.log("make pagination")
     visible_order = transaction_order
@@ -2281,38 +2083,36 @@ function make_pagination(go_to_page=null,init_render=true) {
         }
     }
     let len = visible_order.length
-    let total_pages = Math.ceil(len/tx_per_page)
-//    if (total_pages > 1)
+    let total_pages = Math.ceil(len / tx_per_page)
+    //    if (total_pages > 1)
     {
         let pagination_html = ""
         if (total_pages > 1)
             pagination_html += "<div class='pagination_header'>Go to page</div><div class='pagination_list'></div>"
-        let tx_per_page_options = [100,250,500,1000]
+        let tx_per_page_options = [100, 250, 500, 1000]
         pagination_html += "<div class='pagination_header'>Transactions per page</div><select class='pagination_per_page'>";
         for (let tx_per_page_option of tx_per_page_options) {
-            pagination_html += "<option value='"+tx_per_page_option+"'"
+            pagination_html += "<option value='" + tx_per_page_option + "'"
             if (tx_per_page_option == tx_per_page)
                 pagination_html += " selected "
-            pagination_html += ">"+tx_per_page_option+"</option>"
+            pagination_html += ">" + tx_per_page_option + "</option>"
         }
         pagination_html += "</select>";
 
         $('.pagination').html(pagination_html)
 
-        if (total_pages > 1)
-        {
+        if (total_pages > 1) {
             let pageNumber = 1;
             if (go_to_page != null)
-                pageNumber = go_to_page+1;
+                pageNumber = go_to_page + 1;
             $('.pagination_list').pagination({
-                pageSize:tx_per_page,
+                pageSize: tx_per_page,
                 dataSource: visible_order,
-                pageNumber:pageNumber,
+                pageNumber: pageNumber,
                 triggerPagingOnInit: init_render,
-                callback: function(data, pagination) {
-
+                callback: function (data, pagination) {
                     let page_idx = pagination.pageNumber - 1;
-//                    console.log('callback',page_idx);
+                    //                    console.log('callback',page_idx);
                     console.log("callback render")
                     render_page(page_idx)
                 }
@@ -2322,27 +2122,25 @@ function make_pagination(go_to_page=null,init_render=true) {
             render_page(0)
         }
     }
-
-
 }
 
-function save_info(field,value) {
-    $.get("save_info?address="+primary+"&field="+field+"&value="+value);
+function save_info(field, value) {
+    $.get("save_info?address=" + primary + "&field=" + field + "&value=" + value);
     params[field] = value
 }
 
-$('body').on('change','.pagination_per_page', function() {
+$('body').on('change', '.pagination_per_page', function () {
     let tx_per_page = parseInt($(this).val());
-    save_info('tx_per_page',tx_per_page)
+    save_info('tx_per_page', tx_per_page)
     make_pagination()
 });
 
 function go_to_transaction(txid) {
     let tx_per_page = params['tx_per_page']
-    console.log('go_to_transaction txid',txid)
+    console.log('go_to_transaction txid', txid)
     if (isNaN(txid))
         return
-    el = $('#t_'+txid)
+    el = $('#t_' + txid)
     if (el.length > 0) {
         scroll_to(el);
         return;
@@ -2355,20 +2153,19 @@ function go_to_transaction(txid) {
         return
     }
 
-    let page_idx = Math.floor(visible_idx/tx_per_page)
-    console.log('go_to_transaction page_idx',page_idx,current_page_idx)
-    $('.pagination_list').pagination('go',page_idx+1)
-    el = $('#t_'+txid)
+    let page_idx = Math.floor(visible_idx / tx_per_page)
+    console.log('go_to_transaction page_idx', page_idx, current_page_idx)
+    $('.pagination_list').pagination('go', page_idx + 1)
+    el = $('#t_' + txid)
     scroll_to(el);
 }
-
 
 function close_top_menu() {
     hide($('#top_menu'))
     $('#top_menu_icon').removeClass('top_menu_icon_open').addClass('top_menu_icon_closed')
 }
 
-$('body').on('click','#top_menu_icon',function() {
+$('body').on('click', '#top_menu_icon', function () {
     if ($(this).hasClass('top_menu_icon_closed')) {
         show($('#top_menu'))
         $(this).removeClass('top_menu_icon_closed').addClass('top_menu_icon_open')
@@ -2377,47 +2174,45 @@ $('body').on('click','#top_menu_icon',function() {
     }
 });
 
-
-function get_symbol(token_id,chain_name=null) {
-//    console.log('get_symbol',token_id,chain_name)
-//    if (!token_id.includes(":")) {
-//        if ((token_id.length >= 42 || token_id == '-') && chain_name == 'Solana')
-//            token_id = chain_name+":"+token_id
-//        else if (token_id.length >= 42 && token_id[1] == 'x' && token_id[0] == '0' && chain_name != null)
-//            token_id = chain_name+":"+token_id
-//    }
+function get_symbol(token_id, chain_name = null) {
+    //    console.log('get_symbol',token_id,chain_name)
+    //    if (!token_id.includes(":")) {
+    //        if ((token_id.length >= 42 || token_id == '-') && chain_name == 'Solana')
+    //            token_id = chain_name+":"+token_id
+    //        else if (token_id.length >= 42 && token_id[1] == 'x' && token_id[0] == '0' && chain_name != null)
+    //            token_id = chain_name+":"+token_id
+    //    }
     let token_entry = null
     if (token_id in tokens)
         token_entry = tokens[token_id];
     else if (chain_name != null) {
-        token_id = chain_name +":"+token_id;
+        token_id = chain_name + ":" + token_id;
         token_entry = tokens[token_id];
     } /*else return "-"*/
-//    console.log('get_symbol 2',token_id, chain_name, token_entry)
+    //    console.log('get_symbol 2',token_id, chain_name, token_entry)
     if (chain_name != null && chain_name in token_entry['symbols'])
         return token_entry['symbols'][chain_name][0]
     else return token_entry['default_symbol']
 }
 
-$('body').on('click','#aa_clicker',function() {
-    let html ="<div id='overlay'></div><div id='aa_popup' class='popup'>";
+$('body').on('click', '#aa_clicker', function () {
+    let html = "<div id='overlay'></div><div id='aa_popup' class='popup'>";
     if (demo) html += "<div>You can't add another address in a demo, sorry.</div>";
     else {
-    html += "<input type=text placeholder='Ethereum or Solana address' id='aa_input'><div id='aa_process'>Import transactions</div>";
+        html += "<input type=text placeholder='Ethereum or Solana address' id='aa_input'><div id='aa_process'>Import transactions</div>";
     }
     html += "<div id='aa_cancel'>Cancel</div></div>";
     $('#content').append(html);
 });
 
-$('body').on('click','#aa_cancel, #hi_cancel, #dc_fix_cancel, #dl_cancel, #up_cancel, #cg_cancel, #opt_cancel',function() {
+$('body').on('click', '#aa_cancel, #hi_cancel, #dc_fix_cancel, #dl_cancel, #up_cancel, #cg_cancel, #opt_cancel', function () {
     $('.popup').remove();
     $('#overlay').remove();
 });
 
-$('body').on('click','#aa_process',function() {
+$('body').on('click', '#aa_process', function () {
     let aa = $('#aa_input').val().trim();
-//    aa = aa.toLowerCase()
-
+    //    aa = aa.toLowerCase()
     $('#aa_popup .error').remove();
 
     if (aa.length < 32 || aa.length > 44 || !aa.match(/^[0-9a-z]+$/i)) {
@@ -2432,26 +2227,20 @@ $('body').on('click','#aa_process',function() {
 
     $('.popup').remove();
     $('#overlay').remove();
-    $('#main_form').append("<input type=hidden id='aa' value='"+aa+"'>");
+    $('#main_form').append("<input type=hidden id='aa' value='" + aa + "'>");
     $('#main_form').submit();
-
-
 });
 
-
-
-
-$('body').on('click','#hi_conf',function() {
-    let html ="<div id='overlay'></div><div id='hi_popup' class='popup'>";
-    html += "<div class='hi_popup_explanation'>Transaction is considered high impact if it results in at least this much "+fiat+" gain or loss:</div>";
-    html += "<input type=text value='"+params['high_impact_amount']+"' id='hi_input'>";
+$('body').on('click', '#hi_conf', function () {
+    let html = "<div id='overlay'></div><div id='hi_popup' class='popup'>";
+    html += "<div class='hi_popup_explanation'>Transaction is considered high impact if it results in at least this much " + fiat + " gain or loss:</div>";
+    html += "<input type=text value='" + params['high_impact_amount'] + "' id='hi_input'>";
     html += "<div id='hi_update'>Update</div><div id='hi_cancel'>Cancel</div></div>";
     $('#content').append(html);
 });
 
-$('body').on('click','#hi_update',function() {
+$('body').on('click', '#hi_update', function () {
     let hi_val = $('#hi_input').val();
-
     $('#hi_popup .error').remove();
 
     if (!isNumeric(hi_val) || hi_val <= 0) {
@@ -2459,16 +2248,12 @@ $('body').on('click','#hi_update',function() {
         return
     }
     let high_impact_amount = Math.round(hi_val);
-    save_info('high_impact_amount',high_impact_amount)
-
-//    $.get("save_info?address="+primary+"&field=high_impact_amount&value="+high_impact_amount);
-
-    $('#hi_conf').html('$'+high_impact_amount+'+');
+    save_info('high_impact_amount', high_impact_amount)
+    //    $.get("save_info?address="+primary+"&field=high_impact_amount&value="+high_impact_amount);
+    $('#hi_conf').html('$' + high_impact_amount + '+');
     highlight_impact();
-
     $('.popup').remove();
     $('#overlay').remove();
-
 });
 
 function address_matrix_html() {
@@ -2485,10 +2270,8 @@ function address_matrix_html() {
             }
         }
     }
-    console.log('addresses for matrix',addresses,addresses.size)
-    console.log('chains for matrix',used_chains,used_chains.size)
-
-
+    console.log('addresses for matrix', addresses, addresses.size)
+    console.log('chains for matrix', used_chains, used_chains.size)
     html = "<div id='address_matrix'>"
     if (used_chains.size == 1) {
         let chain = Array.from(used_chains)[0];
@@ -2503,12 +2286,12 @@ function address_matrix_html() {
                 let tx_count = 0
                 if ('tx_count' in addr_dict)
                     tx_count = addr_dict['tx_count']
-                html += "<li><label><input type=checkbox class=ac_cb id="+address+"_displayed address="+address+" chain='"+chain+"'"
+                html += "<li><label><input type=checkbox class=ac_cb id=" + address + "_displayed address=" + address + " chain='" + chain + "'"
                 if (used)
                     html += " checked "
-                html += "><div class='display_address_option'>"+address+"</div></label> ("+tx_count+" transactions)"
+                html += "><div class='display_address_option'>" + address + "</div></label> (" + tx_count + " transactions)"
                 if (address.toLowerCase() != primary.toLowerCase()) {
-                    html += "<div class='delete_address' addr='"+address+"' title='Delete this address'></div>"
+                    html += "<div class='delete_address' addr='" + address + "' title='Delete this address'></div>"
                 }
                 html += "</li>"
             }
@@ -2522,9 +2305,9 @@ function address_matrix_html() {
         for (let address in all_address_info) {
             if (address == 'my account')
                 continue
-            html += "<tr row_addr="+address+"><td class='addresses_column'>"+display_hash(address, name='address', copiable=true, replace_users_address=false)
+            html += "<tr row_addr=" + address + "><td class='addresses_column'>" + display_hash(address, name = 'address', copiable = true, replace_users_address = false)
             if (address.toLowerCase() != primary.toLowerCase()) {
-                html += "<div class='delete_address' addr='"+address+"' title='Delete this address'></div>"
+                html += "<div class='delete_address' addr='" + address + "' title='Delete this address'></div>"
             }
             html += "</td>"
             html += "<td class='all_chains_column'><input type=checkbox class='toggle_all_chains'></td></tr>"
@@ -2536,17 +2319,16 @@ function address_matrix_html() {
         for (let chain in chain_config) {
             if (used_chains.has(chain)) {
                 ordered_chains.push(chain)
-                html += "<td>"+chain+"</td>"
+                html += "<td>" + chain + "</td>"
             }
         }
         html += "</tr>"
-        console.log('ordered_chains',ordered_chains)
-
+        console.log('ordered_chains', ordered_chains)
 
         if (addresses.size > 1) {
             html += "<tr row_addr=all class='all_addresses_row'>"
             for (let chain of ordered_chains) {
-                html += "<td><input type=checkbox class='toggle_all_addresses' chain='"+chain+"'></td>"
+                html += "<td><input type=checkbox class='toggle_all_addresses' chain='" + chain + "'></td>"
             }
             html += "</tr>"
         }
@@ -2554,7 +2336,7 @@ function address_matrix_html() {
         for (let address in all_address_info) {
             if (address == 'my account')
                 continue
-            html += "<tr row_addr="+address+">"
+            html += "<tr row_addr=" + address + ">"
             for (let chain of ordered_chains) {
                 if (chain in all_address_info[address]) {
                     addr_dict = all_address_info[address][chain]
@@ -2566,12 +2348,12 @@ function address_matrix_html() {
                         tx_count = 0
                         if ('tx_count' in addr_dict)
                             tx_count = addr_dict['tx_count']
-                        let title = tx_count+" transactions for "+address+" on "+chain
-                        html += "<td><input type=checkbox class=ac_cb chain='"+chain+"' address="+address+" "+checked+"><div class='adr_tx_count' title='"+title+"'>"+tx_count+"</div></td>"
+                        let title = tx_count + " transactions for " + address + " on " + chain
+                        html += "<td><input type=checkbox class=ac_cb chain='" + chain + "' address=" + address + " " + checked + "><div class='adr_tx_count' title='" + title + "'>" + tx_count + "</div></td>"
                     } else {
                         html += "<td><input type=checkbox disabled></td>"
                     }
-                } else{
+                } else {
                     html += "<td></td>"
                 }
             }
@@ -2588,56 +2370,48 @@ function address_matrix_html() {
             let tx_count = 0
             if ('tx_count' in addr_dict)
                 tx_count = addr_dict['tx_count']
-            html += "<li><label><input type=checkbox class=ac_cb id="+upload+"_displayed address='my account' chain='"+upload+"'"
+            html += "<li><label><input type=checkbox class=ac_cb id=" + upload + "_displayed address='my account' chain='" + upload + "'"
             if (used)
                 html += " checked "
-            html += "><div class='upload_option'>"+upload+"</div> ("+tx_count+" transactions)</label>"
-            html += "<div title='Add more transactions from the same source' class='up_icon up_add' chain='"+upload+"'></div>"
-            html += "<div title='Delete this upload and all its transactions' class='up_icon up_delete' chain='"+upload+"'></div>"
+            html += "><div class='upload_option'>" + upload + "</div> (" + tx_count + " transactions)</label>"
+            html += "<div title='Add more transactions from the same source' class='up_icon up_add' chain='" + upload + "'></div>"
+            html += "<div title='Delete this upload and all its transactions' class='up_icon up_delete' chain='" + upload + "'></div>"
             html += "</li>"
         }
         html += "</ul>"
     }
-
     html += "</div>"
     return html
 }
 
-$('body').on('change','.toggle_all_chains',function() {
+$('body').on('change', '.toggle_all_chains', function () {
     row_addr = $(this).closest('tr').attr('row_addr')
     checked = false
     if ($(this).is(':checked'))
         checked = true
-    $('#address_matrix_right').find('input[address='+row_addr+']').prop('checked',checked)
+    $('#address_matrix_right').find('input[address=' + row_addr + ']').prop('checked', checked)
 });
 
-$('body').on('change','.toggle_all_addresses',function() {
+$('body').on('change', '.toggle_all_addresses', function () {
     chain = $(this).attr('chain')
     checked = false
     if ($(this).is(':checked'))
         checked = true
-    $('#address_matrix_right').find('input[chain='+chain+']').prop('checked',checked)
+    $('#address_matrix_right').find('input[chain=' + chain + ']').prop('checked', checked)
 });
 
-$('body').on('change','#toggle_all',function() {
+$('body').on('change', '#toggle_all', function () {
     checked = false
     if ($(this).is(':checked'))
         checked = true
-    $('#address_matrix_right').find('input').prop('checked',checked)
-    $('.toggle_all_chains').prop('checked',checked)
+    $('#address_matrix_right').find('input').prop('checked', checked)
+    $('.toggle_all_chains').prop('checked', checked)
 });
 
-
-
-
-
-
-
 function make_top() {
-    let submit_button_el = $('#submit_address').css({'width':'auto','margin-top':'20px','display':'block'}).detach()
+    let submit_button_el = $('#submit_address').css({ 'width': 'auto', 'margin-top': '20px', 'display': 'block' }).detach()
     $('#demo_link').remove();
-    let import_new_el = $('#import_new_transactions').prop('checked',false).css({'display':'none'}).detach()
-
+    let import_new_el = $('#import_new_transactions').prop('checked', false).css({ 'display': 'none' }).detach()
     let inner_form_html = "";
 
     displayed_addresses_set = new Set()
@@ -2653,37 +2427,29 @@ function make_top() {
         }
     }
     displayed_addresses = Array.from(displayed_addresses_set)
-//                    console.log('displayed_addresses',displayed_addresses)
+    //                    console.log('displayed_addresses',displayed_addresses)
     inner_form_html += "<div id='displayed_address_list'>";
 
     if (displayed_addresses.length <= 3) {
         let idx = 0;
         for (let address of displayed_addresses) {
             idx += 1;
-
-            inner_form_html += "<div class='displayed_address_top hash copiable' title='Copy to clipboard' full='"+address+"'>"+address+"</div>";
+            inner_form_html += "<div class='displayed_address_top hash copiable' title='Copy to clipboard' full='" + address + "'>" + address + "</div>";
             if (idx < displayed_addresses.length)
-                inner_form_html +=", "
+                inner_form_html += ", "
         }
     }
-    else inner_form_html +=displayed_addresses.length + " sources";
+    else inner_form_html += displayed_addresses.length + " sources";
 
     inner_form_html += "</div>";
-    inner_form_html += "<input type=hidden id='your_address' value='"+primary+"'>"
+    inner_form_html += "<input type=hidden id='your_address' value='" + primary + "'>"
     inner_form_html += "<div id='top_menu_icon' class='top_menu_icon_closed'></div><div id='top_menu'></div>"
-
-
     $('#main_form').html(inner_form_html)
-
     let top_menu_html = "";
-
     top_menu_html += address_matrix_html()
-
-
     top_menu_html += "<div id='aa_clicker'>Add another address</div>";
     top_menu_html += "<div id='up_clicker'>Upload transactions from a CSV</div>";
-
-//    top_menu_html += "<input type=hidden id=force_forget_derived value=0 />"
+    //    top_menu_html += "<input type=hidden id=force_forget_derived value=0 />"
     $('#top_menu').html(top_menu_html)
     import_new_el.appendTo($('#top_menu'))
     submit_button_el.appendTo($('#top_menu'))
@@ -2693,7 +2459,7 @@ function add_transactions(transactions) {
     new_txids = []
     for (transaction of transactions) {
         let txid = parseInt(transaction['txid']);
-        console.log("Adding tx",txid)
+        console.log("Adding tx", txid)
         new_txids.push(txid)
         if (txid in all_transactions) {
             delete_transaction(txid);
@@ -2710,65 +2476,56 @@ function add_transactions(transactions) {
                 if (ts_loop > ts) {
                     if (insert_idx == -1) {
                         insert_idx = parseInt(idx)
-//                                console.log("splicing at idx",idx)
+                        //                                console.log("splicing at idx",idx)
                     }
                     o_tx['num'] = o_tx['num'] + 1;
-
                 }
             }
-
-
             all_transactions[txid] = transaction;
             if (insert_idx == -1) {
                 transaction_order.push(txid)
                 transaction['num'] = transaction_order.length;
             } else {
-                transaction['num'] = insert_idx+1;
-                transaction_order.splice(insert_idx,0,txid)
+                transaction['num'] = insert_idx + 1;
+                transaction_order.splice(insert_idx, 0, txid)
             }
 
             map_lookups(transaction);
-
             all_transactions[txid] = transaction;
-
         }
     }
     return new_txids
 }
 
 function delete_transaction(txid) {
-    console.log("Deleting tx "+txid)
+    console.log("Deleting tx " + txid)
     let idx = transaction_order.indexOf(parseInt(txid))
-    for (let l_idx = idx+1; l_idx < transaction_order.length; l_idx++) {
+    for (let l_idx = idx + 1; l_idx < transaction_order.length; l_idx++) {
         let txid_loop = transaction_order[l_idx];
         let o_tx = all_transactions[txid_loop];
         o_tx['num'] = o_tx['num'] - 1;
     }
 
-    map_lookups(all_transactions[txid], unmap_instead=true)
-
+    map_lookups(all_transactions[txid], unmap_instead = true)
     delete all_transactions[txid];
-    transaction_order.splice(idx,1)
+    transaction_order.splice(idx, 1)
 }
 
-$('body').on('click','a.edit_coingecko_id',function() {
+$('body').on('click', 'a.edit_coingecko_id', function () {
     let current_id = $(this).text()
     let chain = $(this).attr('chain')
     let contract = $(this).attr('contract')
     let symbol = $(this).attr('symbol')
     let l1 = lookup_info["token_address_mapping"][contract]
     let l2 = lookup_info["chain_mapping"][chain]
-    let matches = set_intersect(l1,l2);
-
-
-    let html ="<div id='overlay'></div><div id='cg_popup' class='popup'>";
-    html += "<div class=header>Change Coingecko ID for "+symbol+"</div>"
+    let matches = set_intersect(l1, l2);
+    let html = "<div id='overlay'></div><div id='cg_popup' class='popup'>";
+    html += "<div class=header>Change Coingecko ID for " + symbol + "</div>"
     if (current_id == fiat) {
-        html += "<div id='cg_popup_explanation'>Sorry, you can't change coingecko ID for "+fiat+". It will literally make the server explode.</div>"
+        html += "<div id='cg_popup_explanation'>Sorry, you can't change coingecko ID for " + fiat + ". It will literally make the server explode.</div>"
         html += "<div class='sim_buttons'><div id='cg_cancel'>Cancel</div></div>"
     } else {
-
-        html += "<div id='cg_popup_explanation'><p>This will change coingecko ID everywhere you transferred "+contract+" on "+chain+", in "+matches.size+" transactions. "
+        html += "<div id='cg_popup_explanation'><p>This will change coingecko ID everywhere you transferred " + contract + " on " + chain + ", in " + matches.size + " transactions. "
         html += "It will not affect other chains/uploads, or other tokens with the same symbol. It may cause the software to download additional rate data from coingecko, "
         html += "and it may affect your taxes. All tokens with the same Coingecko ID are treated as the same asset when calculating your taxes.</p>"
         html += "<p>You can find Coingecko ID in the browser address bar on Coingecko, or here:<br>"
@@ -2778,15 +2535,14 @@ $('body').on('click','a.edit_coingecko_id',function() {
         if (current_id == 'not found')
             current_id = ''
 
-        html += "New Coingecko ID (leave empty to return to default): <input type=text id='coingecko_id_input' value='"+current_id+"' chain='"+chain+"' current_coingecko_id='"+current_id+"' contract='"+contract+"' />"
-
+        html += "New Coingecko ID (leave empty to return to default): <input type=text id='coingecko_id_input' value='" + current_id + "' chain='" + chain + "' current_coingecko_id='" + current_id + "' contract='" + contract + "' />"
         html += "<div class='sim_buttons'><div id='cg_process'>Change Coingecko ID</div>";
         html += "<div id='cg_cancel'>Cancel</div></div></div>";
     }
     $('#content').append(html);
 });
 
-$('body').on('click','#cg_process',function() {
+$('body').on('click', '#cg_process', function () {
     el = $('#coingecko_id_input')
     new_id = el.val()
     current_id = el.attr('current_coingecko_id')
@@ -2796,21 +2552,20 @@ $('body').on('click','#cg_process',function() {
         return
     }
     if (new_id == fiat) {
-        $('#cg_popup').find('.sim_buttons').css({'display':''}).after("<div class='cg_error'>You can't set coingecko ID to "+fiat+"</div>");
+        $('#cg_popup').find('.sim_buttons').css({ 'display': '' }).after("<div class='cg_error'>You can't set coingecko ID to " + fiat + "</div>");
         return
     }
 
-    $('#cg_popup').find('.sim_buttons').css({'display':'none'})
+    $('#cg_popup').find('.sim_buttons').css({ 'display': 'none' })
     start_progress_bar('popup')
     $('.cg_error').remove()
-
     chain = el.attr('chain')
     contract = el.attr('contract')
-    $.get("update_coingecko_id?chain="+chain+"&address="+primary+"&contract="+contract+"&new_id="+new_id, function(js) {
+    $.get("update_coingecko_id?chain=" + chain + "&address=" + primary + "&contract=" + contract + "&new_id=" + new_id, function (js) {
         stop_progress_bar();
         var data = JSON.parse(js);
         if (data.hasOwnProperty('error')) {
-            $('#cg_popup').find('.sim_buttons').css({'display':''}).after("<div class='cg_error'>"+data['error']+"</div>");
+            $('#cg_popup').find('.sim_buttons').css({ 'display': '' }).after("<div class='cg_error'>" + data['error'] + "</div>");
         } else {
             new_txids = add_transactions(data['transactions'])
             make_pagination();
@@ -2821,7 +2576,7 @@ $('body').on('click','#cg_process',function() {
     });
 })
 
-$('body').on('click','.t_hide',function(event) {
+$('body').on('click', '.t_hide', function (event) {
     txel = $(this).closest('.transaction')
     t_id = txel.attr('id');
     let txid = parseInt(t_id.substr(2));
@@ -2831,7 +2586,6 @@ $('body').on('click','.t_hide',function(event) {
     else
         transaction.minimized = false
     transaction_html = make_transaction_html(transaction);
-
     secondary_selected = primary_selected = false
     if (txel.hasClass('secondary_selected'))
         secondary_selected = true
@@ -2839,10 +2593,8 @@ $('body').on('click','.t_hide',function(event) {
     if (txel.hasClass('primary_selected'))
         primary_selected = true
     console.log(secondary_selected, primary_selected)
-
     txel.replaceWith(transaction_html)
-
-    txel = $('#t_'+txid);
+    txel = $('#t_' + txid);
     if (transaction.minimized) {
         if (secondary_selected)
             txel.addClass('secondary_selected')
@@ -2850,26 +2602,25 @@ $('body').on('click','.t_hide',function(event) {
             txel.addClass('primary_selected')
     } else {
         if (primary_selected)
-            select_transaction(txel,keep_secondary=true)
+            select_transaction(txel, keep_secondary = true)
         if (secondary_selected)
             txel.addClass('secondary_selected')
     }
-    data = 'minimized='+(transaction.minimized?1:0)+'&transactions='+txid;
-
-    $.post("minmax_transactions?address="+primary, data, function(resp) {
+    data = 'minimized=' + (transaction.minimized ? 1 : 0) + '&transactions=' + txid;
+    $.post("minmax_transactions?address=" + primary, data, function (resp) {
         var data = JSON.parse(resp);
         if (data.hasOwnProperty('error')) {
-            txel.append("<div class='err_mes'>"+data['error']+"</div>");
+            txel.append("<div class='err_mes'>" + data['error'] + "</div>");
         }
     });
     event.stopPropagation()
 });
 
 
-$('body').on('click','.delete_address',function() {
+$('body').on('click', '.delete_address', function () {
     let address = $(this).attr('addr')
-    html ="<div id='overlay'></div><div id='delete_address_popup' class='popup'><form id='delete_address_form'><input type=hidden name=address_to_delete value='"+address+"'> ";
-    html += "Really delete "+address+"? This will also delete all transfers associated with it.";
+    html = "<div id='overlay'></div><div id='delete_address_popup' class='popup'><form id='delete_address_form'><input type=hidden name=address_to_delete value='" + address + "'> ";
+    html += "Really delete " + address + "? This will also delete all transfers associated with it.";
     html += "<div class='sim_buttons'>";
     html += "<div id='delete_address_confirm'>Delete address</div>";
     html += "<div id='delete_address_cancel'>Cancel</div></div>";
@@ -2877,18 +2628,18 @@ $('body').on('click','.delete_address',function() {
     $('#content').append(html);
 });
 
-$('body').on('click','#delete_address_cancel',function() {
+$('body').on('click', '#delete_address_cancel', function () {
     $('#delete_address_popup').remove();
     $('#overlay').remove();
 });
 
-$('body').on('click','#delete_address_confirm',function() {
+$('body').on('click', '#delete_address_confirm', function () {
     data = $('#delete_address_form').serialize();
-    $.post("delete_address?address="+primary, data, function(resp) {
-//        console.log(resp);
+    $.post("delete_address?address=" + primary, data, function (resp) {
+        //        console.log(resp);
         var data = JSON.parse(resp);
         if (data.hasOwnProperty('error')) {
-            $("#delete_address_form").after("<div class='err_mes'>"+data['error']+"</div>");
+            $("#delete_address_form").after("<div class='err_mes'>" + data['error'] + "</div>");
         } else {
             all_address_info = data['all_address_info'];
             make_top();
@@ -2896,15 +2647,14 @@ $('body').on('click','#delete_address_confirm',function() {
                 $('#main_form').submit();
                 return
             }
-
             $('#delete_address_popup').remove();
             $('#overlay').remove();
         }
     });
 });
 
-$('body').on('click','#donations_main',function() {
-    html ="<div id='overlay'></div><div id='donations_popup' class='popup'>";
+$('body').on('click', '#donations_main', function () {
+    html = "<div id='overlay'></div><div id='donations_popup' class='popup'>";
     html += "<p>Thank you for clicking here. My name is Ilya Raykhel, and development of this website is my full-time job. Additionally, I spend about $7K/year on hosting costs and various paid APIs. ";
     html += "If you found my website useful and would like to contribute to its development, I would appreciate a donation to 0xbf01E689Dd71206A47186f204afBf3b8e7bB8114.</p> "
     html += "<p>If there's ever a token or an NFT project associated with this website in the future (no promises), all donators will be generously rewarded.</p>"
@@ -2914,8 +2664,7 @@ $('body').on('click','#donations_main',function() {
     $('#content').append(html);
 });
 
-
-$('body').on('click','#donations_popup_cancel',function() {
+$('body').on('click', '#donations_popup_cancel', function () {
     $('#donations_popup').remove();
     $('#overlay').remove();
 });
