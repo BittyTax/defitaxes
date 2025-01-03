@@ -345,6 +345,9 @@ function start_progress_bar(mode) {
 
             if (pb >= 100) {
                 clearInterval(pb_interval);
+                if (mode != 'popup') {
+                    process_data(primary);
+                }
             }
         });
     }, 1000);
@@ -995,6 +998,139 @@ $('body').on('click', '#demo_link', function () {
     $('#main_form').submit()
 });
 
+function process(primary, uniqueid = '', import_addresses = '', ac_str = '') {
+    $.ajax({
+        url: "process?address=" + primary + "&uid=" + uniqueid + "&import_addresses=" + import_addresses + "&ac_str=" + ac_str,
+
+        success: function (js) {
+            try {
+                data = JSON.parse(js);
+                if (data.hasOwnProperty('pb')) {
+                    console.log('Started', data['pb']);
+                    return;
+                }
+                else {
+                    throw "process: Unexpected response"
+                }
+            } catch (error) {
+                $('#content').html("<div class='main_error'>Unexpected response: " + js + "<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E6yuUZ3W4X' target='_blank'>Discord</a></div></div>");
+                $(document.body).css({ 'cursor': 'default' });
+                stop_progress_bar();
+                return;
+            }
+        },
+        error: function (js) {
+            $('#content').html("<div class='main_error'>A fatal server error has occurred<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
+        }
+    })
+}
+
+function process_data(primary) {
+    $.ajax({
+        url: "process_data?address=" + primary,
+
+        success: function (js) {
+            $('#address_form').css({
+                'margin-top': '0px', 'padding-top': '0px', 'position': 'fixed', 'left': '0', 'right': '0', 'top': '0', 'transform': 'none',
+                'background-color': '#FAFAFA', 'border-bottom': '1px solid #DFDFDF', 'padding': '0px'
+            });
+            $('#main_form').css({ 'margin': 'auto', 'margin-top': '0px', 'padding': '5px', 'border-width': '0px', 'width': '50%' });
+            $('.header').remove();
+            $('.footer').remove();
+
+            try {
+                data = JSON.parse(js);
+            } catch (error) {
+                $('#content').html("<div class='main_error'>" + js + "<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
+                stop_progress_bar();
+                return;
+            }
+
+            if (data.hasOwnProperty('error')) {
+                $('#content').html("<div class='main_error'>" + data['error'] + "<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
+                $(document.body).css({ 'cursor': 'default' });
+                stop_progress_bar();
+                return;
+            }
+
+            console.log("received main data, no errors")
+            version = parseFloat(data['version']['software']);
+            data_version = parseFloat(data['version']['data']);
+            //                    address_info = data['address_info'];
+            all_address_info = data['all_address_info'];
+            fiat_info = data['fiat_info'];
+            chain_config = data['chain_config'];
+            //                            let chain_selector_el = $('#chain_selector').css({'margin':'10px','display':'block'}).detach()
+            make_top()
+            all_transactions = {}
+            transaction_order = []
+            len = data['transactions'].length;
+            setup();
+            if (len == 0) {
+                $('#content').html("</div><div id='transaction_list'><div id='top_text'>No transactions found on selected chains.</div></div>");
+            } else {
+                let info = data['info']
+                for (let field in params) {
+                    if (field in info)
+                        params[field] = parseInt(info[field])
+                }
+
+                for (let field in global_options) {
+                    if (field in info)
+                        global_options[field] = info[field]
+                }
+                fiat = global_options['fiat']
+                make_help_strings();
+                var all_html = "";
+                let non_fatal_errors = data['non_fatal_errors'];
+                for (let nfe of non_fatal_errors) {
+                    all_html += "<div class='non_fatal_error'>" + nfe + "</div>";
+                }
+
+                all_html += "<div id='top_text'>Make sure to check red, orange, and yellow transactions."
+                if (demo) {
+                    all_html += "<div id='demo_warning'>You are running a demo address that made real transactions on several blockchains. " +
+                        "Permission to use this address was obtained from the owner. " +
+                        "Anybody can modify stuff here and it will be saved. Feel free to play with it.</div>"
+                }
+
+                all_html += "</div>";
+                mark_all_deselected()
+                for (let idx in data['transactions']) {
+                    let transaction = data['transactions'][idx];
+                    txid = parseInt(transaction['txid'])
+                    //                                    transaction['selected']=false;
+                    map_lookups(transaction);
+                    transaction['num'] = parseInt(idx) + 1;
+                    all_transactions[txid] = transaction;
+                    //                                    transaction_html = make_transaction_html(transaction, idx, len);
+                    transaction_order.push(txid)
+                    //                                    all_html += transaction_html;
+                }
+                $('#content').html("</div><div id='transaction_list'>" + all_html +
+                    "<div id='current_page'></div><div class='pagination'></div></div>");
+                //                                render_page(0);
+                display_tax_block();
+                process_tax_js(data);
+                show_inspections(data);
+                lookup_info['last_index'] = len;
+                //                                console.log('custom types?',data['custom_types']);
+                selection_operations(data['builtin_types'], data['custom_types']);
+                assist_block();
+                //                        br_block();
+                $('#sel_opt_all').click();
+                //                        console.log("make_pagination in main")
+                make_pagination();
+                show_tax_related_html();
+            }
+            $(document.body).css({ 'cursor': 'default' });
+        },
+        error: function (js) {
+            $('#content').html("<div class='main_error'>A fatal server error has occurred<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
+        }
+    })
+}
+
 //main
 $(function () {
     $(document).ready(function () {
@@ -1056,109 +1192,7 @@ $(function () {
             //            if ($('#force_forget_derived').length)
             //                force_forget_derived = $('#force_forget_derived').val()
             need_reproc(false)
-            $.ajax({
-                url: "process?address=" + primary + "&uid=" + uniqueid + "&import_addresses=" + import_addresses + "&ac_str=" + ac_str,
-
-                success: function (js) {
-                    $('#address_form').css({
-                        'margin-top': '0px', 'padding-top': '0px', 'position': 'fixed', 'left': '0', 'right': '0', 'top': '0', 'transform': 'none',
-                        'background-color': '#FAFAFA', 'border-bottom': '1px solid #DFDFDF', 'padding': '0px'
-                    });
-                    $('#main_form').css({ 'margin': 'auto', 'margin-top': '0px', 'padding': '5px', 'border-width': '0px', 'width': '50%' });
-                    $('.header').remove();
-                    $('.footer').remove();
-
-                    try {
-                        data = JSON.parse(js);
-                    } catch (error) {
-                        $('#content').html("<div class='main_error'>" + js + "<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
-                        stop_progress_bar();
-                        return;
-                    }
-
-                    if (data.hasOwnProperty('error')) {
-                        $('#content').html("<div class='main_error'>" + data['error'] + "<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
-                        $(document.body).css({ 'cursor': 'default' });
-                        stop_progress_bar();
-                        return;
-                    }
-
-                    console.log("received main data, no errors")
-                    version = parseFloat(data['version']['software']);
-                    data_version = parseFloat(data['version']['data']);
-                    //                    address_info = data['address_info'];
-                    all_address_info = data['all_address_info'];
-                    fiat_info = data['fiat_info'];
-                    chain_config = data['chain_config'];
-                    //                            let chain_selector_el = $('#chain_selector').css({'margin':'10px','display':'block'}).detach()
-                    make_top()
-                    all_transactions = {}
-                    transaction_order = []
-                    len = data['transactions'].length;
-                    setup();
-                    if (len == 0) {
-                        $('#content').html("</div><div id='transaction_list'><div id='top_text'>No transactions found on selected chains.</div></div>");
-                    } else {
-                        let info = data['info']
-                        for (let field in params) {
-                            if (field in info)
-                                params[field] = parseInt(info[field])
-                        }
-
-                        for (let field in global_options) {
-                            if (field in info)
-                                global_options[field] = info[field]
-                        }
-                        fiat = global_options['fiat']
-                        make_help_strings();
-                        var all_html = "";
-                        let non_fatal_errors = data['non_fatal_errors'];
-                        for (let nfe of non_fatal_errors) {
-                            all_html += "<div class='non_fatal_error'>" + nfe + "</div>";
-                        }
-
-                        all_html += "<div id='top_text'>Make sure to check red, orange, and yellow transactions."
-                        if (demo) {
-                            all_html += "<div id='demo_warning'>You are running a demo address that made real transactions on several blockchains. " +
-                                "Permission to use this address was obtained from the owner. " +
-                                "Anybody can modify stuff here and it will be saved. Feel free to play with it.</div>"
-                        }
-
-                        all_html += "</div>";
-                        mark_all_deselected()
-                        for (let idx in data['transactions']) {
-                            let transaction = data['transactions'][idx];
-                            txid = parseInt(transaction['txid'])
-                            //                                    transaction['selected']=false;
-                            map_lookups(transaction);
-                            transaction['num'] = parseInt(idx) + 1;
-                            all_transactions[txid] = transaction;
-                            //                                    transaction_html = make_transaction_html(transaction, idx, len);
-                            transaction_order.push(txid)
-                            //                                    all_html += transaction_html;
-                        }
-                        $('#content').html("</div><div id='transaction_list'>" + all_html +
-                            "<div id='current_page'></div><div class='pagination'></div></div>");
-                        //                                render_page(0);
-                        display_tax_block();
-                        process_tax_js(data);
-                        show_inspections(data);
-                        lookup_info['last_index'] = len;
-                        //                                console.log('custom types?',data['custom_types']);
-                        selection_operations(data['builtin_types'], data['custom_types']);
-                        assist_block();
-                        //                        br_block();
-                        $('#sel_opt_all').click();
-                        //                        console.log("make_pagination in main")
-                        make_pagination();
-                        show_tax_related_html();
-                    }
-                    $(document.body).css({ 'cursor': 'default' });
-                },
-                error: function (js) {
-                    $('#content').html("<div class='main_error'>A fatal server error has occurred<div id='error_discord'>Get help on <a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a></div></div>");
-                }
-            })
+            process(primary, uniqueid, import_addresses, ac_str);
         });
     });
 });

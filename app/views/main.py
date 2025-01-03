@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import html
 import json
 import os
@@ -11,7 +10,7 @@ from flask import Blueprint, current_app, render_template, request
 from ..chain import Chain
 from ..coingecko import Coingecko
 from ..fiat_rates import Twelve
-from ..redis_wrap import Redis, ProgressBar
+from ..redis_wrap import ProgressBar, Redis
 from ..signatures import Signatures
 from ..sqlite import SQLite
 from ..tax_calc import Calculator
@@ -80,16 +79,39 @@ def _last_update_inner(user):
 
 @main.route("/process")
 def process():
-    address = request.args.get("address")
-    primary = normalize_address(address)  # Address(address)
-
+    primary = normalize_address(request.args.get("address"))
     persist(primary)
+    import_addresses = request.args.get("import_addresses")
+    log("import_addresses provided", import_addresses)
+    ac_str = request.args.get("ac_str")
+    log("ac_str", ac_str)
+
     redis = Redis(primary)
+    if not redis.is_running():
+        t = threading.Thread(
+            target=do_process,
+            args=(primary, import_addresses, ac_str, redis, current_app.app_context()),
+        )
+        t.start()
+        js = {"phase": "Starting", "pb": 0}
+    else:
+        pb = ProgressBar(redis)
+        phase, progress = pb.retrieve()
+        if progress is None:
+            progress = 0
+            phase = "Starting"
+        js = {"phase": phase, "pb": float(progress)}
+    return json.dumps(js)
 
-    # currently importing transactions for this user -- wait to finish, then recreate from stored
-    if redis.wait_finish():
-        return _recreate_data_from_caches(primary)
 
+@main.route("/process_data")
+def process_data():
+    primary = normalize_address(request.args.get("address"))
+    return _recreate_data_from_caches(primary)
+
+
+def do_process(primary, import_addresses, ac_str, redis, app_context):
+    app_context.push()
     redis.start()
 
     active_address = None
@@ -121,8 +143,6 @@ def process():
 
         log("all chains", all_chains)
 
-        import_addresses = request.args.get("import_addresses")
-        log("import_addresses provided", import_addresses)
         if import_addresses is not None and import_addresses != "":
             if import_addresses == "all":
                 if len(all_previous_addresses) == 0:
@@ -139,8 +159,6 @@ def process():
 
         use_previous = True
         try:
-            ac_str = request.args.get("ac_str")
-            log("ac_str", ac_str)
             if ac_str is not None and ac_str != "":
                 ac_spl = ac_str.split(",")
                 for entry in ac_spl:
@@ -176,7 +194,6 @@ def process():
                 all_display_addresses.add(address)
         all_display_addresses = list(all_display_addresses)
 
-        log("req args", request.args)
         log("all_previous_addresses 2", all_previous_addresses)
         if "my account" in import_addresses:
             import_addresses.remove("my account")
@@ -189,7 +206,6 @@ def process():
 
         pb = ProgressBar(redis)
         pb.set("Starting", 0)
-        t = time.time()
 
         user.get_custom_rates()
         non_fatal_errors = set()
@@ -720,7 +736,6 @@ def process():
 
         pb.set("Uploading to your browser", 98)
         user.done()
-        dump = json.dumps(data)
 
         to_empty_in_cache = [
             "transactions",
@@ -736,18 +751,12 @@ def process():
         for entry in to_empty_in_cache:
             data[entry] = ""
     except:
-
         log("EXCEPTION in process", primary, active_address, traceback.format_exc())
-        log_error("EXCEPTION in process", primary, active_address, request.args)
+        log_error("EXCEPTION in process", primary, active_address)
         data = {
             "error": "An error has occurred while processing transactions. "
             "Please let us know on Discord if you received this message."
         }
-        dump = json.dumps(data)
-        try:
-            pb.set("Uploading to your browser", 98)
-        except:
-            pass
 
     path = os.path.join(current_app.config["USERS_DIR"], primary)
     with open(os.path.join(path, "data_cache.json"), "w", newline="", encoding="utf-8") as js_file:
@@ -756,7 +765,6 @@ def process():
     if pb is not None:
         pb.set("Uploading to your browser", 100)
     redis.finish()
-    return dump
 
 
 def _recreate_data_from_caches(primary):
@@ -793,7 +801,6 @@ def save_custom_val():
     persist(address)
     try:
         form = request.form
-
         transfer_id_str = form["transfer_id"]
         transaction = form["transaction"]
         prop = form["prop"]
@@ -826,7 +833,6 @@ def undo_custom_changes():
 
     try:
         form = request.form
-
         transaction = form["transaction"]
 
         log("undo_custom_changes", address, transaction)
@@ -877,7 +883,6 @@ def save_note():
     persist(address)
     try:
         form = request.form
-
         note = form["note"]
         txid = request.args.get("transaction")
 
@@ -899,7 +904,6 @@ def get_progress_bar():
     address = normalize_address(request.args.get("address"))
     persist(address)
     try:
-
         redis = Redis(address)
         pb = ProgressBar(redis)
 
@@ -922,7 +926,6 @@ def update_progenitors():
     chain_name = request.args.get("chain")
     persist(address, chain_name)
     try:
-
         progenitor = request.args.get("progenitor")
         counterparty = request.args.get("counterparty")
         if (len(address) == 42) or chain_name == "Solana":
@@ -966,7 +969,6 @@ def minmax_transactions():
     persist(address)
     try:
         form = request.form
-
         minimized = form["minimized"]
         transactions = form["transactions"]
 
@@ -991,9 +993,7 @@ def delete_address():
     persist(address)
     try:
         form = request.form
-
         address_to_delete = form["address_to_delete"]
-
         log("delete address", address, address_to_delete)
 
         user = User(address)

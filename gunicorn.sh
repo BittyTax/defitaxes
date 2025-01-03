@@ -1,4 +1,4 @@
 #!/bin/sh
 
 source ./.venv/bin/activate
-gunicorn -w 4 -b unix:/tmp/gunicorn.sock -t 300 --access-logfile - --error-logfile - wsgi:app
+gunicorn -w 4 -b unix:/tmp/gunicorn.sock --access-logfile - --error-logfile - wsgi:app

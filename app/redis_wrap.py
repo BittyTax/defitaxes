@@ -45,6 +45,11 @@ class Redis:
             return True
         return False
 
+    def is_running(self) -> bool:
+        if self.get(self.KEY_RUNNING):
+            return True
+        return False
+
     def wait_queue(self) -> None:
         last_update_change = int(time.time())
         prev_top_last_update = None
