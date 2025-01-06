@@ -73,7 +73,7 @@ class Solana(Chain):
         self,
         json_template,
         query_list,
-        batch_size=90,
+        batch_size=10,
         pb_alloc=None,
         pb_text=None,
         timeout=30,
@@ -81,9 +81,12 @@ class Solana(Chain):
         if len(query_list) == 0:
             log("error: query_list is empty for", json_template, filename="solana.txt")
             return {}
-        rpc_url = "https://solana-mainnet.g.alchemy.com/v2/" + os.environ.get(
-            "api_key_alchemy_for_solana"
-        )
+
+        api_key = os.environ.get("api_key_syndica_for_solana")
+        if not api_key:
+            raise EnvironmentError("Missing API key for Syndica Solana")
+
+        rpc_url = "https://solana-mainnet.api.syndica.io/api-key/" + api_key
 
         query_list = list(query_list)
         log("rpc call", json_template, len(query_list), query_list[0], filename="solana.txt")
