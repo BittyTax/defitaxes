@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import os
 import traceback
@@ -8,7 +7,7 @@ from flask import Blueprint, current_app, request, send_file
 from ..coingecko import Coingecko
 from ..tax_calc import Calculator
 from ..user import User
-from ..util import log, log_error, normalize_address, persist
+from ..util import log, log_error, normalize_address
 
 tax_calc = Blueprint("tax_calc", __name__)
 
@@ -16,7 +15,6 @@ tax_calc = Blueprint("tax_calc", __name__)
 @tax_calc.route("/calc_tax", methods=["GET", "POST"])
 def calc_tax():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         mtm = request.args.get("mtm")
         if mtm == "false":
@@ -61,7 +59,6 @@ def calc_tax():
 @tax_calc.route("/download")
 def download():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         dl_type = request.args.get("type")
         path = os.path.join(current_app.config["USERS_DIR"], address)
@@ -114,7 +111,6 @@ def download():
 @tax_calc.route("/save_js", methods=["GET", "POST"])
 def save_js():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     path = os.path.join(current_app.config["USERS_DIR"], address)
     try:
         data = request.get_json()
@@ -136,7 +132,6 @@ def save_js():
 @tax_calc.route("/save_options", methods=["GET", "POST"])
 def save_options():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
         recalc_needed = False

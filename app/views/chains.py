@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from flask import Blueprint, current_app, render_template
 
 from ..chain import Chain

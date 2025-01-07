@@ -7,7 +7,7 @@ import time
 import traceback
 from collections import defaultdict
 
-from flask import current_app, g
+from flask import current_app
 
 Q = [
     decimal.Decimal(10) ** 0,
@@ -165,11 +165,6 @@ def decustom(val):
         return val, custom
     except:
         return val, custom
-
-
-def persist(address, chain_name=None):
-    g.address = address
-    g.chain_name = chain_name
 
 
 def sql_in(lst):

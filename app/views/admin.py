@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import os
 import traceback
@@ -7,7 +6,7 @@ from flask import Blueprint, current_app, request
 
 from ..sqlite import SQLite
 from ..user import User
-from ..util import log, log_error, normalize_address, persist
+from ..util import log, log_error, normalize_address
 
 admin = Blueprint("admin", __name__)
 
@@ -15,7 +14,6 @@ admin = Blueprint("admin", __name__)
 @admin.route("/wipe", methods=["GET", "POST"])
 def wipe():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         user = User(address)
         user.wipe_transactions()
@@ -32,7 +30,6 @@ def wipe():
 @admin.route("/restore", methods=["GET", "POST"])
 def restore():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         user = User(address)
         user.restore_backup()

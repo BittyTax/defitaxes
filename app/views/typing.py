@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 import json
 import traceback
 
 from flask import Blueprint, request
 
 from ..user import User
-from ..util import log, log_error, normalize_address, persist
+from ..util import log, log_error, normalize_address
 
 typing = Blueprint("typing", __name__)
 
@@ -13,7 +12,6 @@ typing = Blueprint("typing", __name__)
 @typing.route("/save_type", methods=["GET", "POST"])
 def save_type():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
 
@@ -68,7 +66,6 @@ def save_type():
 @typing.route("/delete_type", methods=["GET", "POST"])
 def delete_type():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
 
@@ -94,7 +91,6 @@ def delete_type():
 @typing.route("/apply_type", methods=["GET", "POST"])
 def apply_type():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
 
@@ -118,7 +114,6 @@ def apply_type():
 @typing.route("/unapply_type", methods=["GET", "POST"])
 def unapply_type():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
 

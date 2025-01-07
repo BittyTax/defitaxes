@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import traceback
 
@@ -6,7 +5,7 @@ from flask import Blueprint, request
 
 from ..coingecko import Coingecko
 from ..user import User
-from ..util import log, log_error, normalize_address, persist
+from ..util import log, log_error, normalize_address
 
 manual_transactions = Blueprint("manual_transactions", __name__)
 
@@ -15,7 +14,6 @@ manual_transactions = Blueprint("manual_transactions", __name__)
 def save_manual_transaction():
     address = normalize_address(request.args.get("address"))
     chain_name = request.args.get("chain")
-    persist(address, chain_name)
 
     try:
 
@@ -78,7 +76,6 @@ def save_manual_transaction():
 @manual_transactions.route("/delete_manual_transaction", methods=["GET", "POST"])
 def delete_manual_transaction():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
 

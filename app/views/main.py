@@ -15,7 +15,7 @@ from ..signatures import Signatures
 from ..sqlite import SQLite
 from ..tax_calc import Calculator
 from ..user import Import, User
-from ..util import log, log_error, normalize_address, persist, sql_in
+from ..util import log, log_error, normalize_address, sql_in
 
 main = Blueprint("main", __name__)
 
@@ -29,9 +29,6 @@ def index():
             address, _ = address_cookie.split("|")
         else:
             address = address_cookie
-
-        primary = normalize_address(address)  # Address(address)
-        persist(primary)
 
     blockchain_count = len(Chain.CONFIG)
     return render_template(
@@ -48,10 +45,8 @@ def last_update():
     address = request.args.get("address")
     primary = normalize_address(address)  # Address(address)
     if primary is None:
-        persist(primary)
         data = {"last_transaction_timestamp": 0, "update_import_needed": False}
     else:
-        persist(primary)
         user = User(primary)
         update_import_needed = False
         try:
@@ -80,7 +75,6 @@ def _last_update_inner(user):
 @main.route("/process")
 def process():
     primary = normalize_address(request.args.get("address"))
-    persist(primary)
     import_addresses = request.args.get("import_addresses")
     log("import_addresses provided", import_addresses)
     ac_str = request.args.get("ac_str")
@@ -798,7 +792,6 @@ def _recreate_data_from_caches(primary):
 @main.route("/save_custom_val", methods=["GET", "POST"])
 def save_custom_val():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
         transfer_id_str = form["transfer_id"]
@@ -829,7 +822,6 @@ def save_custom_val():
 @main.route("/undo_custom_changes", methods=["GET", "POST"])
 def undo_custom_changes():
     address = normalize_address(request.args.get("address"))
-    persist(address)
 
     try:
         form = request.form
@@ -853,7 +845,6 @@ def undo_custom_changes():
 def recolor():
     t = time.time()
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
 
@@ -880,7 +871,6 @@ def recolor():
 @main.route("/save_note", methods=["GET", "POST"])
 def save_note():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
         note = form["note"]
@@ -902,7 +892,6 @@ def save_note():
 @main.route("/progress_bar")
 def get_progress_bar():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         redis = Redis(address)
         pb = ProgressBar(redis)
@@ -924,7 +913,6 @@ def get_progress_bar():
 def update_progenitors():
     address = request.args.get("user")
     chain_name = request.args.get("chain")
-    persist(address, chain_name)
     try:
         progenitor = request.args.get("progenitor")
         counterparty = request.args.get("counterparty")
@@ -946,7 +934,6 @@ def update_progenitors():
 @main.route("/save_info", methods=["GET", "POST"])
 def save_info():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         user = User(address)
         field = request.args.get("field")
@@ -966,7 +953,6 @@ def save_info():
 @main.route("/minmax_transactions", methods=["GET", "POST"])
 def minmax_transactions():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
         minimized = form["minimized"]
@@ -990,7 +976,6 @@ def minmax_transactions():
 @main.route("/delete_address", methods=["GET", "POST"])
 def delete_address():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
         address_to_delete = form["address_to_delete"]
@@ -1015,7 +1000,6 @@ def delete_address():
 @main.route("/update_coingecko_id", methods=["GET", "POST"])
 def update_coingecko_id():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     redis = Redis(address)
     redis.start()
     pb = ProgressBar(redis)

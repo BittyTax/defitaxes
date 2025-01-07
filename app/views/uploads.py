@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import traceback
 
@@ -7,7 +6,7 @@ from flask import Blueprint, request
 from ..coingecko import Coingecko
 from ..redis_wrap import Redis, ProgressBar
 from ..user import User
-from ..util import log, log_error, normalize_address, persist
+from ..util import log, log_error, normalize_address
 
 uploads = Blueprint("uploads", __name__)
 
@@ -15,7 +14,6 @@ uploads = Blueprint("uploads", __name__)
 @uploads.route("/upload_csv", methods=["GET", "POST"])
 def upload_csv():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     redis = Redis(address)
     redis.start()
     pb = ProgressBar(redis)
@@ -50,7 +48,6 @@ def upload_csv():
 @uploads.route("/delete_upload", methods=["GET", "POST"])
 def delete_upload():
     address = normalize_address(request.args.get("address"))
-    persist(address)
     try:
         form = request.form
 
