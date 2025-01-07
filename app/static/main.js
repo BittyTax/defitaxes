@@ -1117,7 +1117,6 @@ function process_data(primary) {
                 //                                console.log('custom types?',data['custom_types']);
                 selection_operations(data['builtin_types'], data['custom_types']);
                 assist_block();
-                //                        br_block();
                 $('#sel_opt_all').click();
                 //                        console.log("make_pagination in main")
                 make_pagination();
@@ -2004,13 +2003,6 @@ function assist_block() {
     html += "<a id='twitter_link' href='https://twitter.com/defitaxes' target='_blank'>Twitter</a>"
     html += "</div></div>"
     html += "<div class='assist_line'><div id='attribution'>Powered by <a href='chains.html' target=_blank>Etherscan, Blockscout, Routescan</a></div></div>"
-    html += "</div>";
-    $('#content').append(html);
-}
-
-function br_block() {
-    let html = "<div id='br_block'>"
-    html += "<div class='br_line'>Send me some $ (ETH, Polygon, BSC, Avalanche):<div id='donation_address' class='copiable' full='0xbf01E689Dd71206A47186f204afBf3b8e7bB8114' title='Copy donation address to clipboard'>0xbf01E689Dd71206A47186f204afBf3b8e7bB8114</div></div>"
     html += "</div>";
     $('#content').append(html);
 }
