@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import sqlite3
 import sys
@@ -39,7 +38,7 @@ class SQLite:
                 rv = cursor.execute(query)
             else:
                 rv = cursor.execute(query, values)
-        except:
+        except sqlite3.Error:
             error = traceback.format_exc()
         tend = time.time()
         if error is not None and self.do_error_logging:
@@ -59,7 +58,7 @@ class SQLite:
         if db is not None:
             self.db = db
 
-        db_uri = os.path.join(current_app.config["DATA_DIR"], f"{db}.db")
+        db_uri = os.path.join(current_app.instance_path, f"{db}.db")
 
         if self.read_only:
             self.conn = sqlite3.connect(
@@ -159,7 +158,7 @@ class SQLite:
         if command_list["values"] is not None:
             value_list = []
 
-            for value in command_list["values"]:
+            for value in list(command_list["values"]):
                 value_list.append(self.infer_meaning(value))
 
                 placeholder_list.append("?")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import pickle
 import sys
@@ -11,6 +10,7 @@ import sortedcontainers
 from flask import current_app
 
 from .chain import Chain
+from .constants import USER_DIRNAME
 from .sqlite import SQLite
 from .util import log, log_error
 
@@ -58,13 +58,15 @@ class Coingecko:
         self.api_key = os.environ.get("api_key_coingecko")
 
     def dump(self, user):
-        path = os.path.join(current_app.config["USERS_DIR"], user.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, user.address)
         with open(os.path.join(path, "rates"), "wb") as rates_dump_file:
             pickle.dump(self, rates_dump_file)
 
     @classmethod
     def init_from_cache(cls, user):
-        path = os.path.join(current_app.config["USERS_DIR"], user.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, user.address)
         with open(os.path.join(path, "rates"), "rb") as f:
             C = pickle.load(f)
 

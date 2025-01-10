@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import csv
 import hashlib
 import json
@@ -20,6 +19,7 @@ from .category import Category
 from .chain import Chain
 from .classifiers import Classifier
 from .coingecko import Coingecko
+from .constants import USER_DIRNAME
 from .fiat_rates import Twelve
 from .imports import Import
 from .redis_wrap import Redis
@@ -58,7 +58,8 @@ class User:
         self.relevant_import_ids = set()
         self.ctype_info = {}
 
-        path = os.path.join(current_app.config["USERS_DIR"], address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, address)
         first_run = False
         if not os.path.exists(path):
             os.makedirs(path)
@@ -900,7 +901,8 @@ class User:
         except:
             pass
 
-        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, self.address)
         filenames = ["db.db", "transactions.json", "rates", "data_cache.json", "calculator_cache"]
         for filename in filenames:
             try:
@@ -2266,7 +2268,8 @@ class User:
         for entry in custom_types_js:
             custom_types[entry["id"]] = entry
 
-        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, self.address)
         with open(os.path.join(path, "transactions.json"), "r", encoding="utf-8") as f:
             js = json.load(f)
 
@@ -2886,7 +2889,8 @@ class User:
 
     def upload_csv(self, source, file, coingecko, pb):
         log("source", source, filename="file_uploads.txt")
-        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, self.address)
         path = os.path.join(path, "uploads")
         path = os.path.join(path, "csv")
 

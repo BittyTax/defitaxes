@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import datetime
 import os
 import time
@@ -177,9 +176,9 @@ class Twelve:
                 return 1, db_writes
 
         while latest_available < t - 3 * 24 * 3600:
-            start_date = timestamp_to_date(latest_available, format="%Y-%m-%d", utc=True)
+            start_date = timestamp_to_date(latest_available, date_format="%Y-%m-%d", utc=True)
             end_date = timestamp_to_date(
-                latest_available + 185 * 24 * 3600, format="%Y-%m-%d", utc=True
+                latest_available + 185 * 24 * 3600, date_format="%Y-%m-%d", utc=True
             )
             url = (
                 "https://api.twelvedata.com/time_series?symbol=USD/"

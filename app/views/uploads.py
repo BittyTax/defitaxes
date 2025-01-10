@@ -4,7 +4,7 @@ import traceback
 from flask import Blueprint, request
 
 from ..coingecko import Coingecko
-from ..redis_wrap import Redis, ProgressBar
+from ..redis_wrap import ProgressBar, Redis
 from ..user import User
 from ..util import log, log_error, normalize_address
 

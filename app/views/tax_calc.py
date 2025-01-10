@@ -5,6 +5,7 @@ import traceback
 from flask import Blueprint, current_app, request, send_file
 
 from ..coingecko import Coingecko
+from ..constants import USER_DIRNAME
 from ..tax_calc import Calculator
 from ..user import User
 from ..util import log, log_error, normalize_address
@@ -61,7 +62,8 @@ def download():
     address = normalize_address(request.args.get("address"))
     try:
         dl_type = request.args.get("type")
-        path = os.path.join(current_app.config["USERS_DIR"], address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, address)
 
         if dl_type == "transactions_json":
             return send_file(os.path.join(path, "transactions.json"), as_attachment=True, max_age=0)
@@ -111,7 +113,8 @@ def download():
 @tax_calc.route("/save_js", methods=["GET", "POST"])
 def save_js():
     address = normalize_address(request.args.get("address"))
-    path = os.path.join(current_app.config["USERS_DIR"], address)
+    path = os.path.join(current_app.instance_path, USER_DIRNAME)
+    path = os.path.join(path, address)
     try:
         data = request.get_json()
         transactions_js = json.loads(data)

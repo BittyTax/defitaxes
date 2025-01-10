@@ -4,6 +4,7 @@ import traceback
 
 from flask import Blueprint, current_app, request
 
+from ..constants import USER_DIRNAME
 from ..sqlite import SQLite
 from ..user import User
 from ..util import log, log_error, normalize_address
@@ -45,7 +46,7 @@ def restore():
 
 @admin.route("/cross_user")
 def cross_user():
-    dirs = os.listdir(current_app.config["USERS_DIR"])
+    dirs = os.listdir(os.path.join(current_app.instance_path, USER_DIRNAME))
     query = "SELECT count(id) FROM custom_types_rules WHERE token=='base'"
     count = 0
 

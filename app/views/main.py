@@ -9,6 +9,7 @@ from flask import Blueprint, current_app, render_template, request
 
 from ..chain import Chain
 from ..coingecko import Coingecko
+from ..constants import USER_DIRNAME
 from ..fiat_rates import Twelve
 from ..redis_wrap import ProgressBar, Redis
 from ..signatures import Signatures
@@ -675,7 +676,8 @@ def do_process(primary, import_addresses, ac_str, redis, app_context):
         pb.set("Calculating taxes", 97)
         calculator.cache()
 
-        path = os.path.join(current_app.config["USERS_DIR"], primary)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, primary)
         with open(
             os.path.join(path, "transactions.json"), "w", newline="", encoding="utf-8"
         ) as js_file:
@@ -752,7 +754,8 @@ def do_process(primary, import_addresses, ac_str, redis, app_context):
             "Please let us know on Discord if you received this message."
         }
 
-    path = os.path.join(current_app.config["USERS_DIR"], primary)
+    path = os.path.join(current_app.instance_path, USER_DIRNAME)
+    path = os.path.join(path, primary)
     with open(os.path.join(path, "data_cache.json"), "w", newline="", encoding="utf-8") as js_file:
         js_file.write(json.dumps(data, indent=2, sort_keys=True))
 
@@ -762,7 +765,8 @@ def do_process(primary, import_addresses, ac_str, redis, app_context):
 
 
 def _recreate_data_from_caches(primary):
-    path = os.path.join(current_app.config["USERS_DIR"], primary)
+    path = os.path.join(current_app.instance_path, USER_DIRNAME)
+    path = os.path.join(path, primary)
     with open(os.path.join(path, "data_cache.json"), "r", encoding="utf-8") as js_file:
         js = js_file.read()
 

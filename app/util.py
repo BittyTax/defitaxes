@@ -1,48 +1,70 @@
-# -*- coding: utf-8 -*-
 import datetime
-import decimal
 import os
 import pprint
 import time
 import traceback
 from collections import defaultdict
+from decimal import ROUND_HALF_EVEN, Decimal
+from typing import TYPE_CHECKING, List, Optional, Set, TypedDict, Union, Unpack
 
 from flask import current_app
 
+from .constants import LOG_DIRNAME, USER_DIRNAME
+
+if TYPE_CHECKING:
+    from .transaction import Transaction
+
 Q = [
-    decimal.Decimal(10) ** 0,
-    decimal.Decimal(10) ** -1,
-    decimal.Decimal(10) ** -2,
-    decimal.Decimal(10) ** -3,
-    decimal.Decimal(10) ** -4,
-    decimal.Decimal(10) ** -5,
-    decimal.Decimal(10) ** -6,
-    decimal.Decimal(10) ** -7,
-    decimal.Decimal(10) ** -8,
-    decimal.Decimal(10) ** -9,
-    decimal.Decimal(10) ** -10,
-    decimal.Decimal(10) ** -11,
-    decimal.Decimal(10) ** -12,
+    Decimal(10) ** 0,
+    Decimal(10) ** -1,
+    Decimal(10) ** -2,
+    Decimal(10) ** -3,
+    Decimal(10) ** -4,
+    Decimal(10) ** -5,
+    Decimal(10) ** -6,
+    Decimal(10) ** -7,
+    Decimal(10) ** -8,
+    Decimal(10) ** -9,
+    Decimal(10) ** -10,
+    Decimal(10) ** -11,
+    Decimal(10) ** -12,
 ]
 
 
-def dec(num, places=None):
-    if places is None:
-        return decimal.Decimal(num)
-    return decimal.Decimal(num).quantize(Q[places], rounding=decimal.ROUND_HALF_EVEN)
+def dec(num: float, places: int) -> Decimal:
+    return Decimal(num).quantize(Q[places], rounding=ROUND_HALF_EVEN)
 
 
-# logger = None
+class LogParams(TypedDict):
+    buffer: Optional[List[str]]
+    ignore_time: bool
+    prettify: bool
+    filename: str
+    print_only: bool
+    log_only: bool
+
+
 class Logger:
-    def __init__(self, address=None, chain=None, write_frequency=1, do_print=True, do_write=True):
-        self.files = defaultdict(dict)
+    def __init__(
+        self,
+        address: Optional[str] = None,
+        chain: Optional[str] = None,
+        write_frequency: int = 1,
+        do_print: bool = True,
+        do_write: bool = True,
+    ):
+        self.files: defaultdict = defaultdict(dict)
         self.write_frequency = write_frequency
         self.address = address
         self.chain = chain
         self.do_write = do_write
         self.do_print = do_print
 
-    def log(self, *args, **kwargs):
+        path = os.path.join(current_app.instance_path, LOG_DIRNAME)
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+    def log(self, *args: str, **kwargs: Unpack[LogParams]) -> None:
         t = time.time()
         glob = False
         if "WRITE ALL" in args:
@@ -95,16 +117,17 @@ class Logger:
 
             self.buf_to_file(filename, glob=glob)
 
-    def buf_to_file(self, filename, glob=False):
+    def buf_to_file(self, filename: str, glob: bool = False) -> None:
         buffer = self.files[filename]["buffer"]
         do_write = False
 
-        path = current_app.config["LOGS_DIR"]
+        path = os.path.join(current_app.instance_path, LOG_DIRNAME)
         if len(buffer) > 0:
             if self.address is not None and not glob:
-                path = os.path.join(current_app.config["USERS_DIR"], self.address)
+                path = os.path.join(current_app.instance_path, USER_DIRNAME)
+                path = os.path.join(path, self.address)
                 if not os.path.exists(path):
-                    path = current_app.config["LOGS_DIR"]
+                    path = os.path.join(current_app.instance_path, LOG_DIRNAME)
             if glob and self.address is not None:
                 buffer.insert(0, self.address + " ")
             if self.do_write or glob:
@@ -115,7 +138,7 @@ class Logger:
         self.files[filename]["buffer"] = []
         self.files[filename]["last_write"] = time.time()
 
-    def lprint(self, p, same_line=True):
+    def lprint(self, p: str, same_line: bool = True) -> None:
         if not self.do_print:
             return
         try:
@@ -123,11 +146,11 @@ class Logger:
                 print(p, end=" ")
             else:
                 print(p)
-        except Exception:
+        except (TypeError, ValueError, AttributeError):
             pass
 
 
-def log(*args, **kwargs):
+def log(*args: str, **kwargs: Unpack[LogParams]) -> None:
     debug_level = current_app.config["DEBUG_LEVEL"]
 
     if debug_level > 0:
@@ -137,37 +160,40 @@ def log(*args, **kwargs):
         logger.log(*args, **kwargs)
 
 
-def log_error(*args, **kwargs):
+def log_error(*args: str, **kwargs: Unpack[LogParams]) -> None:
     logger = Logger(address="glob")
     try:
         trace = traceback.format_exc()
         if trace is not None:
-            args = list(args)
-            args.append(trace)
-    except:
+            args = tuple(list(args) + [trace])
+    except (TypeError, ValueError, AttributeError):
         pass
     kwargs["filename"] = "global_error_log.txt"
     logger.log(*args, **kwargs)
 
 
-def clog(transaction, *args, **kwargs):
+def clog(transaction: "Transaction", *args: str, **kwargs: Unpack[LogParams]) -> None:
     if transaction.hash == transaction.chain.hif:
-        args = [transaction.hash] + list(args)
+        args = tuple([transaction.hash] + list(args))
         log(*args, **kwargs)
 
 
-def decustom(val):
+def decustom(val: Optional[str]) -> tuple[Optional[str], bool]:
     custom = False
     try:
         if val is not None and val[:7] == "custom:":
             val = val[7:]
             custom = True
         return val, custom
-    except:
+    except (TypeError, ValueError):
         return val, custom
 
 
-def sql_in(lst):
+def sql_in(
+    lst: Union[
+        int, float, bool, str, List[Union[int, float, bool, str]], Set[Union[int, float, bool, str]]
+    ]
+) -> str:
     if isinstance(lst, (int, float, bool)):
         return "(" + str(lst) + ")"
 
@@ -178,37 +204,39 @@ def sql_in(lst):
         lst = list(lst)
     try:
         return "('" + "','".join(lst) + "')"
-    except:
+    except TypeError:
         strlst = []
         for e in lst:
             strlst.append(str(e))
         return "(" + ",".join(strlst) + ")"
 
 
-def normalize_address(address):
+def normalize_address(address: str) -> str:
     if is_ethereum(address):
         address = address.lower()
     return address
 
 
-def is_ethereum(address):
+def is_ethereum(address: str) -> bool:
     if len(address) == 42 and address[0] == "0" and address[1] in ["x", "X"]:
         return True
     return False
 
 
-def is_solana(address):
+def is_solana(address: str) -> bool:
     if len(address) >= 32 and len(address) <= 44 and address.isalnum():
         return True
     return False
 
 
-def timestamp_to_date(ts, and_time=False, format=None, utc=False):
-    if format is None:
+def timestamp_to_date(
+    ts: float, and_time: bool = False, date_format: Optional[str] = None, utc: bool = False
+) -> str:
+    if date_format is None:
         if and_time:
-            format = "%m/%d/%y %H:%M:%S"
+            date_format = "%m/%d/%y %H:%M:%S"
         else:
-            format = "%m/%d/%y"
+            date_format = "%m/%d/%y"
     if utc:
-        return datetime.datetime.utcfromtimestamp(ts).strftime(format)
-    return datetime.datetime.fromtimestamp(ts).strftime(format)
+        return datetime.datetime.utcfromtimestamp(ts).strftime(date_format)
+    return datetime.datetime.fromtimestamp(ts).strftime(date_format)

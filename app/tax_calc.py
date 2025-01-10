@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import csv
 import datetime
 import os
@@ -11,6 +10,7 @@ import zipfile
 
 from flask import current_app
 
+from .constants import USER_DIRNAME
 from .util import decustom, log, log_error, timestamp_to_date
 
 
@@ -1304,14 +1304,16 @@ class Calculator:
     def cache(self):
         coingecko_rates = self.coingecko_rates
         self.coingecko_rates = None
-        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, self.address)
         with open(os.path.join(path, "calculator_cache"), "wb") as cache_file:
             pickle.dump(self, cache_file)
 
         self.coingecko_rates = coingecko_rates
 
     def from_cache(self):
-        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, self.address)
         with open(os.path.join(path, "calculator_cache"), "rb") as f:
             C = pickle.load(f)
 
@@ -1393,7 +1395,8 @@ class Calculator:
 
     def make_turbotax(self, year):
         year = int(year)
-        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, self.address)
 
         form_8949_short, _short_total_proceeds, _short_total_cost = self.CA_to_form(
             self.CA_short, year, format="turbotax"
@@ -1443,7 +1446,8 @@ class Calculator:
 
     def make_forms(self, year):
         year = int(year)
-        path = os.path.join(current_app.config["USERS_DIR"], self.address)
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, self.address)
 
         form_8949_short, short_total_proceeds, short_total_cost = self.CA_to_form(
             self.CA_short, year
