@@ -41,7 +41,14 @@ class Solana(Chain):
         self.explorer_url = "https://public-api.solscan.io/"
         self.domain = "explorer.solana.com"
         self.wait_time = 0.25
-        self.explorer_session = requests.session()
+
+        api_key = os.environ.get("api_key_blockdaemon_for_solana")
+        if not api_key:
+            raise EnvironmentError("Missing API key for Blockdaemon Solana")
+
+        self.explorer_session = requests.Session()
+        self.explorer_session.headers.update({"Authorization": f"Bearer {api_key}"})
+
         self.hif = (
             "47M65BG4riNsp4HwtEYdKx9dy4rC6QNM8zY1h1jf3aXE"
             "oWmGgDcrZcFLj7777ebvfHsThoTzVWZkpo6kLPuB9NSD"
@@ -73,7 +80,7 @@ class Solana(Chain):
         self,
         json_template,
         query_list,
-        batch_size=10,
+        batch_size=160,
         pb_alloc=None,
         pb_text=None,
         timeout=30,
@@ -82,11 +89,7 @@ class Solana(Chain):
             log("error: query_list is empty for", json_template, filename="solana.txt")
             return {}
 
-        api_key = os.environ.get("api_key_syndica_for_solana")
-        if not api_key:
-            raise EnvironmentError("Missing API key for Syndica Solana")
-
-        rpc_url = "https://solana-mainnet.api.syndica.io/api-key/" + api_key
+        rpc_url = "https://svc.blockdaemon.com/solana/mainnet/native"
 
         query_list = list(query_list)
         log("rpc call", json_template, len(query_list), query_list[0], filename="solana.txt")
@@ -304,7 +307,7 @@ class Solana(Chain):
             return False
 
         done = False
-        limit = 500
+        limit = 1000
         tx_list = []
         self.update_pb("Getting signatures for " + address)
         json_template = {
