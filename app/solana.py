@@ -188,9 +188,11 @@ class Solana(Chain):
             instruction["source"] = "message"
             all_instructions.append([instruction])
 
-        if "innerInstructions" in explorer_tx_data["meta"]:
-            innerInstructions = explorer_tx_data["meta"]["innerInstructions"]
-            for entry in innerInstructions:
+        if (
+            "innerInstructions" in explorer_tx_data["meta"]
+            and explorer_tx_data["meta"]["innerInstructions"]
+        ):
+            for entry in explorer_tx_data["meta"]["innerInstructions"]:
                 idx = entry["index"]
                 instructions = entry["instructions"]
                 for instruction in instructions:
