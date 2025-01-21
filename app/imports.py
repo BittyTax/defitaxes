@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import time
 
+from flask import current_app
+
 from .util import normalize_address, sql_in
 
 
@@ -174,8 +176,9 @@ class Import:
             elif code == Import.TOO_MANY_TRANSACTIONS:
                 if chain == "Solana":
                     s = (
-                        "too many transactions, we support up to 10000. "
-                        "We pay our data provider per transaction retrieved."
+                        "too many transactions, we support up to "
+                        f'{current_app.config["SOLANA_MAX_TX"]}. We pay our data provider '
+                        "per transaction retrieved."
                     )
                 else:
                     s = "too many transactions, we support up to 50000 per chain per address."

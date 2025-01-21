@@ -12,6 +12,7 @@ from hashlib import sha256
 
 import base58
 import requests
+from flask import current_app
 from pure25519.basic import decodepoint
 
 from .chain import Chain
@@ -331,11 +332,13 @@ class Solana(Chain):
                 time.sleep(1)
             else:
                 done = True
-            if len(tx_list) >= 10000:
-                self.current_import.add_error(
-                    Import.TOO_MANY_TRANSACTIONS, chain=self, address=address
-                )
-                done = True
+
+            if "SOLANA_MAX_TX" in current_app.config:
+                if len(tx_list) >= current_app.config["SOLANA_MAX_TX"]:
+                    self.current_import.add_error(
+                        Import.TOO_MANY_TRANSACTIONS, chain=self, address=address
+                    )
+                    done = True
 
         self.update_pb(None, pb_alloc * 0.1)
 
