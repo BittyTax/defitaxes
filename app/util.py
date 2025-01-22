@@ -5,14 +5,11 @@ import time
 import traceback
 from collections import defaultdict
 from decimal import ROUND_HALF_EVEN, Decimal
-from typing import TYPE_CHECKING, List, Optional, Set, TypedDict, Union, Unpack
+from typing import List, Optional, Set, TypedDict, Union, Unpack
 
 from flask import current_app
 
 from .constants import LOG_DIRNAME, USER_DIRNAME
-
-if TYPE_CHECKING:
-    from .transaction import Transaction
 
 Q = [
     Decimal(10) ** 0,
@@ -170,12 +167,6 @@ def log_error(*args: str, **kwargs: Unpack[LogParams]) -> None:
         pass
     kwargs["filename"] = "global_error_log.txt"
     logger.log(*args, **kwargs)
-
-
-def clog(transaction: "Transaction", *args: str, **kwargs: Unpack[LogParams]) -> None:
-    if transaction.hash == transaction.chain.hif:
-        args = tuple([transaction.hash] + list(args))
-        log(*args, **kwargs)
 
 
 def decustom(val: Optional[str]) -> tuple[Optional[str], bool]:

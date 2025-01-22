@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import base64
 import copy
 import math
@@ -18,7 +17,7 @@ from pure25519.basic import decodepoint
 from .chain import Chain
 from .imports import Import
 from .transaction import Transaction, Transfer
-from .util import clog, log, log_error, normalize_address
+from .util import log, log_error, normalize_address
 
 
 class Solana(Chain):
@@ -49,11 +48,6 @@ class Solana(Chain):
 
         self.explorer_session = requests.Session()
         self.explorer_session.headers.update({"Authorization": f"Bearer {api_key}"})
-
-        self.hif = (
-            "47M65BG4riNsp4HwtEYdKx9dy4rC6QNM8zY1h1jf3aXE"
-            "oWmGgDcrZcFLj7777ebvfHsThoTzVWZkpo6kLPuB9NSD"
-        )
 
         self.solana_nft_data = {}
         self.solana_proxy_map = {}
@@ -1261,20 +1255,10 @@ class Solana(Chain):
                     ]
                     T.append(type, row)
                     if "source_suspect" in t and t["source_suspect"]:
-                        clog(
-                            T,
-                            "Setting suspect source in transfer",
-                            T.grouping[-1],
-                            filename="solana.txt",
-                        )
+                        # Setting suspect source in transfer
                         T.grouping[-1][6] |= Transfer.SUSPECT_FROM
                     if "destination_suspect" in t and t["destination_suspect"]:
-                        clog(
-                            T,
-                            "Setting suspect destination in transfer",
-                            T.grouping[-1],
-                            filename="solana.txt",
-                        )
+                        # Setting suspect destination in transfer
                         T.grouping[-1][6] |= Transfer.SUSPECT_FROM
                 all_transactions[tx_hash] = T
 
@@ -1540,7 +1524,6 @@ class Solana(Chain):
         return True, db_writes
 
     def merge_transaction(self, source, destination):
-        clog(source, "Merging", filename="solana.txt")
         if destination.function is None:
             destination.function = source.function
 
@@ -1602,47 +1585,19 @@ class Solana(Chain):
                     and input == c_input
                 ):
                     if fr == c_fr and to == c_to:
-                        clog(
-                            source,
-                            "Skipping transfer",
-                            sub_data,
-                            "synthetic",
-                            synthetic,
-                            filename="solana.txt",
-                        )
+                        # Skipping transfer
                         break
                     if fr == c_fr or to == c_to:
                         if source.my_address(fr) and not source.my_address(c_fr):
-                            clog(
-                                source,
-                                "Updating transfer from address",
-                                c_fr,
-                                "->",
-                                fr,
-                                filename="solana.txt",
-                            )
+                            # Updating transfer from address
                             destination.grouping[dest_idx][4] = fr
                             break
                         if source.my_address(to) and not source.my_address(c_to):
-                            clog(
-                                source,
-                                "Updating transfer to address",
-                                c_to,
-                                "->",
-                                to,
-                                filename="solana.txt",
-                            )
+                            # Updating transfer to address
                             destination.grouping[dest_idx][5] = to
                             break
             else:
-                clog(
-                    source,
-                    "Adding transfer",
-                    sub_data,
-                    "synthetic",
-                    synthetic,
-                    filename="solana.txt",
-                )
+                # Adding transfer
                 destination.append(type, sub_data, synthetic=synthetic)
 
 

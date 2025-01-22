@@ -27,17 +27,7 @@ from .signatures import Signatures
 from .solana import Solana
 from .sqlite import SQLite
 from .transaction import Transaction, Transfer
-from .util import (
-    clog,
-    dec,
-    decustom,
-    is_ethereum,
-    is_solana,
-    log,
-    log_error,
-    normalize_address,
-    sql_in,
-)
+from .util import dec, decustom, is_ethereum, is_solana, log, log_error, normalize_address, sql_in
 
 
 class User:
@@ -1145,9 +1135,6 @@ class User:
                 else:
                     new_transfers[tr_hash].append(transfer)
 
-            new_hashes = list(new_transfers.keys())
-            clog(transaction, "storing, new", new_transfers)
-
             ids_to_delete = []
             transfers_to_add = []
             if existing:
@@ -1183,7 +1170,6 @@ class User:
                         existing_transfers[tr_hash] = [row]
                     else:
                         existing_transfers[tr_hash].append(row)
-                clog(transaction, "storing, existing", existing_transfers)
 
                 for tr_hash, identical_existing_transfers in existing_transfers.items():
                     # possibly overwrite old transfers on perfect import
@@ -1199,30 +1185,10 @@ class User:
                         del new_transfers[tr_hash]
 
             # unaccounted remainder
-            clog(transaction, "storing, unaccounted", new_transfers)
             for tr_hash, identical_new_transfers in new_transfers.items():
                 transfers_to_add.extend(identical_new_transfers)
 
-            if existing and len(ids_to_delete) > 0:
-                clog(
-                    transaction,
-                    "transfer overwrite",
-                    chain.name,
-                    txid,
-                    hash,
-                    "ids_to_delete",
-                    ids_to_delete,
-                    "transfers_to_add",
-                    transfers_to_add,
-                    "existing hashes",
-                    list(existing_transfers.keys()),
-                    "new hashes",
-                    new_hashes,
-                    filename="overwrites.txt",
-                )
-
             if len(ids_to_delete) > 0:
-                clog(transaction, "storing, ids to delete", ids_to_delete)
                 db.query("DELETE FROM transaction_transfers WHERE id IN " + sql_in(ids_to_delete))
 
             for prepared_transfer in transfers_to_add:
@@ -1868,9 +1834,6 @@ class User:
         return res
 
     def custom_treatment_by_rules(self, transaction, _type_id, type_name, rules):
-        if transaction.hash == transaction.chain.hif:
-            print("Applying custom type rules to", transaction.hash)
-
         def check_address_match(transfer_addr, rule_addr, rule_addr_custom):
             if rule_addr_custom is not None:
                 rule_addr_custom = normalize_address(rule_addr_custom)
@@ -2077,17 +2040,8 @@ class User:
                     lookup_rate_contract,
                     transaction.ts,
                     coingecko_id=coingecko_id,
-                    verbose=transaction.hash == transaction.chain.hif,
                 )
             )
-            if transaction.hash == transaction.chain.hif:
-                log(
-                    "LOOKUP RATE RESULT",
-                    transfer,
-                    transfer.rate_found,
-                    transfer.rate,
-                    transfer.rate_source,
-                )
 
     def apply_custom_cp_name(self, transaction):
         cp = transaction.counter_parties
@@ -2468,7 +2422,7 @@ class User:
         return all_rows
 
     def lookup_rate_including_custom(
-        self, coingecko, chain_name, token_contract, ts, coingecko_id=None, verbose=False
+        self, coingecko, chain_name, token_contract, ts, coingecko_id=None
     ):
         # first look in custom rates
         log(
@@ -2522,12 +2476,6 @@ class User:
             else:
                 level, rate, source = coingecko.lookup_rate(chain_name, token_contract, ts)
 
-        if verbose:
-            if level > -1:
-                log("COINGECKO RATE", level, rate, source)
-            if cust_level > -1:
-                log("CUSTOM RATE", cust_level, cust_rate, cust_source)
-
         # what follows is an ungodly mess of selecting which rate is better.
         if cust_level == -1 and level == -1:
             return 0, None, None
@@ -2555,8 +2503,6 @@ class User:
         if "after" in source and "after" in cust_source:
             diff_coingecko = abs(int(source[source.index("after last ") + 11 :]) - ts)
             diff_custom = abs(int(cust_source[cust_source.index("after last ") + 11 :]) - ts)
-            if verbose:
-                log("RATE CALC DIFFS", ts, diff_coingecko, diff_custom)
             comp_ts = True
 
         if comp_ts:

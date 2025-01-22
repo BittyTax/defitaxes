@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import calendar
 import math
 import os
@@ -15,7 +14,7 @@ import requests
 from .imports import Import
 from .pool import Pools
 from .transaction import Transaction, Transfer, normalize_address
-from .util import clog, is_ethereum, log, log_error
+from .util import is_ethereum, log, log_error
 
 
 class Chain:
@@ -512,11 +511,6 @@ class Chain:
         if wrapper is not None:
             self.wrapper = normalize_address(wrapper)
 
-        self.hif = (
-            "47M65BG4riNsp4HwtEYdKx9dy4rC6QNM8zY1h1jf3aXE"
-            "oWmGgDcrZcFLj7777ebvfHsThoTzVWZkpo6kLPuB9NSD"
-        )
-
         self.wait_time = 1 / float(rate_limit) + 0.05
 
         self.wait_time *= 2
@@ -943,8 +937,6 @@ class Chain:
             rq_cnt += 1
         per_type_alloc = pb_alloc / float(rq_cnt)
 
-        hif = self.hif
-
         self.update_pb("Retrieving " + self.main_asset + " transactions for " + address, 0)
         div = 1000000000000000000.0
         log("\n\ngetting transactions for", address, self.name)
@@ -963,8 +955,6 @@ class Chain:
         transactions = {}
         for entry in data:
             hash = entry["hash"]
-            if hash == hif:
-                log("FROM API-base", entry)
             ts = entry["timeStamp"]
             nonce = entry["nonce"]
             block = entry["blockNumber"]
@@ -1048,8 +1038,6 @@ class Chain:
                     hash = entry["transactionHash"]
                 else:
                     hash = entry["hash"]
-                if hash == hif:
-                    log("FROM API-internal", entry)
             else:
                 if len(blockmap[block]) == 1:
                     hash = blockmap[block][0]
@@ -1099,8 +1087,6 @@ class Chain:
         data = self.get_all_transaction_from_api(address, "tokentx", max_per_page=mpp)
         for entry in data:
             hash = entry["hash"]
-            if hash == hif:
-                log("FROM API-tokens", entry)
             ts = entry["timeStamp"]
 
             fr = entry["from"].lower()
@@ -1190,8 +1176,6 @@ class Chain:
             data = self.get_all_transaction_from_api(address, "tokennfttx", max_per_page=mpp)
             for entry in data:
                 hash = entry["hash"]
-                if hash == hif:
-                    log("FROM API-nfts", entry)
                 ts = entry["timeStamp"]
 
                 fr = entry["from"].lower()
@@ -1245,8 +1229,6 @@ class Chain:
             for entry in data:
                 hash = entry["hash"]
                 # log('erc1155 transfer on',self.name,hash, entry,filename='aux_log.txt')
-                if hash == hif:
-                    log("FROM API-1155", entry)
                 ts = entry["timeStamp"]
 
                 fr = entry["from"].lower()
@@ -1325,7 +1307,6 @@ class Chain:
                     _input_len,
                     input,
                 ) = sub_data
-                clog(transaction, "correcting, fee?", base_fee, fr, address)
                 if val != 0:
                     token_contract_mod = token_contract
                     if token_nft_id is not None:
@@ -1349,16 +1330,6 @@ class Chain:
 
                 if fr == address:
                     total_fee += base_fee
-
-            if self.hif == transaction.hash:
-                log("tx_amounts", tx_amounts, out_cnt, in_cnt, filename="specific_tx.txt")
-                for token_contract_mod, amount in tx_amounts.items():
-                    log(
-                        "running_amount",
-                        token_contract_mod,
-                        running_amounts[token_contract_mod],
-                        filename="specific_tx.txt",
-                    )
 
             # wrap/unwrap missing a transfer?
             if wrap and self.name != "Fantom" and not self.blockscout:
@@ -1406,7 +1377,7 @@ class Chain:
 
             # network fee
             if total_fee > 0:
-                clog(transaction, "Adding fee", total_fee)
+                # Adding fee
                 row = [
                     hash,
                     ts,
@@ -1625,20 +1596,6 @@ class Chain:
                         0,
                         None,
                     ]
-                    if txhash == self.hif:
-                        log(
-                            "SCRAPED",
-                            {
-                                "hash": txhash,
-                                "type": "plasma deposit",
-                                "ts": ts,
-                                "fr": fr,
-                                "to": to,
-                                "amount": amount,
-                                "symbol": symbol,
-                                "what": what,
-                            },
-                        )
                     transactions[txhash].append(type, row)
                 except:
                     log_error("Failed to scrape plasma deposits", address, cells)
@@ -2183,7 +2140,6 @@ class Chain:
         return all_db_writes
 
     def merge_transaction(self, source, destination):
-        clog(source, "Merging")
         if destination.function is None:
             destination.function = source.function
 
@@ -2244,10 +2200,10 @@ class Chain:
                     and token_nft_id == c_token_nft_id
                     and input == c_input
                 ):
-                    clog(source, "Skipping transfer", sub_data, "synthetic", synthetic)
+                    # Skipping transfer
                     break
             else:
-                clog(source, "Adding transfer", sub_data, "synthetic", synthetic)
+                # Adding transfer
                 destination.append(type, sub_data, synthetic=synthetic)
 
     def get_current_tokens(self, _address):

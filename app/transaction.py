@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import sys
 import time
 import traceback
@@ -8,7 +7,7 @@ from sortedcontainers import SortedDict
 
 from .category import Category
 from .fiat_rates import Twelve
-from .util import clog, decustom, log, normalize_address
+from .util import decustom, log, normalize_address
 
 
 class Transfer:
@@ -284,16 +283,6 @@ class Transaction:
         prepend=False,
     ):
         hash, ts, nonce, block = row[0:4]
-        if hash == self.chain.hif:
-            log(
-                "Add row to tx",
-                hash,
-                cl,
-                row,
-                "callstack",
-                traceback.format_stack(),
-                filename="specific_tx.txt",
-            )
         self.hash = hash
         self.ts = ts
         if nonce is not None:
@@ -391,7 +380,6 @@ class Transaction:
 
             assert id is not None
 
-            clog(self, "finalize", hash, dd, token_contract, fiat_rates.fiat)
             if token_contract == fiat_rates.fiat:
                 # rate_found, rate, rate_source = 1, 1, 'fiat'  # rate updated on the client
                 rate_found, rate, rate_source = (
@@ -461,17 +449,6 @@ class Transaction:
             if from_me_strict and to_me_strict:
                 self_transfer = True
 
-            clog(
-                self,
-                "Making transfer",
-                val,
-                token_contract,
-                token,
-                coingecko_id,
-                rate_found,
-                rate,
-                rate_source,
-            )
             transfer = Transfer(
                 id,
                 type,
@@ -563,14 +540,6 @@ class Transaction:
                                     prog_name, prog_addr = self.chain.get_progenitor_entity(addr)
                                     if prog_addr is None or prog_addr == "None":
                                         prog_addr = addr
-                                    clog(
-                                        self,
-                                        "Looked up progenitor for",
-                                        addr,
-                                        "got",
-                                        prog_addr,
-                                        prog_name,
-                                    )
 
                                     if input_len > 2:
                                         tx_input = input
@@ -589,7 +558,6 @@ class Transaction:
             t_fin[2] += t3 - t2
 
         tt0 = time.time()
-        clog(self, "Making counterparties")
         if use_dd:
             if dd["cp_progenitor"] is not None:
                 counter_parties[dd["cp_progenitor"]] = [
@@ -599,9 +567,7 @@ class Transaction:
                     1,
                     dd["cp_address"],
                 ]
-            clog(self, "Got cps from dd", counter_parties)
         else:
-            clog(self, "Interacted", self.interacted)
             if self.interacted is not None:
                 if self.interacted == self.chain.wrapper:
                     prog_name = "WRAPPER"
@@ -613,7 +579,6 @@ class Transaction:
                 if prog_addr is None:
                     prog_addr = self.interacted
                 decoded_sig, sig = None, None
-                clog(self, "Function", self.function, "input", tx_input)
 
                 if self.function is not None:
                     if self.function[:2] == "0x":  # sometimes it's just plain wrong
@@ -621,16 +586,12 @@ class Transaction:
                     else:
                         decoded_sig, sig = self.function, self.function
 
-                clog(self, "Sig1", decoded_sig, sig)
-
                 if tx_input is not None:
                     decoded_sig_cand, unique, sig_cand = signatures.lookup_signature(tx_input)
-                    clog(self, "Sig2", decoded_sig_cand, unique, sig_cand)
                     if unique or decoded_sig is None:
                         decoded_sig, sig = decoded_sig_cand, sig_cand
                         self.function = decoded_sig
                 counter_parties[prog_addr] = [prog_name, sig, decoded_sig, 1, self.interacted]
-                clog(self, "CPs", counter_parties)
 
                 # if we interacted with a token, it's probably a transfer, and not a useful
                 # counterparty sig is none if originator is not the user -- i.e. if someone else
@@ -644,26 +605,14 @@ class Transaction:
                     )
                     received_nonzero = self.lookup({"to_me": True, "amount_non_zero": True})
                     sent_nonzero = self.lookup({"from_me": True, "amount_non_zero": True})
-                    clog(
-                        self,
-                        "self.interacted in transferred tokens",
-                        "potentates",
-                        potentates,
-                        len(minted),
-                        len(burned),
-                        len(received_nonzero),
-                        len(sent_nonzero),
-                    )
                     if (
                         len(minted) == 0
                         and len(burned) == 0
                         and len(received_nonzero) + len(sent_nonzero) == 1
                     ):
                         if self.interacted in potentates:
-                            clog(self, "Removed token CP 1")
                             del potentates[self.interacted]
                         if prog_addr in potentates:
-                            clog(self, "Removed token CP 2")
                             del potentates[prog_addr]
                         counter_parties = potentates
 
@@ -693,7 +642,6 @@ class Transaction:
             counter_parties = {}
 
         log("finalizing", self.hash, counter_parties)
-
         self.counter_parties = counter_parties
 
         cp_name = "unknown"
@@ -719,9 +667,6 @@ class Transaction:
 
     # finds all matching transfers by a dictionary of AND-ed field=value pairs
     def lookup(self, fv_pairs, count_only=False):
-        if self.hash == self.chain.hif:
-            log("transfer lookup", fv_pairs)
-
         matching_ids = None
         for field, value in fv_pairs.items():
             assert field in Transaction.MAPPED_FIELDS
@@ -813,27 +758,16 @@ class Transaction:
         return contract_list, counterparty_list, input_list
 
     def infer_and_adjust_rates(self, user, coingecko_rates, skip_adjustment=False):
-        do_print = False
-        if self.hash == self.chain.hif:
-            do_print = True
-            log("infer and adjust rates for tx", self.txid)
-            log("transaction", self)
-
         if not self.balanced:
-            if do_print:
-                log("tx not balanced")
             return
 
         in_cnt = 0
         out_cnt = 0
         amounts = defaultdict(float)
         symbols = {}
-
         usd_present = False
 
         for transfer in self.transfers.values():
-            if do_print:
-                log("Proc transfer", transfer)
             if transfer.synthetic == Transfer.FEE:
                 continue
             if self.my_address(transfer.fr, strict=True) and self.my_address(
@@ -872,9 +806,7 @@ class Transaction:
                     usd_present = True
                 if transfer.type in [4, 5]:
                     skip_adjustment = True
-        if do_print:
-            log("infer_and_adjust_rates symbols", symbols)
-            log("infer_and_adjust_rates amounts", amounts)
+
         combo = (out_cnt, in_cnt)
 
         if combo[0] > 0 and combo[1] > 0:
@@ -898,8 +830,6 @@ class Transaction:
                     good = 0
                     rate = 0
                 # good, rate = coingecko_rates.lookup_rate(contract, ts)
-                if do_print:
-                    log("Rate lookup result", contract, symbols[contract], good, rate)
                 if good == 0:
                     if amt <= 0:
                         bad_out += 1
@@ -945,29 +875,12 @@ class Transaction:
                 bad_total = iffy_total
                 unaccounted_total = unaccounted_total_iffy
 
-            if self.hash == self.chain.hif:
-                log("stats", bad_in, bad_out, iffy_in, iffy_out, add_rate_for)
-
-            if add_rate_for:
-                if do_print:
-                    log(
-                        "add_rate_for",
-                        add_rate_for,
-                        "unaccounted_total",
-                        unaccounted_total,
-                        "bad_total",
-                        bad_total,
-                        "rate",
-                        unaccounted_total / bad_total,
-                    )
-
             if add_rate_for is not None:
                 try:
                     symbol = symbols[add_rate_for]["symbol"]
                     inferred_rate = unaccounted_total / bad_total
                     self.rate_inferred = symbol
                     if worst_inferrer == 1:
-                        clog(self, "rate inferred 1")
                         rate_source = "inferred"
                     else:
                         rate_source = "inferred from " + str(worst_inferrer)
@@ -976,14 +889,10 @@ class Transaction:
                     if "_" in add_rate_for:
                         lookup_what = add_rate_for[: add_rate_for.index("_")]
 
-                    if do_print:
-                        log("lookup_what", lookup_what)
                     for transfer in self.lookup({"what": lookup_what}):
                         transfer.rate = inferred_rate
                         transfer.rate_found = worst_inferrer
                         transfer.rate_source = rate_source
-                        if do_print:
-                            log("changing rate ", self.hash, transfer)
 
                     coingecko_rates.add_rate(
                         self.chain.name,
@@ -993,7 +902,6 @@ class Transaction:
                         worst_inferrer,
                         rate_source,
                     )
-
                 except:
                     log("EXCEPTION", "contract", add_rate_for)
                     log(traceback.format_exc())
@@ -1049,9 +957,6 @@ class Transaction:
                         rate_fluxes.append((contract, rate_flux, rate, amt))
                     if len(rate_fluxes) > 0:
                         max_flux = max(rate_fluxes, key=lambda t: t[1])
-                        if do_print:
-                            log("fluxes", rate_fluxes)
-
                         max_flux_contract = max_flux[0]
                         max_flux_amt = max_flux[3]
                         max_flux_rate = max_flux[2]
@@ -1060,31 +965,11 @@ class Transaction:
                             adjusted_rate = (
                                 total_out - (total_in - max_flux_amt * max_flux_rate)
                             ) / max_flux_amt
-                            if do_print:
-                                log(
-                                    "adjusted_rate (single 1)",
-                                    max_flux_contract,
-                                    adjusted_rate,
-                                    total_out,
-                                    total_in,
-                                    max_flux_amt,
-                                    max_flux_rate,
-                                )
                         else:
                             max_flux_amt = -max_flux_amt
                             adjusted_rate = (
                                 total_in - (total_out - max_flux_amt * max_flux_rate)
                             ) / max_flux_amt
-                            if do_print:
-                                log(
-                                    "adjusted_rate (single 2)",
-                                    max_flux_contract,
-                                    adjusted_rate,
-                                    total_in,
-                                    total_out,
-                                    max_flux_amt,
-                                    max_flux_rate,
-                                )
 
                         adjustment_factor = abs(max_flux_rate / adjusted_rate - 1)
                         for transfer in self.lookup({"what": max_flux_contract}):
@@ -1115,7 +1000,6 @@ class Transaction:
     def to_json(self):
         ts = self.ts
         counter_parties = self.counter_parties
-
         nft, typestr = self.type_to_typestr()
 
         js = {
@@ -1155,9 +1039,5 @@ class Transaction:
                 row = transfer.to_dict()
                 rows[trid] = row
 
-        if self.hash == self.chain.hif:
-            log("json transaction", rows)
-
         js["rows"] = rows
-
         return js

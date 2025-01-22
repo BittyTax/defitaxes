@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from collections import defaultdict
 
 from .util import log
@@ -175,9 +174,6 @@ class Pools:
         new_pool = False
         candidates = self.pools
         depositing_symbols = set()
-        if transaction.hash == self.chain.hif:
-            log("DEPOSITS", deposits)
-            log("RECEIPTS", receipts)
         for deposit in deposits:
             what = self.unwrap(deposit.what)
             depositing_symbols.add(what)
@@ -186,21 +182,13 @@ class Pools:
             if transaction.interacted:
                 matches = matches.union(self.matches(transaction.interacted, "A"))
 
-            if transaction.hash == self.chain.hif:
-                log("matches1", matches)
             candidates = candidates.intersection(matches)
-            if transaction.hash == self.chain.hif:
-                log("candidates1", candidates)
 
             matches = self.matches(what, "I")
-            if transaction.hash == self.chain.hif:
-                log("matches2", matches)
             if deposit.symbol in Pools.stable_list:
                 candidates = candidates.intersection(self.stable_pools.union(matches))
             else:
                 candidates = candidates.intersection(matches)
-                if transaction.hash == self.chain.hif:
-                    log("candidates2", candidates)
 
         if candidates:
             if receipts is not None and len(receipts):
@@ -223,18 +211,12 @@ class Pools:
                 selected.append(candidate)
 
         if len(selected) == 0:
-            if transaction.hash == self.chain.hif:
-                log("CREATING POOL, candidates", candidates)
             pool = Pool(self, transaction)
             new_pool = True
             self.pools.add(pool)
         elif len(selected) == 1:
             pool = list(selected)[0]
-            if transaction.hash == self.chain.hif:
-                log("FOUND POOL", pool)
         elif len(selected) > 1:
-            if transaction.hash == self.chain.hif:
-                log("CREATING POOL BECAUSE THERE ARE MULTIPLE MATCHES, selected", selected)
             pool = Pool(self, transaction)
             new_pool = True
             self.pools.add(pool)
@@ -328,8 +310,6 @@ class Pools:
 
         if len(selected) == 1:
             pool = list(selected)[0]
-            if transaction.hash == self.chain.hif:
-                log("FOUND POOL", pool)
 
         elif len(selected) > 1:
             log("WITHDRAW: FOUND MULTIPLE POOLS, BAILING")
