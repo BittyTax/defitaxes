@@ -2,10 +2,10 @@ import base64
 import copy
 import math
 import os
+import random
 import struct
 import time
 import traceback
-import uuid
 from collections import defaultdict
 from hashlib import sha256
 
@@ -112,7 +112,7 @@ class Solana(Chain):
             batch = query_list[offset : offset + batch_size]
 
             for query_datum in batch:
-                uid = str(uuid.uuid4())
+                uid = random.randint(1000000000, 9999999999)
                 explorer_dump = copy.deepcopy(json_template)
                 explorer_dump["params"][0] = query_datum
                 explorer_dump["id"] = uid
@@ -133,8 +133,9 @@ class Solana(Chain):
             time.sleep(1)
             try:
                 log("post dump", rpc_url, multi_explorer_request, filename="solana.txt")
+                headers = {"accept": "application/json", "content-type": "application/json"}
                 resp = self.explorer_session.post(
-                    rpc_url, timeout=timeout, json=multi_explorer_request
+                    rpc_url, timeout=timeout, json=multi_explorer_request, headers=headers
                 )
             except:
                 log("Request failed, timeout", traceback.format_exc(), filename="solana.txt")
@@ -158,16 +159,9 @@ class Solana(Chain):
             )
 
             for entry in multi_data:
+                if "result" not in entry or "id" not in entry:
+                    log("BAD ENTRY", json_template, entry, filename="solana.txt")
                 uid = entry["id"]
-                if "result" not in entry:
-                    log(
-                        "BAD ENTRY",
-                        json_template,
-                        entry,
-                        uid,
-                        uid_mapping[uid],
-                        filename="solana.txt",
-                    )
                 output_mapping[uid_mapping[uid]] = entry["result"]
 
             offset += batch_size
@@ -337,7 +331,7 @@ class Solana(Chain):
         self.update_pb(None, pb_alloc * 0.1)
 
         tx_list = tx_list[::-1]
-        log("tx_list", len(tx_list), tx_list)
+        log("tx_list", len(tx_list), tx_list, filename="solana.txt")
 
         all_tx_data = self.explorer_multi_request(
             {
@@ -348,7 +342,7 @@ class Solana(Chain):
                     {
                         "encoding": "jsonParsed",
                         "commitment": "confirmed",
-                        "maxSupportedTransactionVersion": 2,
+                        "maxSupportedTransactionVersion": 0,
                     },
                 ],
             },
@@ -688,6 +682,7 @@ class Solana(Chain):
                         "encoding": "jsonParsed",
                         "commitment": "confirmed",
                         "maxSupportedTransactionVersion": 0,
+                        "transactionDetails": "full",
                     },
                 ],
             },
@@ -702,8 +697,10 @@ class Solana(Chain):
         self.update_pb("Processing transactions for " + address)
         tx_list = []
         for tx_hash, tx_data in all_tx_data.items():
-            tx_list.append([tx_hash, tx_data["blockTime"], tx_data])
+            if tx_data is not None:
+                tx_list.append([tx_hash, tx_data["blockTime"], tx_data])
         tx_list = sorted(tx_list, key=lambda tup: tup[1])
+        log("tx_list length", len(tx_list), filename="solana.txt")
 
         prev_ts = None
         nonce = 0
@@ -739,6 +736,7 @@ class Solana(Chain):
             for entry_idx, entry in enumerate(accounts_data):
                 account = entry["pubkey"]
                 sol_changes[account] = post_balances[entry_idx] - pre_balances[entry_idx]
+            log("sol_changes after post/pre-balances", sol_changes, filename="solana.txt")
 
             total_rewards_fee = 0
             rewards_data = tx_data["meta"]["rewards"]
@@ -882,7 +880,7 @@ class Solana(Chain):
                                                 continue
 
                                             if source == address:
-                                                account_deposits[proxy] -= int(info["amount"])
+                                                account_deposits[proxy] -= amount * 1000000000
                                                 if account_deposits[proxy] < 0:
                                                     log(
                                                         "WARNING NEGATIVE DEPOSIT",
@@ -892,7 +890,7 @@ class Solana(Chain):
                                                     )
 
                                             if destination == address:
-                                                account_deposits[proxy] += int(info["amount"])
+                                                account_deposits[proxy] += amount * 1000000000
 
                     if type == "create":
                         if info["source"] == address:
@@ -1021,22 +1019,34 @@ class Solana(Chain):
                     log("WARNING Failure to parse", traceback.format_exc(), filename="solana.txt")
                     continue
 
+            log("sol_changes before populating from transfers", sol_changes, filename="solana.txt")
+            log("transfers created from parsed", transfers, filename="solana.txt")
             for t in transfers:  # accounting balance changes, after this sol_changes should be 0
                 if t["what"] == "SOL":
                     lamports = int(round(t["amount"] * 1000000000))
                     sol_changes[t["from"]] += lamports
                     sol_changes[t["to"]] -= lamports
+                    log(
+                        "adding sol change from transfer",
+                        t["from"],
+                        t["to"],
+                        t["amount"],
+                        lamports,
+                        filename="solana.txt",
+                    )
 
             total_unaccounted = 0
-            unaccounted_changes = {}
+            unaccounted_changes = defaultdict(float)
             my_unaccounted_change = 0
+            log("sol changes before unaccounted", sol_changes, filename="solana.txt")
             for account, amount in sol_changes.items():
                 total_unaccounted += amount
                 if amount != 0:
                     if account == address:
-                        my_unaccounted_change = amount
+                        my_unaccounted_change += amount
                     else:
-                        unaccounted_changes[account] = amount
+                        unaccounted_changes[account] += amount
+            unaccounted_changes = dict(unaccounted_changes)
 
             if abs(my_unaccounted_change) > fee:
                 log(
@@ -1265,6 +1275,7 @@ class Solana(Chain):
         log("final all_token_data", all_token_data)
         log("type_counter", type_counter)
         log("tx_sol_mismatches", len(tx_sol_mismatches), tx_sol_mismatches, filename="solana.txt")
+        log("all_transactions length", len(all_transactions), filename="solana.txt")
         return all_transactions
 
     def get_current_tokens_internal(self, address):
@@ -1311,8 +1322,10 @@ class Solana(Chain):
                 [address],
             )
             data = resp[address]["value"]
-            log("sol balance", data)
-            lamports = data["lamports"]
+            log("sol balance", data, filename="solana.txt")
+            lamports = 0
+            if data is not None and "lamports" in data:
+                lamports = data["lamports"]
             sol_amt = lamports / 1000000000.0
             rv = {}
             rv["SOL"] = {"symbol": "SOL", "amount": sol_amt}

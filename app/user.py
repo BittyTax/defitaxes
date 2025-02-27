@@ -294,6 +294,7 @@ class User:
                     last_update = self.get_info(chain_name + "_last_update")
                     if last_update is None:
                         last_update = 0
+                    log("attempting to insert address", self.address, "for chain", chain_name)
                     self.db.insert_kw(
                         "user_addresses",
                         address=self.address,
@@ -301,6 +302,7 @@ class User:
                         previously_used=used,
                         present=present,
                         last_update=last_update,
+                        ignore=True,
                     )
                     fields = [
                         chain_name + "_presence",
@@ -604,6 +606,7 @@ class User:
             self.db.commit()
 
     def set_address_used(self, address, chain_name, value=1, commit=True):
+        log("set_address_used", address, chain_name, value, commit)
         self.db.insert_kw("user_addresses", address=address, chain=chain_name, ignore=True)
         self.db.update_kw(
             "user_addresses",
@@ -846,7 +849,7 @@ class User:
         db.insert_kw("addresses", chain=chain_name, address=address)
         return db.select("SELECT last_insert_rowid()")[0][0]
 
-    def locate_insert_token(self, chain_name, contract, symbol, coingecko_id=None):
+    def locate_insert_token(self, chain_name, contract, symbol, coingecko_id=False):
         db = self.db
         assert contract is not None or symbol is not None
         if symbol is None:
@@ -860,7 +863,7 @@ class User:
             contract = contract.upper()
 
         Q = (
-            "SELECT id, coingecko_id FROM tokens WHERE LOWER(chain)=LOWER('"
+            "SELECT id, coingecko_id, custom_coingecko_id FROM tokens WHERE LOWER(chain)=LOWER('"
             + chain_name
             + "') and contract = '"
             + contract
@@ -869,10 +872,18 @@ class User:
         rows = db.select(Q)
 
         if len(rows) >= 1:
-            id, current_coingecko_id = rows[0]
-            if coingecko_id is not None and coingecko_id != current_coingecko_id:
-                db.update_kw("tokens", "id=" + str(id), coingecko_id=coingecko_id)
+            id, current_coingecko_id, custom_coingecko_id = rows[0]
+
+            if coingecko_id != False and custom_coingecko_id is None:
+                if coingecko_id != current_coingecko_id:
+                    if coingecko_id is not None and current_coingecko_id is None:
+                        db.update_kw("tokens", "id=" + str(id), coingecko_id=coingecko_id)
+                    elif coingecko_id is None and current_coingecko_id is not None:
+                        pass
             return id
+
+        if coingecko_id == False:
+            coingecko_id = None
         db.insert_kw(
             "tokens",
             chain=chain_name,
