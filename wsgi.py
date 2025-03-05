@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 import os
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from app.app import app
+from app import create_app
 from app.util import log
+from config import Config
 from driver import driver
 
-app.config.from_object("config.Config")
+app = create_app(Config)
 app.register_blueprint(driver)
 
 with app.app_context():
