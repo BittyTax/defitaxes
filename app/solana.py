@@ -750,6 +750,7 @@ class Solana(Chain):
                 sol_changes[address] += total_rewards_fee
 
             wsol_indexes = defaultdict(dict)
+            ata_wsol_list = []  # Associated Token Accounts
 
             programs = set()
             operations = defaultdict(int)
@@ -836,6 +837,9 @@ class Solana(Chain):
                                 else:
                                     destination_suspect = True
 
+                            if token == WSOL and proxy in ata_wsol_list:
+                                continue
+
                             if token is not None:
                                 if address in [source, destination]:
                                     if "amount" in info:
@@ -872,6 +876,7 @@ class Solana(Chain):
 
                                         if token == WSOL:
                                             wsol_operation(proxy, "transfer", len(transfers) - 1)
+
                                             if source == destination:
                                                 log(
                                                     "WARNING WTF source=destination for WSOL",
@@ -891,6 +896,13 @@ class Solana(Chain):
 
                                             if destination == address:
                                                 account_deposits[proxy] += amount * 1000000000
+
+                    if type == "createIdempotent":
+                        # SPL Associated Token Account
+                        if info["wallet"] == address and info["mint"] == WSOL:
+                            account = info["account"]
+                            if account not in ata_wsol_list:
+                                ata_wsol_list.append(account)
 
                     if type == "create":
                         if info["source"] == address:
@@ -1118,7 +1130,6 @@ class Solana(Chain):
                 to_delete = []
                 new_transfers = []
                 for proxy, transfer_index_dict in wsol_indexes.items():
-
                     if "transfer" in transfer_index_dict:
                         for idx in transfer_index_dict["transfer"]:
                             log(
