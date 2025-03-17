@@ -1,4 +1,5 @@
 from flask import Flask
+import redis
 
 from .views.admin import admin
 from .views.chains import chains
@@ -12,6 +13,8 @@ from .views.uploads import uploads
 def create_app(config_class) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    app.redis = redis.Redis.from_url(app.config.get("REDIS_URL"), decode_responses=True)
 
     app.register_blueprint(main)
     app.register_blueprint(chains)
