@@ -2297,7 +2297,9 @@ class User:
                     nft_id = str(nft_id)
                 transfer = [
                     t["fr"],
+                    t["from_me"],
                     t["to"],
+                    t["to_me"],
                     t["amount"],
                     t["what"],
                     str(t["symbol"].encode("utf-8"))[2:-1],
@@ -2305,6 +2307,8 @@ class User:
                     type_map[t["type"]],
                     treatment,
                     vault_id,
+                    t["coingecko_id"],
+                    t["rate_source"],
                     rate,
                 ]
 
@@ -2324,7 +2328,9 @@ class User:
             "function hex signature",
             "operation (decoded hex signature)",
             "source address",
+            "source is me",
             "destination address",
+            "destination is me",
             "amount transfered",
             "token contract address",
             "token symbol",
@@ -2332,6 +2338,8 @@ class User:
             "transfer type",
             "tax treatment",
             "vault id",
+            "coingecko id",
+            "rate source",
             "USD rate",
         ]
 
