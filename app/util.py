@@ -183,7 +183,7 @@ def decustom(val: Optional[str]) -> tuple[Optional[str], bool]:
 def sql_in(
     lst: Union[
         int, float, bool, str, List[Union[int, float, bool, str]], Set[Union[int, float, bool, str]]
-    ]
+    ],
 ) -> str:
     if isinstance(lst, (int, float, bool)):
         return "(" + str(lst) + ")"

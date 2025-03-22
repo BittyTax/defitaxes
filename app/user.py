@@ -24,6 +24,7 @@ from .fiat_rates import Twelve
 from .imports import Import
 from .redis_wrap import Redis
 from .signatures import Signatures
+from .simplehash import get_nft_balances_simplehash
 from .solana import Solana
 from .sqlite import SQLite
 from .transaction import Transaction, Transfer
@@ -2682,147 +2683,7 @@ class User:
                 )
                 log_error("Failed to get counterparties from debank", active_address)
 
-        session = requests.session()
-        session.headers.update({"X-API-Key": os.environ.get("api_key_simplehash")})
-        rq_cnt = 0
-        for chain_name, chain_data in all_chains.items():
-            if chain_data["is_upload"]:
-                continue
-            if "simplehash_mapping" in Chain.CONFIG[chain_name]:
-                rq_cnt += 1
-
-        for chain_name, chain_data in all_chains.items():
-            if chain_data["is_upload"]:
-                continue
-            accepted_addresses = []
-            addresses = chain_data["import_addresses"]
-            chain = chain_data["chain"]
-            for active_address in addresses:
-                active_address = normalize_address(active_address)
-                if chain.check_validity(active_address):
-                    accepted_addresses.append(active_address)
-
-            # if chain_name in simplehash_chain_mapping:
-            if "simplehash_mapping" in Chain.CONFIG[chain_name] and len(accepted_addresses) > 0:
-                simplehash_mapping = Chain.CONFIG[chain_name]["simplehash_mapping"]
-                done = False
-                if progress_bar:
-                    progress_bar.update("Simplehash: Retrieving your NFTs on " + chain_name, 0)
-                url = (
-                    "https://api.simplehash.com/api/v0/nfts/owners?chains="
-                    + simplehash_mapping
-                    + "&wallet_addresses="
-                    + ",".join(accepted_addresses)
-                    + "&queried_wallet_balances=1&count=1"
-                )
-                try:
-                    page_idx = 0
-                    while not done:
-                        time.sleep(0.2)
-                        log("simplehash url", url)
-                        resp = session.get(url, timeout=15)
-                        if resp.status_code != 200:
-                            log_error("Failed to retrieve NFT data", url, resp.content)
-                            break
-                        data = resp.json()
-                        total_count = data["count"]
-                        total_pages = total_count // 50 + 1
-
-                        if progress_bar:
-                            progress_bar.update(
-                                "Simplehash: Retrieving your NFTs on "
-                                + chain_name
-                                + ": "
-                                + str(page_idx + 1)
-                                + "/"
-                                + str(total_pages),
-                                3.0 / rq_cnt / total_pages,
-                            )
-                        entries = data["nfts"]
-                        for entry in entries:
-                            contract_address = normalize_address(entry["contract_address"])
-                            nft_id = entry["token_id"]
-                            symbol = entry["contract"]["symbol"]
-                            type = entry["contract"]["type"]
-                            if (
-                                chain_name in ["BSC", "Polygon", "Fantom", "zkEVM"]
-                                and type == "ERC1155"
-                            ):  # no scanner support for ERC1155 on these chains.
-                                # Polygon support is shitty.
-                                continue
-                            for bal in entry["queried_wallet_balances"]:
-                                amount = bal["quantity"]
-                                owner = bal["address"]
-                                first_acquired = bal["first_acquired_date"][:19]
-                                try:
-                                    first_acquired_ts = int(
-                                        datetime.strptime(
-                                            first_acquired, "%Y-%m-%dT%H:%M:%S"
-                                        ).timestamp()
-                                    )
-                                except:
-                                    log_error("failed to convert sh timestamp", first_acquired)
-                                    first_acquired_ts = None
-                                owner = normalize_address(owner)
-                                if (
-                                    owner not in chain_data["current_tokens"]
-                                    or chain_data["current_tokens"][owner] is None
-                                ):
-                                    log("missing current_tokens", chain_name, owner)
-                                    chain_data["current_tokens"][owner] = {}
-                                ct = chain_data["current_tokens"][owner]
-                                if (
-                                    contract_address not in ct
-                                    or "nft_amounts" not in ct[contract_address]
-                                ):
-                                    ct[contract_address] = {
-                                        "symbol": symbol,
-                                        "nft_amounts": {},
-                                        "acquisitions": {},
-                                        "type": type,
-                                    }
-
-                                if "nft_amounts" not in ct[contract_address]:
-                                    log_error(
-                                        chain_name,
-                                        contract_address,
-                                        "trying to add an NFT",
-                                        nft_id,
-                                        amount,
-                                        " but counted as token on",
-                                        chain_name,
-                                    )
-                                ct[contract_address]["nft_amounts"][nft_id] = amount
-                                ct[contract_address]["acquisitions"][nft_id] = first_acquired_ts
-                                log(
-                                    "simplehash acquisition",
-                                    contract_address,
-                                    nft_id,
-                                    first_acquired_ts,
-                                )
-                                floor_prices = entry["collection"]["floor_prices"]
-                                if len(floor_prices) >= 1:
-                                    for fp in floor_prices:
-                                        if fp["marketplace_id"] == "opensea":
-                                            if (
-                                                fp["payment_token"]["payment_token_id"]
-                                                == "ethereum.native"
-                                            ):
-                                                eth_floor_rate = fp["value"] / float(pow(10, 18))
-                                                ct[contract_address]["eth_floor"] = eth_floor_rate
-
-                        if len(entries) < 50:
-                            done = True
-
-                        url = data["next"]
-                        if url is None:
-                            done = True
-                        page_idx += 1
-                except:
-                    self.current_import.add_error(
-                        Import.SIMPLEHASH_FAILURE, chain=chain, debug_info=traceback.format_exc()
-                    )
-                    log_error(chain_name, ": Failed to get_current_tokens:NFTs")
+        get_nft_balances_simplehash(all_chains, self.current_import, progress_bar)
 
     def start_import(self, all_chains):
         self.current_import = Import(self, all_chains)

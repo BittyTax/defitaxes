@@ -436,6 +436,8 @@ function calc_token_amount_differences(data) {
                     try {
                         running_amount = running_tokens[chain][address][contract]['amount']
                         running_rate = running_tokens[chain][address][contract]['rate']
+                        if (running_amount == undefined || running_rate == undefined)
+                            throw "missing amount/rate"
                     } catch (error) {
                         running_amount = 0
                         running_rate = [0, null, 'none']

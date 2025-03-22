@@ -1,5 +1,5 @@
-from flask import Flask
 import redis
+from flask import Flask
 
 from .views.admin import admin
 from .views.chains import chains
