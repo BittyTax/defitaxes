@@ -1,10 +1,9 @@
-import json
-import os
 import time
 import traceback
 from datetime import datetime
 
 import requests
+from flask import current_app
 
 from .imports import Import
 from .util import log, log_error, normalize_address
@@ -12,7 +11,7 @@ from .util import log, log_error, normalize_address
 
 def get_nft_balances_simplehash(all_chains, current_import, progress_bar=None):
     session = requests.session()
-    session.headers.update({"X-API-Key": os.environ.get("api_key_simplehash")})
+    session.headers.update({"X-API-Key": current_app.config["SIMPLEHASH_API_KEY"]})
 
     simplehash_chains = [
         cd

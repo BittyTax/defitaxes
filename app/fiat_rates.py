@@ -1,9 +1,9 @@
 import datetime
-import os
 import time
 
 import requests
 import sortedcontainers
+from flask import current_app
 
 from .sqlite import SQLite
 from .util import log, log_error, timestamp_to_date
@@ -22,7 +22,7 @@ class Twelve:
     }
 
     def __init__(self, symbol):
-        self.api_key = os.environ.get("api_key_twelve")
+        self.api_key = current_app.config["TWELVEDATA_API_KEY"]
         self.session = requests.session()
         self.db = None
         self.fiat = symbol

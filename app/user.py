@@ -2542,7 +2542,7 @@ class User:
 
     def get_thirdparty_data(self, all_chains, progress_bar=None):
         session = requests.session()
-        session.headers.update({"AccessKey": os.environ.get("debank_access_key")})
+        session.headers.update({"AccessKey": current_app.config["DEBANK_API_KEY"]})
         debank_chain_mapping = {}
         for chain_name, conf in Chain.CONFIG.items():
             if "debank_mapping" in conf:

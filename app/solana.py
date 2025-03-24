@@ -1,7 +1,6 @@
 import base64
 import copy
 import math
-import os
 import random
 import struct
 import time
@@ -42,12 +41,10 @@ class Solana(Chain):
         self.domain = "explorer.solana.com"
         self.wait_time = 0.25
 
-        api_key = os.environ.get("api_key_blockdaemon_for_solana")
-        if not api_key:
-            raise EnvironmentError("Missing API key for Blockdaemon Solana")
-
         self.explorer_session = requests.Session()
-        self.explorer_session.headers.update({"Authorization": f"Bearer {api_key}"})
+        self.explorer_session.headers.update(
+            {"Authorization": f"Bearer {current_app.config['BLOCKDAEMON_API_KEY']}"}
+        )
 
         self.solana_nft_data = {}
         self.solana_proxy_map = {}

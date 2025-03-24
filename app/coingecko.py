@@ -16,7 +16,7 @@ from .util import log, log_error
 
 
 class Coingecko:
-    def __init__(self, verbose=False, use_pro=True):
+    def __init__(self, verbose=False):
         self.contracts_map = defaultdict(dict)
 
         self.rates = None
@@ -54,8 +54,8 @@ class Coingecko:
 
         self.ignore = ["curve-fi-amdai-amusdc-amusdt"]
 
-        self.use_pro = use_pro
-        self.api_key = os.environ.get("api_key_coingecko")
+        self.use_pro = current_app.config["COINGECKO_PRO"]
+        self.api_key = current_app.config["COINGECKO_API_KEY"]
 
     def dump(self, user):
         path = os.path.join(current_app.instance_path, USER_DIRNAME)

@@ -1,6 +1,5 @@
 import calendar
 import math
-import os
 import random
 import re
 import time
@@ -10,6 +9,7 @@ from datetime import datetime
 
 import bs4
 import requests
+from flask import current_app
 
 from .imports import Import
 from .pool import Pools
@@ -19,15 +19,9 @@ from .util import is_ethereum, log, log_error
 
 class Chain:
     CONFIG = {
-        # defaults:
-        # scanner_name -> scanner without extension, or "blockscout" if blockscout:1
-        # base asset -> name
-        # coingecko_platform -> name
-        # coingecko_id -> name
-        # debank_mapping -> base asset
         "ETH": {
             "scanner": "etherscan.io",
-            "api_key": "api_key_etherscan",
+            "api_key": "ETHERSCAN_API_KEY",
             "outbound_bridges": [
                 "0XA0C68C638235EE32657E8F720A23CEC1BFC77C77",  # polygon
                 "0X40EC5B33F54E0E8A33A975908C5BA1C14E5BBBDF",  # polygon
@@ -61,7 +55,7 @@ class Chain:
         "BSC": {
             "scanner": "bscscan.com",
             "base_asset": "BNB",
-            "api_key": "api_key_bscscan",
+            "api_key": "BSCSCAN_API_KEY",
             "outbound_bridges": ["0X2170ED0880AC9A755FD29B2688956BD959F933F8"],
             "inbound_bridges": ["0X8894E0A0C962CB723C1976A4421C95949BE2D4E3"],
             "wrapper": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
@@ -77,7 +71,7 @@ class Chain:
         "Arbitrum": {
             "scanner": "arbiscan.io",
             "base_asset": "ETH",
-            "api_key": "api_key_arbiscan",
+            "api_key": "ARBISCAN_API_KEY",
             "outbound_bridges": ["0x0000000000000000000000000000000000000064"],
             "inbound_bridges": ["0x000000000000000000000000000000000000006e"],
             "wrapper": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
@@ -95,7 +89,7 @@ class Chain:
             "scanner": "nova.arbiscan.io",
             "explorer_url": "https://api-nova.arbiscan.io/api",
             "base_asset": "ETH",
-            "api_key": "api_key_arbiscan_nova",
+            "api_key": "NOVA_ARBISCAN_API_KEY",
             "wrapper": "0xf906A9c7b4d1207B38a2f18445047764763aB450",
             "coingecko_platform": "arbitrum-nova",
             "coingecko_id": "ethereum",
@@ -107,7 +101,7 @@ class Chain:
         "Polygon": {
             "scanner": "polygonscan.com",
             "base_asset": "MATIC",
-            "api_key": "api_key_polygonscan",
+            "api_key": "POLYGONSCAN_API_KEY",
             "outbound_bridges": ["0X7CEB23FD6BC0ADD59E62AC25578270CFF1B9F619"],
             "inbound_bridges": ["0X0000000000000000000000000000000000000000"],
             "wrapper": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
@@ -124,7 +118,7 @@ class Chain:
         "zkEVM": {
             "scanner": "zkevm.polygonscan.com",
             "base_asset": "ETH",
-            "api_key": "api_key_polygonscan_zkevm",
+            "api_key": "ZKEVM_POLYGONSCAN_API_KEY",
             "wrapper": "0x4F9A0e7FD2Bf6067db6994CF12E4495Df938E6e9",
             "coingecko_platform": "polygon-zkevm",
             "coingecko_id": "ethereum",
@@ -138,7 +132,7 @@ class Chain:
         "Base": {
             "scanner": "basescan.org",
             "base_asset": "ETH",
-            "api_key": "api_key_base",
+            "api_key": "BASESCAN_API_KEY",
             "wrapper": "0x4200000000000000000000000000000000000006",
             "coingecko_id": "ethereum",
             "debank_mapping": "base",
@@ -151,7 +145,7 @@ class Chain:
         "Avalanche": {
             "scanner": "snowtrace.io",
             "base_asset": "AVAX",
-            "api_key": "api_key_snowtrace",
+            "api_key": "SNOWTRACE_API_KEY",
             "outbound_bridges": ["0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab"],
             "inbound_bridges": ["0x0000000000000000000000000000000000000000"],
             "wrapper": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
@@ -169,7 +163,7 @@ class Chain:
         "Optimism": {
             "scanner": "optimistic.etherscan.io",
             "base_asset": "ETH",
-            "api_key": "api_key_etherscan_optimism",
+            "api_key": "OPTIMISTIC_ETHERSCAN_API_KEY",
             "wrapper": "0x4200000000000000000000000000000000000006",
             "coingecko_platform": "optimistic-ethereum",
             "coingecko_id": "ethereum",
@@ -185,7 +179,7 @@ class Chain:
         "Fantom": {
             "scanner": "ftmscan.com",
             "base_asset": "FTM",
-            "api_key": "api_key_ftmscan",
+            "api_key": "FTMSCAN_API_KEY",
             "wrapper": "0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83",
             "debank_mapping": "ftm",
             "covalent_mapping": "fantom-mainnet",
@@ -197,7 +191,7 @@ class Chain:
         "Cronos": {
             "scanner": "cronoscan.com",
             "base_asset": "CRO",
-            "api_key": "api_key_cronoscan",
+            "api_key": "CRONOSCAN_API_KEY",
             "wrapper": "0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23",
             "coingecko_id": "crypto-com-chain",
             "debank_mapping": "cro",
@@ -224,7 +218,7 @@ class Chain:
         "Celo": {
             "scanner": "celoscan.io",
             "base_asset": "CELO",
-            "api_key": "api_key_celoscan",
+            "api_key": "CELOSCAN_API_KEY",
             "wrapper": "0xc579D1f3CF86749E05CD06f7ADe17856c2CE3126",
             "debank_mapping": "celo",
             "order": 11,
@@ -234,21 +228,13 @@ class Chain:
             "scanner": "moonscan.io",
             "explorer_url": "https://api-moonbeam.moonscan.io/api",
             "base_asset": "GLMR",
-            "api_key": "api_key_moonscan",
+            "api_key": "MOONSCAN_API_KEY",
             "wrapper": "0xacc15dc74880c9944775448304b263d191c6077f",
             "debank_mapping": "mobm",
             "order": 10,
             "support": 3,
         },
-        # 'Canto': {
-        #     'scanner': 'evm.explorer.canto.io',
-        #     'wrapper': '0x826551890dc65655a0aceca109ab11abdbd7a07b',
-        #     'blockscout':1,
-        #     'order': 10,
-        #     'support': 3
-        # },
         "Canto": {
-            # 'scanner': 'tuber.build',
             "scanner": "explorer.plexnode.wtf",
             "wrapper": "0x826551890dc65655a0aceca109ab11abdbd7a07b",
             "blockscout": 1,
@@ -268,7 +254,6 @@ class Chain:
         "HECO": {
             "scanner": "hecoinfo.com",
             "base_asset": "HT",
-            "api_key": "api_key_hecoinfo",
             "wrapper": "0x5545153ccfca01fbd7dd11c0b23ba694d9509a6f",
             "inbound_bridges": ["0xd8e32fbfb7da70237c130a6d8d6e12471f6d029d"],
             "outbound_bridges": ["0xd8e32fbfb7da70237c130a6d8d6e12471f6d029d"],
@@ -279,21 +264,10 @@ class Chain:
             "support": 0,
             "cp_availability": 5,
         },
-        # 'Gnosis': {
-        #     'scanner': 'blockscout.com',
-        #     'explorer_url':'https://blockscout.com/xdai/mainnet/api',
-        #     'base_asset': 'XDAI',
-        #     'api_key': '0bc0f6b7-c826-49f2-9959-749ffe4da4e8',
-        #     'coingecko_platform': 'xdai',
-        #     'coingecko_id': 'xdai',
-        #     'simplehash_mapping':'gnosis',
-        #     'blockscout': 1,
-        #     'order': 15
-        # },
         "Gnosis": {
             "scanner": "gnosisscan.io",
             "base_asset": "XDAI",
-            "api_key": "api_key_gnosisscan",
+            "api_key": "GNOSISSCAN_API_KEY",
             "wrapper": "0xe91d153e0b41518a2ce8dd3d7944fa863463a97d",
             "coingecko_platform": "xdai",
             "coingecko_id": "xdai",
@@ -319,21 +293,12 @@ class Chain:
             "scanner_name": "Moonscan",
             "explorer_url": "https://api-moonriver.moonscan.io/api",
             "base_asset": "MOVR",
-            "api_key": "api_key_moonscan_moonriver",
+            "api_key": "MOONRIVER_MOONSCAN_API_KEY",
             "wrapper": "0x98878b06940ae243284ca214f92bb71a2b032b8a",
             "debank_mapping": "movr",
             "order": 18,
             "support": 3,
         },
-        # 'Metis': {
-        #     'scanner': 'andromeda-explorer.metis.io',
-        #     'wrapper': '0x75cb093e4d61d2a2e65d8e0bbb01de8d89b53481',
-        #     'coingecko_platform': 'metis-andromeda',
-        #     'coingecko_id': 'metis-token',
-        #     'blockscout': 1,
-        #     'order': 19,
-        #     'support': 0,
-        # },
         "Metis": {
             "scanner": "explorer.metis.io",
             "explorer_url": "https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api",
@@ -412,18 +377,9 @@ class Chain:
             "order": 25,
             "support": 3,
         },
-        # 'Boba': {
-        #     'scanner': 'blockexplorer.bobabeam.boba.network',
-        #     'wrapper': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000',
-        #     'coingecko_id': 'boba-network',
-        #     'blockscout': 1,
-        #     'order': 26,
-        #     'support': 3
-        # },
         "Boba": {
             "scanner": "bobascan.com",
             "scanner_name": "Bobascan",
-            "api_key": "api_key_bobascan",
             "wrapper": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000",
             "debank_mapping": "boba",
             "order": 26,
@@ -457,15 +413,6 @@ class Chain:
             "order": 29,
             "support": 0,
         },
-        # 'Bitgert': {
-        #     'scanner': 'brisescan.com',
-        #     'scanner_name': 'Brisescan',
-        #     'base_asset':'BRISE',
-        #     'wrapper': '0x0eb9036cbe0f052386f36170c6b07ef0a0e3f710',
-        #     'coingecko_id': 'bitrise-token',
-        #     'blockscout': 1,
-        #     'order': 28
-        # },
         "ETC": {
             "scanner": "blockscout.com",
             "explorer_url": "https://blockscout.com/etc/mainnet/api",
@@ -592,7 +539,7 @@ class Chain:
 
         api_key = None
         if "api_key" in conf:
-            api_key = os.environ.get(conf["api_key"])
+            api_key = current_app.config[conf["api_key"]]
         outbound_bridges = ()
         inbound_bridges = ()
         wrapper = None
@@ -1622,7 +1569,7 @@ class Chain:
 
     def covalent_download(self, chain_data, pb_alloc=None, max_requests=50):
         tstart = time.time()
-        key = os.environ.get("api_key_covalenthq")  # premium
+        api_key = current_app.config["COVALENTHQ_API_KEY"]  # premium
         addresses = chain_data["import_addresses"]
 
         try:
@@ -1633,7 +1580,7 @@ class Chain:
         log("covalent_download", self.name, addresses, filename="covalent.txt")
 
         session = requests.session()
-        session.auth = (key, "")
+        session.auth = (api_key, "")
         session.headers = {"Content-Type": "application/json"}
 
         covalent_dump = {}

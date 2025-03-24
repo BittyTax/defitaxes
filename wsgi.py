@@ -13,7 +13,7 @@ application = create_app(Config, instance_path)
 application.register_blueprint(driver)
 
 with application.app_context():
-    log("env check", os.environ.get("api_key_etherscan"), filename="env_check.txt")
+    log("env check", application.config["ETHERSCAN_API_KEY"], filename="env_check.txt")
 
 # Assumes Nginx is acting as a reverse proxy.
 application.wsgi_app = ProxyFix(  # type: ignore[method-assign]
