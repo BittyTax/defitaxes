@@ -1,5 +1,9 @@
+from typing import Optional
+
 import redis
 from flask import Flask
+
+from config import Config
 
 from .views.admin import admin
 from .views.chains import chains
@@ -10,11 +14,13 @@ from .views.typing import typing
 from .views.uploads import uploads
 
 
-def create_app(config_class) -> Flask:
-    app = Flask(__name__)
+def create_app(config_class: type[Config], instance_path: Optional[str] = None) -> Flask:
+    app = Flask(__name__, instance_path=instance_path)
     app.config.from_object(config_class)
 
-    app.redis = redis.Redis.from_url(app.config.get("REDIS_URL"), decode_responses=True)
+    app.extensions["redis"] = redis.Redis.from_url(
+        str(app.config.get("REDIS_URL")), decode_responses=True
+    )
 
     app.register_blueprint(main)
     app.register_blueprint(chains)

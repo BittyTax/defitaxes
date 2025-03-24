@@ -5,7 +5,7 @@ import time
 import traceback
 from collections import defaultdict
 from decimal import ROUND_HALF_EVEN, Decimal
-from typing import List, Optional, Set, TypedDict, Union, Unpack
+from typing import Any, List, NotRequired, Optional, TypedDict, Unpack
 
 from flask import current_app
 
@@ -33,12 +33,12 @@ def dec(num: float, places: int) -> Decimal:
 
 
 class LogParams(TypedDict):
-    buffer: Optional[List[str]]
-    ignore_time: bool
-    prettify: bool
-    filename: str
-    print_only: bool
-    log_only: bool
+    buffer: NotRequired[Optional[List[str]]]
+    ignore_time: NotRequired[bool]
+    prettify: NotRequired[bool]
+    filename: NotRequired[str]
+    print_only: NotRequired[bool]
+    log_only: NotRequired[bool]
 
 
 class Logger:
@@ -61,7 +61,7 @@ class Logger:
         if not os.path.exists(path):
             os.makedirs(path)
 
-    def log(self, *args: str, **kwargs: Unpack[LogParams]) -> None:
+    def log(self, *args: Any, **kwargs: Unpack[LogParams]) -> None:
         t = time.time()
         glob = False
         if "WRITE ALL" in args:
@@ -147,7 +147,7 @@ class Logger:
             pass
 
 
-def log(*args: str, **kwargs: Unpack[LogParams]) -> None:
+def log(*args: Any, **kwargs: Unpack[LogParams]) -> None:
     debug_level = current_app.config["DEBUG_LEVEL"]
 
     if debug_level > 0:
@@ -157,7 +157,7 @@ def log(*args: str, **kwargs: Unpack[LogParams]) -> None:
         logger.log(*args, **kwargs)
 
 
-def log_error(*args: str, **kwargs: Unpack[LogParams]) -> None:
+def log_error(*args: Any, **kwargs: Unpack[LogParams]) -> None:
     logger = Logger(address="glob")
     try:
         trace = traceback.format_exc()
@@ -180,11 +180,7 @@ def decustom(val: Optional[str]) -> tuple[Optional[str], bool]:
         return val, custom
 
 
-def sql_in(
-    lst: Union[
-        int, float, bool, str, List[Union[int, float, bool, str]], Set[Union[int, float, bool, str]]
-    ],
-) -> str:
+def sql_in(lst: Any) -> str:
     if isinstance(lst, (int, float, bool)):
         return "(" + str(lst) + ")"
 

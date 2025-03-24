@@ -15,7 +15,7 @@ class Redis:
     KEY_RUNNING = "running"
 
     def __init__(self, address: str) -> None:
-        self.R = current_app.redis
+        self.R = current_app.extensions["redis"]
         self.prefix = current_app.config["REDIS_PREFIX"]
         self.address = address
 
