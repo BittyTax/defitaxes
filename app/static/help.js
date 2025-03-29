@@ -17,8 +17,8 @@ function make_help_strings() {
             'header': 'Balanced transactions', 'explanation':
                 '<p>If a transaction is balanced we assume that the total amount of ' + fiat + ' that you sent out is the same as you received. ' +
                 'More precisely, total dollar amount spent on transfers that are "Buy at market price" is the same as amount received from transfers that are "Sell at market price".</p>' +
-                '<p>This allows us to infer dollar rates for tokens that are not on Coingecko, for example Uniswap pool tokens. ' +
-                'If all tokens are on Coingecko it allows us to use a more precise exhange rate for them.</p>' +
+                '<p>This allows us to infer dollar rates for tokens that are not on CoinGecko, for example Uniswap pool tokens. ' +
+                'If all tokens are on CoinGecko it allows us to use a more precise exhange rate for them.</p>' +
                 '<p>The checkbox has no effect if there are only inbound transfers, or only outbound transfers.</p>'
         },
         'vaultid': {
@@ -83,7 +83,7 @@ function make_help_strings() {
             'header': 'Tax treatment options', 'explanation':
                 '<h4>Ignore</h4><p>This transfer is ignored entirely, including in calculations of your available assets. If you ignore an inbound transfer and then spend it, ' +
                 'that action will open a short position. If you ignore one transfer of a token, we recommend ignoring all transfers involving that token.</p>' +
-                '<h4>Buy</h4><p>Buy some tokens, spend ' + fiat + '. Default price is ' + fiat + ' market price as provided by Coingecko (which may occasionally be wrong). You can adjust the price yourself. ' +
+                '<h4>Buy</h4><p>Buy some tokens, spend ' + fiat + '. Default price is ' + fiat + ' market price as provided by CoinGecko (which may occasionally be wrong). You can adjust the price yourself. ' +
                 'This is typically not a taxable event and by itself has no effect on your tax forms (except when closing a short position).</p>' +
                 '<h4>Sell</h4><p>Sell some tokens, receive ' + fiat + '. Opposite of "Buy" treatment. Selling tokens is a taxable event and will add one or several lines to 8949 form. ' +
                 '<p>Anytime you spend your crypto on some service or product is also a "Sell".</p>' +
@@ -119,14 +119,14 @@ function make_help_strings() {
                 'and manually create a transaction where you are buying/selling this token at the time and price you specified.</p>' +
                 '<h4>Spending crypto on a service or a product</h4><p>For tax purposes, this is a sale of that crypto for ' + fiat + ' and should be assigned a "sell" treatment.</p>' +
                 '<h4>Bridging tokens between the same address on different blockchains</h4><p>We have some built-in handling for this, if both blockchains are supported. If sent amount is ' +
-                'exactly the same as received amount, and sent token and received token are the same as per Coingecko, we set both transfers to "ignore". If there is any ' +
+                'exactly the same as received amount, and sent token and received token are the same as per CoinGecko, we set both transfers to "ignore". If there is any ' +
                 'difference between the sent transfer and the received transfer, we set the sent transfer to "deposit to vault" and received transfer to "exit vault".</p>' +
                 '<p>If you bridged to/from a different wallet address, or to/from a blockchain we don\'t support, we treat it as a usual external transfer described above.</p>' +
                 '<h4>Exchange token A for token B</h4><p>This is a sale of token A, and a simultaneous purchase of token B. It is a balanced transaction, meaning total amount of ' + fiat + ' going out and ' +
                 'coming in is the same.</p>' +
                 '<h4>Provide liquidity into a liquidity pool</h4><p>Typically you would deposit some amount of token A and some amount of token B into a pool, in return getting receipt token LP. ' +
                 'We treat this as exchange of tokens A and B for LP: this is a sale of token A, a sale of token B, and a purchase of token LP. The transaction is balanced, allowing us to infer the ' +
-                '' + fiat + ' rate for LP even though it is typically not available on Coingecko.</p><p>An alternate way to treat this is depositing tokens A and B into a common vault, and ignoring ' +
+                '' + fiat + ' rate for LP even though it is typically not available on CoinGecko.</p><p>An alternate way to treat this is depositing tokens A and B into a common vault, and ignoring ' +
                 'transfers of token LP. This may help decrease your number of taxable events, but is more error-prone.</p>' +
                 '<h4>Provide liquidity elsewhere</h4><p>If you get something back, it\'s better treat it as an exchange of one thing for the other (apply ' +
                 'provided "Swap" custom type). If you didn\'t get anything back, treat it as "deposit to vault".</p>' +
@@ -144,7 +144,7 @@ function make_help_strings() {
                 'tokens representing collateral out of your address. Set this transfer to "dispose for free" to treat as capital loss. On your last transaction repaying the loan, ' +
                 'instead of "Repay loan" use "Fully repay loan" to let the software know the loan should be considered closed.</p>' +
                 '<h4>Airdrop</h4><p>If this is a spammy worthless airdrop, you can just set it to "ignore". If it\'s a real airdrop, treat is as "income". You may need to specify ' +
-                'the price of airdropped tokens manually if you got the airdrop before they were listed on Coingecko.</p>' +
+                'the price of airdropped tokens manually if you got the airdrop before they were listed on CoinGecko.</p>' +
                 '<h4>Wrap/unwrap</h4><p>Those are surprisingly annoying because they don\'t look like your normal exchange on the blockchain. We treat it as exchange of wrapped version ' +
                 'for unwrapped, or vice-versa. However, if we failed to automatically classify a wrap, you may need to create a manual transaction making sure you spend the tokens ' +
                 'to get the other version of them.</p>' +
@@ -159,11 +159,11 @@ function make_help_strings() {
         },
         'dataimport': {
             'header': 'Balance inspection', 'explanation': '<p>We check if we imported the data correctly from the scanners by comparing your current token balances ' +
-                '(provided by debank.com or Solana RPC) and NFTs (provided by simplehash.com or Solana RPC) ' +
+                '(provided by DeBank.com or Solana RPC) and NFTs (provided by Reservoir.tools or Solana RPC) ' +
                 'to what we calculated by going through every one of your transactions (including the ones you created manually). ' +
-                'Tokens with positive balances not supported by debank.com are ignored. Tokens for which no exchange rate can be found are ignored. ' +
-                'NFTs not supported by simplehash.com are ignored. ERC-1155 NFTs are only supported on Ethereum. </p>' +
-                '<p>A mismatch would indicate a rebasing token (most likely), missing data in the scanner (possible), an error in our code, or in debank/simplehash (unlikely). Tax treatment ' +
+                'Tokens with positive balances not supported by DeBank.com are ignored. Tokens for which no exchange rate can be found are ignored. ' +
+                'NFTs not supported by Reservoir are ignored. ERC-1155 NFTs are only supported on Ethereum. </p>' +
+                '<p>A mismatch would indicate a rebasing token (most likely), missing data in the scanner (possible), an error in our code, or in DeBank/Reservoir (unlikely). Tax treatment ' +
                 'has no effect. This means that even if you set tax treatment to "ignore", the transfer would still be counted.</p>' +
                 '<p>This automatically detects rebasing tokens and other tokens that adjust your balance without a blockchain transaction. ' +
                 'Blockscout-based scanners for smaller chains (Kava, Canto, Aurora, some others) seem to often miss bridging transactions. ' +
@@ -173,7 +173,7 @@ function make_help_strings() {
             'header': 'Sorta kinda fix the discrepancy', 'explanation': '<p>There is no way for us to detect when rebases happen, or when your token balance changes without ' +
                 'a blockchain transaction for some other reason. However, we can try to approximate it. Using this will create manual transactions (as if you created them yourself) by ' +
                 'following these rules:</p><p>1) Whenever we detect your token balance going negative, we will create a transaction just before that moment to make sure your token balance goes ' +
-                'to zero instead.</p><p>2) After your very last transaction with the token, we will create another one to make sure your final balance matches the one we retrieved from debank.com.</p>'
+                'to zero instead.</p><p>2) After your very last transaction with the token, we will create another one to make sure your final balance matches the one we retrieved from DeBank.com.</p>'
         },
         'turbotax': {
             'header': 'Instructions for TurboTax Online', 'explanation':

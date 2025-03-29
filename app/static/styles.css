@@ -20,12 +20,6 @@ ul {
 }
 
 div#address_form {
-    /*padding: 10px;
-    margin-left:auto;
-    margin-right:auto;
-    display:inline-block;
-    margin-top:15%;
-    z-index:5;*/
     padding: 10px;
     position: absolute;
     top: 50%;
@@ -91,7 +85,6 @@ div.transaction {
     margin-right: auto;
     margin-bottom: 10px;
     border-radius: 20px;
-    /*border: 1px solid #A0A0A0;*/
     border: 1px solid white;
     position: relative;
     z-index: 1;
@@ -123,7 +116,6 @@ div.tx_row_1 {
     margin-bottom: 5px;
 }
 
-/*colors -- order matters! */
 .t_class_10 {
     background-color: #9EFF9E;
 }
@@ -215,10 +207,6 @@ div#tax_block {
     z-index: 10;
 }
 
-div#tax_block div {
-    /* margin-bottom:20px;*/
-}
-
 div#tax_block a {
     cursor: pointer;
     color: blue;
@@ -232,43 +220,6 @@ div#tax_block a#calc_tax {
     margin-top: 5px;
     margin-bottom: 30px;
 }
-
-/*div#tax_results {
-    position:fixed;
-    min-width: 200px;
-    top: 200px;
-    right:0;
-    border: 1px solid #BBBBBB;
-    background-color:white;
-    padding:20px;
-    z-index:
-}
-
-div#tax_results th {
-    font-weight:normal;
-    font-size:12px;
-    color:black;
-}
-
-div#tax_results td {
-    max-width:75px;
-    overflow:hidden;
-    font-size:12px;
-    max-height:15px;
-    margin-right:5px;
-}
-
-div#tax_results tr.worthless {
-    display:none;
-}
-
-div#tax_results #worthless_display {
-    cursor: pointer;
-    color:blue;
-    text-decoration:underline;
-    font-size: 12px;
-    text-align:center;
-}*/
 
 div.holdings_holder {
     max-height: 200px;
@@ -304,7 +255,6 @@ div#progressbar_wrap {
 div.transfers {
     padding: 10px;
     display: inline-block;
-    /*display:none;*/
     background-color: rgba(0, 0, 0, 0.03);
     border-radius: 10px;
 }
@@ -366,14 +316,12 @@ td.r_vaultid {
 }
 
 select.treatment {
-    /*width:70px;*/
     border: 0px;
     background-color: transparent;
     margin-left: -3px;
 }
 
 div.primary_selected {
-    /*min-width:60%;*/
     border: 3px solid #464646;
 }
 
@@ -421,7 +369,7 @@ div.sim_buttons .undo_changes {
 
 div.grayed {
     cursor: default;
-    background-color: default;
+    background-color: gray;
 }
 
 div#operations_block {
@@ -471,15 +419,6 @@ div#scroll_block {
 div.scroll_row {
     text-align: right;
 }
-
-/*div#scroll_block a {
-    display:inline-block;
-    color:blue;
-    cursor:pointer;
-    text-decoration: underline;
-    margin-right:5px;
-    margin-left:5px;
-}*/
 
 .next_ic,
 .prev_ic {
@@ -670,11 +609,6 @@ div.hidden_custom>select.tc_rule_sel,
 span.r_from_addr>select.tc_rule_sel,
 span.r_to_addr>select.tc_rule_sel {
     border-radius: 5px;
-}
-
-.shifted {
-    /*position:relative;
-    top:300px;*/
 }
 
 .hidden {
@@ -1003,7 +937,6 @@ div.inspect_item_ic {
     height: 16px;
     background-image: url(icons.png);
     background-position: -16px -128px;
-    /*opacity:0.7;*/
 }
 
 div.opened div.inspect_item_ic {
@@ -1249,10 +1182,6 @@ div#help_main_popup {
     min-width: 700px;
 }
 
-div.help_main_content {
-    /*width: 1000px;*/
-}
-
 div.help_topics {
     float: left;
     width: 20%;
@@ -1392,7 +1321,6 @@ div.paginationjs li {
     display: inline-block;
     width: 30px;
     line-height: 20px;
-    /*border:1px solid white;*/
 }
 
 div.paginationjs li.active {
@@ -1749,8 +1677,6 @@ div.cg_error {
     font-weight: bold;
 }
 
-div#up_error_file {}
-
 div#up_error_source {
     margin-top: -17px;
 }
@@ -2032,7 +1958,7 @@ a#home {
 
 div#made_by {
     display: block;
-    width: 150px;
+    width: 200px;
     float: right;
     color: #AAAAAA;
 }

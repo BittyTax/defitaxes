@@ -29,7 +29,7 @@ def chain_support():
             balance_token_support = "Not available"
 
         balance_nft_support = "Not available"
-        if "simplehash_mapping" in conf:
+        if "reservoir_mapping" in conf:
             balance_nft_support = "Available"
 
         cp_availability = 3
@@ -39,8 +39,8 @@ def chain_support():
             cp_availability = conf["cp_availability"]
 
         if chain_name == "Solana":
-            data_source_url = "https://www.quicknode.com/"
-            data_source_name = "QuickNode RPC"
+            data_source_url = "https://www.blockdaemon.com"
+            data_source_name = "Blockdaemon RPC"
             balance_nft_support = "Available"
 
         chains_support_info.append(

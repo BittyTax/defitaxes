@@ -2,9 +2,9 @@
 
 This repository is a fork of [iraykhel/defitaxes](https://github.com/iraykhel/defitaxes), which its owner [iraykhel](https://github.com/iraykhel) is no longer able to maintain due to work constraints.
 
-DeFi Taxes is a web-based application designed to help you calculate your crypto taxes using on-chain transactions.
+DeFi Taxes is a web-based application designed to help you calculate your crypto taxes using blockchain transaction data.
 
-Many EVMs are supported (e.g., Ethereum, BNB Smart Chain, Base, Arbitrum, Polygon, etc.) as well as Solana. See the [supported chains list](https://defitaxes.us/chains.html) for the full list.
+Many EVM blockchains are supported (e.g., Ethereum, BNB Smart Chain, Base, Arbitrum, Polygon, etc.) as well as Solana. See the [supported chains list](https://defitaxes.us/chains.html) for the full list.
 
 If you would like to contribute to this project, follow the instructions below to set up a development server.
 
@@ -99,7 +99,7 @@ API keys can mostly be obtained for free by subscribing to the websites listed b
 | `DEFITAXES_COINGECKO_API_KEY` | [CoinGecko](https://www.coingecko.com)<sup>2</sup> - Cryptocurrency prices |
 | `DEFITAXES_TWELVEDATA_API_KEY` | [Twelve Data](https://twelvedata.com) - Fiat prices |
 | `DEFITAXES_DEBANK_API_KEY` | [DeBank](https://cloud.debank.com)<sup>3</sup> - Current token balances, some protocol names |
-| `DEFITAXES_SIMPLEHASH_API_KEY` | [SimpleHash](https://simplehash.com) - Currently held NFTs |
+| `DEFITAXES_RESERVOIR_API_KEY` | [Reservoir](https://reservoir.tools) - Currently held NFTs |
 | `DEFITAXES_COVALENTHQ_API_KEY` | [CovalentHQ](https://goldrush.dev)<sup>4</sup>  - Fees on Arbitrum, errors on Fantom, some counterparty info on Ethereum |
 
 <sup>1</sup> - No API key is currently required.  

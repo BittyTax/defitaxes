@@ -526,7 +526,7 @@ function display_transfers(transaction, editable = false) {
     rows_table += "<tr class='transfers_header'><td class=c>From</td><td></td><td class=c>To</td>"
     rows_table += "<td class=r_amount>Amount</td><td class=r_token>Token</td>"
     if (editable)
-        rows_table += "<td class=r_coingecko_id>Coingecko ID</td>"
+        rows_table += "<td class=r_coingecko_id>CoinGecko ID</td>"
     rows_table += "<td class=r_treatment>Tax treatment</td>";
     if (editable) {
         show_vaultid_col = true;
@@ -604,7 +604,7 @@ function display_transfers(transaction, editable = false) {
                 coingecko_id_text = 'not found'
             else
                 coingecko_id_text = coingecko_id
-            row_html += "<td class='r_coingecko_id'><a class='edit_coingecko_id' chain='" + chain + "' contract='" + token_contract + "' symbol='" + token_name + "' title='Change Coingecko ID'>" + coingecko_id_text + "</a></td>";
+            row_html += "<td class='r_coingecko_id'><a class='edit_coingecko_id' chain='" + chain + "' contract='" + token_contract + "' symbol='" + token_name + "' title='Change CoinGecko ID'>" + coingecko_id_text + "</a></td>";
         }
 
         row_html += "<td class='r_treatment" + cust_treatment_class + "'>"
@@ -2000,7 +2000,7 @@ function assist_block() {
     html += "<div class='assist_line'><div id='help_main'>HELP!</div></div>"
     html += "<div class='assist_line'><div id='social'>"
     html += "<a id='discord_link' href='https://discord.gg/E7yuUZ3W4X' target='_blank'>Discord</a>"
-    html += "<a id='twitter_link' href='https://twitter.com/defitaxes' target='_blank'>Twitter</a>"
+    html += "<a id='xcom_link' href='https://x.com/defitaxes' target='_blank'>X</a>"
     html += "</div></div>"
     html += "<div class='assist_line'><div id='attribution'>Powered by <a href='chains.html' target=_blank>Etherscan, Blockscout, Routescan</a></div></div>"
     html += "</div>";
@@ -2546,23 +2546,23 @@ $('body').on('click', 'a.edit_coingecko_id', function () {
     let l2 = lookup_info["chain_mapping"][chain]
     let matches = set_intersect(l1, l2);
     let html = "<div id='overlay'></div><div id='cg_popup' class='popup'>";
-    html += "<div class=header>Change Coingecko ID for " + symbol + "</div>"
+    html += "<div class=header>Change CoinGecko ID for " + symbol + "</div>"
     if (current_id == fiat) {
         html += "<div id='cg_popup_explanation'>Sorry, you can't change coingecko ID for " + fiat + ". It will literally make the server explode.</div>"
         html += "<div class='sim_buttons'><div id='cg_cancel'>Cancel</div></div>"
     } else {
         html += "<div id='cg_popup_explanation'><p>This will change coingecko ID everywhere you transferred " + contract + " on " + chain + ", in " + matches.size + " transactions. "
         html += "It will not affect other chains/uploads, or other tokens with the same symbol. It may cause the software to download additional rate data from coingecko, "
-        html += "and it may affect your taxes. All tokens with the same Coingecko ID are treated as the same asset when calculating your taxes.</p>"
-        html += "<p>You can find Coingecko ID in the browser address bar on Coingecko, or here:<br>"
+        html += "and it may affect your taxes. All tokens with the same CoinGecko ID are treated as the same asset when calculating your taxes.</p>"
+        html += "<p>You can find CoinGecko ID in the browser address bar on CoinGecko, or here:<br>"
         html += "<img src='static/coingecko_id.png'></p>"
         html += "</div>"
 
         if (current_id == 'not found')
             current_id = ''
 
-        html += "New Coingecko ID (leave empty to return to default): <input type=text id='coingecko_id_input' value='" + current_id + "' chain='" + chain + "' current_coingecko_id='" + current_id + "' contract='" + contract + "' />"
-        html += "<div class='sim_buttons'><div id='cg_process'>Change Coingecko ID</div>";
+        html += "New CoinGecko ID (leave empty to return to default): <input type=text id='coingecko_id_input' value='" + current_id + "' chain='" + chain + "' current_coingecko_id='" + current_id + "' contract='" + contract + "' />"
+        html += "<div class='sim_buttons'><div id='cg_process'>Change CoinGecko ID</div>";
         html += "<div id='cg_cancel'>Cancel</div></div></div>";
     }
     $('#content').append(html);

@@ -23,8 +23,8 @@ from .constants import USER_DIRNAME
 from .fiat_rates import Twelve
 from .imports import Import
 from .redis_wrap import Redis
+from .reservoir import get_nft_balances_reservoir
 from .signatures import Signatures
-from .simplehash import get_nft_balances_simplehash
 from .solana import Solana
 from .sqlite import SQLite
 from .transaction import Transaction, Transfer
@@ -905,7 +905,14 @@ class User:
 
         path = os.path.join(current_app.instance_path, USER_DIRNAME)
         path = os.path.join(path, self.address)
-        filenames = ["db.db", "transactions.json", "rates", "data_cache.json", "calculator_cache"]
+        filenames = [
+            "db.db",
+            "transactions.json",
+            "transactions.csv",
+            "rates",
+            "data_cache.json",
+            "calculator_cache",
+        ]
         for filename in filenames:
             try:
                 os.remove(os.path.join(path, filename))
@@ -2683,7 +2690,7 @@ class User:
                 )
                 log_error("Failed to get counterparties from debank", active_address)
 
-        get_nft_balances_simplehash(all_chains, self.current_import, progress_bar)
+        get_nft_balances_reservoir(all_chains, self.current_import, progress_bar)
 
     def start_import(self, all_chains):
         self.current_import = Import(self, all_chains)
@@ -3930,7 +3937,7 @@ class User:
         transactions, _ = self.load_transactions(chain_dict, tx_id_list=txids)
         needed_token_times = self.get_needed_token_times(transactions)
 
-        pb.set("Updating Coingecko data", 50)
+        pb.set("Updating CoinGecko data", 50)
         coingecko.init_from_db_2(chain_dict, needed_token_times, pb)
         coingecko.dump(self)
 

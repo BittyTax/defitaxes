@@ -643,7 +643,7 @@ function show_inspections_dc(data) {
         }
     }
     if (debank_unsupported_chains.length > 0) {
-        summary += "<br>(" + debank_unsupported_chains.join(", ") + " not supported by Debank.com)"
+        summary += "<br>(" + debank_unsupported_chains.join(", ") + " not supported by DeBank.com)"
     }
 
     if (level < 10)
@@ -730,7 +730,7 @@ $('body').on('click', '.dc_token .item_header', function () {
         let usd_diff = diff_data['usd_diff']
         let latest = diff_data['latest']
         let running = diff_data['running']
-        let source = "Debank.com"
+        let source = "DeBank.com"
         if (chain_name == 'Solana')
             source = "Solana RPC"
         else if (debank_unsupported_chains.includes(chain_name))
@@ -746,7 +746,7 @@ $('body').on('click', '.dc_token .item_header', function () {
         let latest = diff_data['latest']
         let running = diff_data['running']
         html += "<tr><td>We calculated</td><td>" + round(running) + "</td></tr>"
-        let source = "Simplehash API"
+        let source = "Reservoir API"
         if (chain_name == 'Solana')
             source = "Solana RPC"
         html += "<tr><td>" + source + " returned</td><td>" + round(latest) + "</td></tr>"

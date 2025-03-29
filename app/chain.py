@@ -6,6 +6,7 @@ import time
 import traceback
 from collections import defaultdict
 from datetime import datetime
+from typing import Any, Dict, List, NotRequired, Optional, Set, TypedDict
 
 import bs4
 import requests
@@ -17,8 +18,28 @@ from .transaction import Transaction, Transfer, normalize_address
 from .util import is_ethereum, log, log_error
 
 
+class ChainData(TypedDict):  # pylint: disable=too-few-public-methods
+    chain: "Chain"
+    import_addresses: List[str]
+    display_addresses: Set[str]
+    is_upload: bool
+    transactions: Dict[str, Transaction]
+    current_tokens: Dict[str, Dict[str, "CurrentToken"]]
+    covalent_dump: Any
+
+
+class CurrentToken(TypedDict):  # pylint: disable=too-few-public-methods
+    symbol: str
+    amount: NotRequired[str]
+    rate: NotRequired[str]
+    nft_amounts: Dict[int, str]
+    acquisitions: Dict[int, Optional[int]]
+    type: str
+    eth_floor: NotRequired[str]
+
+
 class Chain:
-    CONFIG = {
+    CONFIG: Dict[str, Dict[str, Any]] = {
         "ETH": {
             "scanner": "etherscan.io",
             "api_key": "ETHERSCAN_API_KEY",
@@ -43,7 +64,7 @@ class Chain:
             "rate_limit": 10,
             "coingecko_platform": "ethereum",
             "coingecko_id": "ethereum",
-            "simplehash_mapping": "ethereum",
+            "reservoir_mapping": "",
             "covalent_mapping": "eth-mainnet",
             "dexscreener_mapping": "ethereum",
             "order": 0,
@@ -62,7 +83,7 @@ class Chain:
             "coingecko_platform": "binance-smart-chain",
             "coingecko_id": "binancecoin",
             "debank_mapping": "bsc",
-            "simplehash_mapping": "bsc",
+            "reservoir_mapping": "bsc",
             "covalent_mapping": "bsc-mainnet",
             "order": 1,
             "support": 10,
@@ -78,7 +99,7 @@ class Chain:
             "coingecko_platform": "arbitrum-one",
             "coingecko_id": "ethereum",
             "debank_mapping": "arb",
-            "simplehash_mapping": "arbitrum",
+            "reservoir_mapping": "arbitrum",
             "covalent_mapping": "arbitrum-mainnet",
             "order": 2,
             "support": 10,
@@ -94,6 +115,7 @@ class Chain:
             "coingecko_platform": "arbitrum-nova",
             "coingecko_id": "ethereum",
             "debank_mapping": "nova",
+            "reservoir_mapping": "arbitrum-nova",
             "dexscreener_mapping": "arbitrumnova",
             "order": 3,
             "support": 3,
@@ -109,7 +131,7 @@ class Chain:
             "covalent_mapping": "matic-mainnet",
             "coingecko_id": "matic-network",
             "debank_mapping": "matic",
-            "simplehash_mapping": "polygon",
+            "reservoir_mapping": "polygon",
             "order": 4,
             "support": 10,
             "1155_support": 3,
@@ -123,7 +145,7 @@ class Chain:
             "coingecko_platform": "polygon-zkevm",
             "coingecko_id": "ethereum",
             "debank_mapping": "pze",
-            "simplehash_mapping": "polygon-zkevm",
+            "reservoir_mapping": "polygon-zkevm",
             "explorer_url": "https://api-zkevm.polygonscan.com/api",
             "order": 4.5,
             "support": 3,
@@ -136,7 +158,7 @@ class Chain:
             "wrapper": "0x4200000000000000000000000000000000000006",
             "coingecko_id": "ethereum",
             "debank_mapping": "base",
-            "simplehash_mapping": "base",
+            "reservoir_mapping": "base",
             "order": 4.6,
             "support": 3,
             "1155_support": 3,
@@ -151,7 +173,7 @@ class Chain:
             "wrapper": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
             "coingecko_id": "avalanche-2",
             "debank_mapping": "avax",
-            "simplehash_mapping": "avalanche",
+            "reservoir_mapping": "avalanche",
             "order": 5,
             "support": 10,
             "1155_support": 5,
@@ -168,7 +190,7 @@ class Chain:
             "coingecko_platform": "optimistic-ethereum",
             "coingecko_id": "ethereum",
             "debank_mapping": "op",
-            "simplehash_mapping": "optimism",
+            "reservoir_mapping": "optimism",
             "explorer_url": "https://api-optimistic.etherscan.io/api",
             # 'covalent_mapping': 10, #covalent fees are also wrong
             "order": 6,
@@ -272,7 +294,6 @@ class Chain:
             "coingecko_platform": "xdai",
             "coingecko_id": "xdai",
             "debank_mapping": "xdai",
-            "simplehash_mapping": "gnosis",
             "dexscreener_mapping": "gnosischain",
             "order": 16,
             "support": 3,
@@ -842,7 +863,7 @@ class Chain:
 
         return all_data
 
-    def check_validity(self, address):
+    def check_validity(self, address: str) -> bool:
         if self.name == "Solana":
             if address[0] == "0" and address[1] == "x":
                 return False
@@ -1751,7 +1772,7 @@ class Chain:
         if self.name in [
             "ETH",
             "Polygon",
-        ]:  # some tokens recorded as ERC20 are actually ERC721, correct w/data from simplehash
+        ]:  # some tokens recorded as ERC20 are actually ERC721, correct w/data from Reservoir
             for txhash, T in transactions.items():
                 ts = int(T.ts)
                 if ts not in timestamp_mapping:
@@ -1788,7 +1809,7 @@ class Chain:
                             else:
                                 not_switch.add(contract)
 
-        # Etherscan missed mints? Fix from simplehash
+        # Etherscan missed mints? Fix from Reservoir
         log("timestamp_mapping", timestamp_mapping, filename="aux_log.txt")
         for address in addresses:
             if address not in chain_data["current_tokens"]:
@@ -1844,7 +1865,7 @@ class Chain:
                                     None,
                                 ]
                                 log(
-                                    "Adding minting transfer based on simplehash",
+                                    "Adding minting transfer based on Reservoir",
                                     type,
                                     row,
                                     filename="aux_log.txt",

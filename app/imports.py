@@ -1,9 +1,12 @@
-# -*- coding: utf-8 -*-
 import time
+from typing import TYPE_CHECKING, Optional, Union
 
 from flask import current_app
 
 from .util import normalize_address, sql_in
+
+if TYPE_CHECKING:
+    from .chain import Chain
 
 
 class Import:
@@ -16,7 +19,7 @@ class Import:
     COVALENT_FAILURE = 5
     DEBANK_TOKEN_FAILURE = 6
     DEBANK_PROTOCOL_FAILURE = 7
-    SIMPLEHASH_FAILURE = 8
+    RESERVOIR_FAILURE = 8
     PRESENCE_CHECK_FAILURE = 9
     NO_CREATORS = 10
     TOO_MANY_TRANSACTIONS = 11
@@ -79,15 +82,15 @@ class Import:
 
     def add_error(
         self,
-        error_code,
-        chain=None,
-        address=None,
-        txtype=None,
-        additional_text=None,
-        debug_info=None,
-        txhash=None,
-    ):
-        chain_name = None
+        error_code: int,
+        chain: Optional[Union["Chain", str]] = None,
+        address: Optional[str] = None,
+        txtype: Optional[str] = None,
+        additional_text: Optional[str] = None,
+        debug_info: Optional[str] = None,
+        txhash: Optional[str] = None,
+    ) -> None:
+        chain_name = ""
         if chain is not None:
             if isinstance(chain, str):
                 chain_name = chain
@@ -179,9 +182,9 @@ class Import:
                     "failed to get protocol data from DeBank, "
                     "some counterparty info might be missing"
                 )
-            elif code == Import.SIMPLEHASH_FAILURE:
+            elif code == Import.RESERVOIR_FAILURE:
                 s = (
-                    "failed to get NFT data from Simplehash, "
+                    "failed to get NFT data from Reservoir, "
                     "some NFT transfers might be missing or incorrect"
                 )
             elif code == Import.PRESENCE_CHECK_FAILURE:
