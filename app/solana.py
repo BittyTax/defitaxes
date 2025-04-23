@@ -2,6 +2,7 @@ import base64
 import copy
 import math
 import random
+import re
 import struct
 import time
 import traceback
@@ -34,6 +35,8 @@ class Solana(Chain):
         "KeccakSecp256k11111111111111111111111111111": "Secp256k1 Program",
         "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s": "Metaplex Metadata",
     }
+
+    JUPITER_DCA = "DCA265Vj8a9CEuX1eb1LWRnDT7uK6q1xMipnNyatn23M"
 
     def __init__(self):
         Chain.__init__(self, "Solana", "solscan.io", "SOL", None)
@@ -224,7 +227,7 @@ class Solana(Chain):
             if total in num_list:
                 return [[num_list.index(total)]]
 
-        if running_sum in [total - fee, total, total + fee]:
+        if running_sum in (total - fee, total, total + fee):
             return accum_list
         if running_sum > 0 and running_sum > total + fee:
             if am_spawn:
@@ -376,11 +379,9 @@ class Solana(Chain):
                     parsed = instruction["parsed"]
                     programId = instruction["programId"]
                     if "type" in parsed:
-                        type = parsed["type"]
+                        inst_type = parsed["type"]
                         info = parsed["info"]
-                        if (
-                            len(type) >= 17 and type[:17] == "initializeAccount"
-                        ):  # can be initializeAccount3
+                        if inst_type.startswith("initializeAccount"):  # can be initializeAccount3
                             if programId == SPL:
                                 owner = info["owner"]
                                 if owner == address:
@@ -422,10 +423,10 @@ class Solana(Chain):
                     programId = instruction["programId"]
 
                     if "type" in parsed:
-                        type = parsed["type"]
+                        inst_type = parsed["type"]
                         info = parsed["info"]
                         if programId == SPL:
-                            if type == "setAuthority":
+                            if inst_type == "setAuthority":
                                 if info["authorityType"] == "accountOwner":
                                     proxy = info["account"]
                                     old = get_authority(info)
@@ -451,10 +452,10 @@ class Solana(Chain):
                                             )
                                         log("Reassign proxy here", proxy, mint)
 
-                            if type in ["transfer", "transferChecked"]:
+                            if inst_type in ("transfer", "transferChecked"):
                                 destination = info["destination"]
                                 source = info["source"]
-                                for adr in [source, destination]:
+                                for adr in (source, destination):
                                     if adr not in proxy_to_token_mapping:
                                         missing_owners[adr] = None
 
@@ -702,11 +703,13 @@ class Solana(Chain):
         prev_ts = None
         nonce = 0
         all_transactions = {}
-        type_counter = defaultdict(int)
+        inst_type_counter = defaultdict(int)
 
         tx_sol_mismatches = []
         for tx_hash, ts, tx_data in tx_list:
             transfers = []
+            unowned_transfers = []
+
             if ts != prev_ts:
                 nonce = 1
             else:
@@ -723,6 +726,7 @@ class Solana(Chain):
             pre_balances = tx_data["meta"]["preBalances"]
             post_balances = tx_data["meta"]["postBalances"]
             fee = tx_data["meta"]["fee"]
+            log_instructions = self._log_instructions(tx_data["meta"]["logMessages"])
 
             sol_changes = {}
             accounts_data = tx_data["transaction"]["message"]["accountKeys"]
@@ -730,10 +734,20 @@ class Solana(Chain):
             if accounts_data[0]["pubkey"] == address:
                 add_fee = True
 
+            tx_accounts = []
             for entry_idx, entry in enumerate(accounts_data):
                 account = entry["pubkey"]
+                tx_accounts.append(account)
                 sol_changes[account] = post_balances[entry_idx] - pre_balances[entry_idx]
             log("sol_changes after post/pre-balances", sol_changes, filename="solana.txt")
+
+            tx_account_to_mint = {}
+            for info in list(
+                tx_data["meta"]["preTokenBalances"] + tx_data["meta"]["postTokenBalances"]
+            ):
+                account_idx = info["accountIndex"]
+                mint = info["mint"]
+                tx_account_to_mint[tx_accounts[account_idx]] = mint
 
             total_rewards_fee = 0
             rewards_data = tx_data["meta"]["rewards"]
@@ -749,7 +763,7 @@ class Solana(Chain):
             wsol_indexes = defaultdict(dict)
             ata_wsol_list = []  # Associated Token Accounts
 
-            programs = set()
+            programs = defaultdict(int)
             operations = defaultdict(int)
             for instruction in all_instructions:
                 log("instruction pass 3", instruction, filename="solana.txt")
@@ -757,7 +771,7 @@ class Solana(Chain):
                     "programId" in instruction and instruction["source"] == "message"
                 ):  # only outer ones
                     programId = instruction["programId"]
-                    programs.add(programId)
+                    programs[programId] += 1
                 if "parsed" not in instruction:
                     continue
 
@@ -766,16 +780,16 @@ class Solana(Chain):
                     programId = instruction["programId"]
                     if "type" not in parsed:
                         continue
-                    type = parsed["type"]
-                    operations[type] += 1
+                    inst_type = parsed["type"]
+                    operations[inst_type] += 1
                     info = parsed["info"]
-                    type_counter[type] += 1
+                    inst_type_counter[inst_type] += 1
 
-                    if type in ["transfer", "transferChecked"]:
+                    if inst_type in ("transfer", "transferChecked"):
                         source = info["source"]
                         destination = info["destination"]
                         if programId == SOL:
-                            if address in [source, destination]:
+                            if address in (source, destination):
                                 lamports = info["lamports"]
                                 sol_amount = lamports / 1000000000.0
                                 log("SOL transfer", source, "->", destination, ":", sol_amount)
@@ -838,14 +852,15 @@ class Solana(Chain):
                                 continue
 
                             if token is not None:
-                                if address in [source, destination]:
+                                if address in (source, destination):
                                     if "amount" in info:
-                                        decimals = all_token_data[token]["decimals"]
-                                        amount = float(info["amount"]) / float(
-                                            math.pow(10, decimals)
+                                        amount = (
+                                            float(info["amount"])
+                                            / 10 ** all_token_data[token]["decimals"]
                                         )
                                     elif "tokenAmount" in info:
                                         amount = info["tokenAmount"]["uiAmount"]
+
                                     if amount > 0:
                                         log(
                                             "Token transfer",
@@ -893,22 +908,48 @@ class Solana(Chain):
 
                                             if destination == address:
                                                 account_deposits[proxy] += amount * 1000000000
+                            else:
+                                if inst_type in ("transfer", "transferChecked"):
+                                    source = info["source"]
+                                    destination = info["destination"]
+                                    token = tx_account_to_mint[destination]
 
-                    if type == "createIdempotent":
+                                    if "amount" in info:
+                                        amount = (
+                                            float(info["amount"])
+                                            / 10 ** all_token_data[token]["decimals"]
+                                        )
+                                    elif "tokenAmount" in info:
+                                        amount = info["tokenAmount"]["uiAmount"]
+
+                                    if token == WSOL:
+                                        token = "SOL"
+
+                                    # Store other transfers which might be needed (i.e. Jupiter DCA)
+                                    unowned_transfers.append(
+                                        {
+                                            "what": token,
+                                            "from": source,
+                                            "to": destination,
+                                            "amount": amount,
+                                        }
+                                    )
+
+                    if inst_type == "createIdempotent":
                         # SPL Associated Token Account
                         if info["wallet"] == address and info["mint"] == WSOL:
                             account = info["account"]
                             if account not in ata_wsol_list:
                                 ata_wsol_list.append(account)
 
-                    if type == "create":
+                    if inst_type == "create":
                         if info["source"] == address:
                             account = info["account"]
                             if account not in account_deposits:
                                 account_deposits[account] = 0
                                 log("create", account, filename="solana.txt")
 
-                    if type in ["createAccount", "createAccountWithSeed"]:
+                    if inst_type in ("createAccount", "createAccountWithSeed"):
                         source = info["source"]
                         if source == address:  # and owner == address:
                             destination = info["newAccount"]
@@ -934,7 +975,7 @@ class Solana(Chain):
                                 }
                             )
 
-                    if type == "closeAccount":
+                    if inst_type == "closeAccount":
                         destination = info["destination"]
                         if destination == address:  # and owner == address:
                             account = info["account"]
@@ -968,7 +1009,7 @@ class Solana(Chain):
                                 )
                                 account_deposits[account] -= lamports
 
-                    if type == "setAuthority" and programId == SPL:
+                    if inst_type == "setAuthority" and programId == SPL:
                         if info["authorityType"] == "accountOwner":
                             proxy = info["account"]
                             old = get_authority(info)
@@ -981,7 +1022,7 @@ class Solana(Chain):
                                 destination = address
                                 source = old
 
-                            if address in [source, destination]:
+                            if address in (source, destination):
                                 if proxy_is_owned(proxy, ts):
                                     token = proxy_to_token_mapping[proxy]["token"]
                                     log(
@@ -1003,17 +1044,17 @@ class Solana(Chain):
                                         }
                                     )
 
-                    if type in ["mintTo", "mintToChecked", "burn"] and programId == SPL:
+                    if inst_type in ("mintTo", "mintToChecked", "burn") and programId == SPL:
                         token = info["mint"]
                         proxy = info["account"]
 
                         if proxy_is_owned(proxy, ts):
                             decimals = all_token_data[token]["decimals"]
-                            if type == "mintToChecked":
+                            if inst_type == "mintToChecked":
                                 amount = float(info["tokenAmount"]["uiAmount"])
                             else:
                                 amount = float(info["amount"]) / float(math.pow(10, decimals))
-                            if "mintTo" in type:
+                            if "mintTo" in inst_type:
                                 log("Mint", token, amount, filename="solana.txt")
                                 transfers.append(
                                     {"what": token, "from": "mint", "to": address, "amount": amount}
@@ -1138,13 +1179,13 @@ class Solana(Chain):
                                 filename="solana.txt",
                             )
                             transfers[idx]["what"] = "SOL"
-                    for type in ["create", "deposit", "close"]:
-                        if type in transfer_index_dict:
-                            to_delete.append(transfer_index_dict[type])
+                    for inst_type in ("create", "deposit", "close"):
+                        if inst_type in transfer_index_dict:
+                            to_delete.append(transfer_index_dict[inst_type])
                             log(
                                 "Deleting transfer",
-                                type,
-                                transfer_index_dict[type],
+                                inst_type,
+                                transfer_index_dict[inst_type],
                                 filename="solana.txt",
                             )
 
@@ -1195,6 +1236,23 @@ class Solana(Chain):
                             new_transfers.append(t)
                     transfers = new_transfers
 
+            if self.JUPITER_DCA in programs:
+                if (
+                    "OpenDca" in log_instructions
+                    or "OpenDcaV2" in log_instructions
+                    or "CloseDca" in log_instructions
+                ):
+                    for idx, t in enumerate(list(transfers)):
+                        if "destination_suspect" in t:
+                            # Remove DCA deposit/withdrawal
+                            transfers.pop(idx)
+                            break
+
+                if unowned_transfers:
+                    # Must be a DCA swap, add missing disposal
+                    unowned_transfers[0]["from"] = address
+                    transfers.append(unowned_transfers[0])
+
             if len(transfers) > 0:
                 T = Transaction(user, self)
                 for t in transfers:
@@ -1229,21 +1287,20 @@ class Solana(Chain):
                                     token = ua
 
                     program = None
-                    if len(programs) > 1:  # only allow one program, the weirdest one
-                        current_best = [None, -1]
-                        program_priority = list(Solana.NATIVE_PROGRAMS.keys())
-                        for prog_cand in list(programs):
-                            try:
-                                idx = program_priority.index(prog_cand)
-                                if idx > current_best[1]:
-                                    current_best = [prog_cand, idx]
-                            except:
-                                program = prog_cand
-                                break
+                    if programs:
+                        # Only allow one program
+                        non_native_progs = {
+                            k: v for (k, v) in programs.items() if k not in Solana.NATIVE_PROGRAMS
+                        }
+                        if non_native_progs:
+                            # The most used, non-native
+                            program = max(non_native_progs, key=non_native_progs.get)
                         else:
-                            program = current_best[0]
-                    elif len(programs) == 1:
-                        program = list(programs)[0]
+                            # Or highest importance, for native
+                            native_progs = [
+                                k for k in reversed(Solana.NATIVE_PROGRAMS) if k in programs
+                            ]
+                            program = native_progs[0]
 
                     if program is not None:
                         T.interacted = program
@@ -1251,7 +1308,7 @@ class Solana(Chain):
                         for op, cnt in operations.items():
                             op_str = op
                             if cnt > 1:
-                                op_str += "(x" + str(cnt) + ")"
+                                op_str += f"(x{cnt})"
                             op_str_lst.append(op_str)
                         T.function = ", ".join(op_str_lst)
 
@@ -1277,11 +1334,11 @@ class Solana(Chain):
                         T.grouping[-1][6] |= Transfer.SUSPECT_FROM
                     if "destination_suspect" in t and t["destination_suspect"]:
                         # Setting suspect destination in transfer
-                        T.grouping[-1][6] |= Transfer.SUSPECT_FROM
+                        T.grouping[-1][6] |= Transfer.SUSPECT_TO
                 all_transactions[tx_hash] = T
 
         log("final all_token_data", all_token_data)
-        log("type_counter", type_counter)
+        log("inst_type_counter", inst_type_counter)
         log("tx_sol_mismatches", len(tx_sol_mismatches), tx_sol_mismatches, filename="solana.txt")
         log("all_transactions length", len(all_transactions), filename="solana.txt")
         return all_transactions
@@ -1620,6 +1677,19 @@ class Solana(Chain):
             else:
                 # Adding transfer
                 destination.append(type, sub_data, synthetic=synthetic)
+
+    def _log_instructions(self, log_messages):
+        log_instructions = defaultdict(int)
+        if log_messages is None:
+            log_messages = []
+
+        for line in log_messages:
+            match = re.search(r"^Program log: Instruction: (.*)", line)
+            if match:
+                instruction = match.group(1)
+                log_instructions[instruction] += 1
+
+        return log_instructions
 
 
 class PublicKey:
