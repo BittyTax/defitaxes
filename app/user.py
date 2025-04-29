@@ -2284,6 +2284,8 @@ class User:
                 note,
             ]
 
+            url = f"https://{Chain.CONFIG[T['chain']]['scanner']}/tx/{T['hash']}"
+
             if len(T["counter_parties"]) == 0:
                 cp = ["", "", "", ""]
             else:
@@ -2320,7 +2322,7 @@ class User:
                     rate,
                 ]
 
-                csv_row = common + cp + transfer
+                csv_row = common + cp + transfer + [url]
                 csv_rows.append(csv_row)
 
         fields = [
@@ -2349,6 +2351,7 @@ class User:
             "coingecko id",
             "rate source",
             "USD rate",
+            "url",
         ]
 
         with open(os.path.join(path, "transactions.csv"), "w", encoding="utf-8") as f:
