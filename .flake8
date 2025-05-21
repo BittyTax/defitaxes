@@ -2,3 +2,4 @@
 # E203: whitespace before ':' - to be compatible with Black
 extend-ignore = E203
 max-line-length = 100
+exclude = .venv
