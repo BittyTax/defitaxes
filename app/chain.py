@@ -165,9 +165,9 @@ class Chain:
             "routescan": 8453,
         },
         "Avalanche": {
-            "scanner": "snowtrace.io",
+            "scanner": "snowscan.xyz",
             "base_asset": "AVAX",
-            "api_key": "SNOWTRACE_API_KEY",
+            "api_key": "SNOWSCAN_API_KEY",
             "outbound_bridges": ["0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab"],
             "inbound_bridges": ["0x0000000000000000000000000000000000000000"],
             "wrapper": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
@@ -179,7 +179,6 @@ class Chain:
             "1155_support": 5,
             "cp_availability": 5,
             "covalent_mapping": "avalanche-mainnet",
-            "explorer_url": "https://api.routescan.io/v2/network/mainnet/evm/43114/api",
             "routescan": 43114,
         },
         "Optimism": {

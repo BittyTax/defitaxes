@@ -87,7 +87,7 @@ API keys can mostly be obtained for free by subscribing to the websites listed b
 | `DEFITAXES_NOVA_ARBISCAN_API_KEY` | [Nova Arbiscan](https://nova.arbiscan.io) - Arbitrum Nova (ETH) Blockchain Explorer |
 | `DEFITAXES_POLYGONSCAN_API_KEY` | [Polygonscan](https://polygonscan.com) - Polygon PoS Chain (POL) Blockchain Explorer |
 | `DEFITAXES_ZKEVM_POLYGONSCAN_API_KEY` | [zkEVM Polygonscan](https://zkevm.polygonscan.com) - Polygon zkEVM (ETH) Blockchain Explorer |
-| `DEFITAXES_SNOWTRACE_API_KEY` | [Snowtrace](https://snowtrace.io)<sup>1</sup> - Snowtrace Multichain Explorer |
+| `DEFITAXES_SNOWSCAN_API_KEY` | [SnowScan](https://snowscan.xyz) - Snowtrace Multichain Explorer |
 | `DEFITAXES_FTMSCAN_API_KEY` | [FTMScan](https://ftmscan.com) - Fantom (FTM) Blockchain Explorer |
 | `DEFITAXES_CRONOSCAN_API_KEY` | [Cronoscan](https://cronoscan.com) - Cronos Chain (CRO) Blockchain Explorer |
 | `DEFITAXES_CELOSCAN_API_KEY` | [Celoscan](https://celoscan.io) - Celo Chain (CELO) Blockchain Explorer |
@@ -96,16 +96,15 @@ API keys can mostly be obtained for free by subscribing to the websites listed b
 | `DEFITAXES_GNOSISSCAN_API_KEY` | [GnosisScan](https://gnosisscan.io) - Gnosis Chain (xDAI) Blockchain Explorer |
 | `DEFITAXES_BASESCAN_API_KEY` | [BaseScan](https://basescan.org) - Base (ETH) Blockchain Explorer |
 | `DEFITAXES_BLOCKDAEMON_API_KEY` | [Blockdaemon](https://www.blockdaemon.com) - Blockdaemon Institutional Gateway to Web3 (Solana RPC) |
-| `DEFITAXES_COINGECKO_API_KEY` | [CoinGecko](https://www.coingecko.com)<sup>2</sup> - Cryptocurrency prices |
+| `DEFITAXES_COINGECKO_API_KEY` | [CoinGecko](https://www.coingecko.com)<sup>1</sup> - Cryptocurrency prices |
 | `DEFITAXES_TWELVEDATA_API_KEY` | [Twelve Data](https://twelvedata.com) - Fiat prices |
-| `DEFITAXES_DEBANK_API_KEY` | [DeBank](https://cloud.debank.com)<sup>3</sup> - Current token balances, some protocol names |
+| `DEFITAXES_DEBANK_API_KEY` | [DeBank](https://cloud.debank.com)<sup>2</sup> - Current token balances, some protocol names |
 | `DEFITAXES_RESERVOIR_API_KEY` | [Reservoir](https://reservoir.tools) - Currently held NFTs |
-| `DEFITAXES_COVALENTHQ_API_KEY` | [CovalentHQ](https://goldrush.dev)<sup>4</sup>  - Fees on Arbitrum, errors on Fantom, some counterparty info on Ethereum |
+| `DEFITAXES_COVALENTHQ_API_KEY` | [CovalentHQ](https://goldrush.dev)<sup>3</sup>  - Fees on Arbitrum, errors on Fantom, some counterparty info on Ethereum |
 
-<sup>1</sup> - No API key is currently required.  
-<sup>2</sup> - You can use either the CoinGecko "Demo" plan which is free, or the paid "Pro" plan.  
-<sup>3</sup> - DeBank is prepaid only, minimum 200 USDC.  
-<sup>4</sup> - GoldRush offer a 14-day fee trial, or paid plans start at $50/month.
+<sup>1</sup> - You can use either the CoinGecko "Demo" plan which is free, or the paid "Pro" plan.  
+<sup>2</sup> - DeBank is prepaid only, minimum 200 USDC.  
+<sup>3</sup> - GoldRush offer a 14-day fee trial, or paid plans start at $50/month.
 
 ---
 
