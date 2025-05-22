@@ -87,7 +87,7 @@ API keys can mostly be obtained for free by subscribing to the websites listed b
 | `DEFITAXES_NOVA_ARBISCAN_API_KEY` | [Nova Arbiscan](https://nova.arbiscan.io) - Arbitrum Nova (ETH) Blockchain Explorer |
 | `DEFITAXES_POLYGONSCAN_API_KEY` | [Polygonscan](https://polygonscan.com) - Polygon PoS Chain (POL) Blockchain Explorer |
 | `DEFITAXES_ZKEVM_POLYGONSCAN_API_KEY` | [zkEVM Polygonscan](https://zkevm.polygonscan.com) - Polygon zkEVM (ETH) Blockchain Explorer |
-| `DEFITAXES_SNOWSCAN_API_KEY` | [SnowScan](https://snowscan.xyz) - Snowtrace Multichain Explorer |
+| `DEFITAXES_SNOWSCAN_API_KEY` | [SnowScan](https://snowscan.xyz) - Avalanche C-Chain (AVAX) Blockchain Explorer |
 | `DEFITAXES_FTMSCAN_API_KEY` | [FTMScan](https://ftmscan.com) - Fantom (FTM) Blockchain Explorer |
 | `DEFITAXES_CRONOSCAN_API_KEY` | [Cronoscan](https://cronoscan.com) - Cronos Chain (CRO) Blockchain Explorer |
 | `DEFITAXES_CELOSCAN_API_KEY` | [Celoscan](https://celoscan.io) - Celo Chain (CELO) Blockchain Explorer |
