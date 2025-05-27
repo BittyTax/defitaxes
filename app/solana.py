@@ -40,7 +40,6 @@ class Solana(Chain):
 
     def __init__(self):
         Chain.__init__(self, "Solana", "solscan.io", "SOL", None)
-        self.explorer_url = "https://public-api.solscan.io/"
         self.domain = "explorer.solana.com"
         self.wait_time = 0.25
 

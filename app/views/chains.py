@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, render_template
 
-from ..chain import Chain
+from ..chain import Chain, ChainApiType
 from ..util import log
 
 chains = Blueprint("chains", __name__)
@@ -20,9 +20,7 @@ def chain_support():
         data_source_url = "https://" + conf["scanner"]
         data_source_name = conf["scanner"]
 
-        erc1155_support = 0
-        if "1155_support" in conf:
-            erc1155_support = conf["1155_support"]
+        erc1155_support = conf.get("1155_support", 0)
 
         balance_token_support = "Available"
         if "debank_mapping" in conf and conf["debank_mapping"] is None:
@@ -32,11 +30,9 @@ def chain_support():
         if "reservoir_mapping" in conf:
             balance_nft_support = "Available"
 
-        cp_availability = 3
-        if "blockscout" in conf:
+        cp_availability = conf.get("cp_availability", 3)
+        if conf.get("primary_api") is ChainApiType.BLOCKSCOUT:
             cp_availability = 0
-        if "cp_availability" in conf:
-            cp_availability = conf["cp_availability"]
 
         if chain_name == "Solana":
             data_source_url = "https://www.blockdaemon.com"

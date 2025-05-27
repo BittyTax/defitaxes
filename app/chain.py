@@ -6,6 +6,7 @@ import time
 import traceback
 from collections import defaultdict
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, NotRequired, Optional, Set, TypedDict
 
 import bs4
@@ -16,6 +17,13 @@ from .imports import Import
 from .pool import Pools
 from .transaction import Transaction, Transfer, normalize_address
 from .util import is_ethereum, log, log_error
+
+
+class ChainApiType(Enum):
+    ETHERSCAN_V1 = "Etherscan v1 API"
+    ETHERSCAN_V2 = "Etherscan v2 API"
+    ROUTESCAN_V2 = "Routescan v2 API"
+    BLOCKSCOUT = "Blockscout API"
 
 
 class ChainData(TypedDict):  # pylint: disable=too-few-public-methods
@@ -42,7 +50,11 @@ class Chain:
     CONFIG: Dict[str, Dict[str, Any]] = {
         "ETH": {
             "scanner": "etherscan.io",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "backup_api": ChainApiType.ROUTESCAN_V2,
             "api_key": "ETHERSCAN_API_KEY",
+            "api_url": "https://api.etherscan.io/api",
+            "evm_chain_id": 1,
             "outbound_bridges": [
                 "0XA0C68C638235EE32657E8F720A23CEC1BFC77C77",  # polygon
                 "0X40EC5B33F54E0E8A33A975908C5BA1C14E5BBBDF",  # polygon
@@ -66,17 +78,18 @@ class Chain:
             "coingecko_id": "ethereum",
             "reservoir_mapping": "",
             "covalent_mapping": "eth-mainnet",
-            "dexscreener_mapping": "ethereum",
             "order": 0,
             "support": 10,
             "1155_support": 10,
             "cp_availability": 10,
-            "routescan": 1,
         },
         "BSC": {
             "scanner": "bscscan.com",
             "base_asset": "BNB",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "BSCSCAN_API_KEY",
+            "api_url": "https://api.bscscan.com/api",
+            "evm_chain_id": 56,
             "outbound_bridges": ["0X2170ED0880AC9A755FD29B2688956BD959F933F8"],
             "inbound_bridges": ["0X8894E0A0C962CB723C1976A4421C95949BE2D4E3"],
             "wrapper": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
@@ -92,7 +105,10 @@ class Chain:
         "Arbitrum": {
             "scanner": "arbiscan.io",
             "base_asset": "ETH",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "ARBISCAN_API_KEY",
+            "api_url": "https://api.arbiscan.io/api",
+            "evm_chain_id": 42161,
             "outbound_bridges": ["0x0000000000000000000000000000000000000064"],
             "inbound_bridges": ["0x000000000000000000000000000000000000006e"],
             "wrapper": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
@@ -108,22 +124,26 @@ class Chain:
         },
         "Arbitrum Nova": {
             "scanner": "nova.arbiscan.io",
-            "explorer_url": "https://api-nova.arbiscan.io/api",
             "base_asset": "ETH",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "NOVA_ARBISCAN_API_KEY",
+            "api_url": "https://api-nova.arbiscan.io/api",
+            "evm_chain_id": 42170,
             "wrapper": "0xf906A9c7b4d1207B38a2f18445047764763aB450",
             "coingecko_platform": "arbitrum-nova",
             "coingecko_id": "ethereum",
             "debank_mapping": "nova",
             "reservoir_mapping": "arbitrum-nova",
-            "dexscreener_mapping": "arbitrumnova",
             "order": 3,
             "support": 3,
         },
         "Polygon": {
             "scanner": "polygonscan.com",
             "base_asset": "MATIC",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "POLYGONSCAN_API_KEY",
+            "api_url": "https://api.polygonscan.com/api",
+            "evm_chain_id": 137,
             "outbound_bridges": ["0X7CEB23FD6BC0ADD59E62AC25578270CFF1B9F619"],
             "inbound_bridges": ["0X0000000000000000000000000000000000000000"],
             "wrapper": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
@@ -140,13 +160,15 @@ class Chain:
         "zkEVM": {
             "scanner": "zkevm.polygonscan.com",
             "base_asset": "ETH",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "ZKEVM_POLYGONSCAN_API_KEY",
+            "api_url": "https://api-zkevm.polygonscan.com/api",
+            "evm_chain_id": 1101,
             "wrapper": "0x4F9A0e7FD2Bf6067db6994CF12E4495Df938E6e9",
             "coingecko_platform": "polygon-zkevm",
             "coingecko_id": "ethereum",
             "debank_mapping": "pze",
             "reservoir_mapping": "polygon-zkevm",
-            "explorer_url": "https://api-zkevm.polygonscan.com/api",
             "order": 4.5,
             "support": 3,
             "1155_support": 3,
@@ -154,7 +176,11 @@ class Chain:
         "Base": {
             "scanner": "basescan.org",
             "base_asset": "ETH",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "backup_api": ChainApiType.ROUTESCAN_V2,
             "api_key": "BASESCAN_API_KEY",
+            "api_url": "https://api.basescan.org/api",
+            "evm_chain_id": 8453,
             "wrapper": "0x4200000000000000000000000000000000000006",
             "coingecko_id": "ethereum",
             "debank_mapping": "base",
@@ -162,12 +188,15 @@ class Chain:
             "order": 4.6,
             "support": 3,
             "1155_support": 3,
-            "routescan": 8453,
         },
         "Avalanche": {
             "scanner": "snowscan.xyz",
             "base_asset": "AVAX",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "backup_api": ChainApiType.ROUTESCAN_V2,
             "api_key": "SNOWSCAN_API_KEY",
+            "api_url": "https://api.snowscan.xyz/api",
+            "evm_chain_id": 43114,
             "outbound_bridges": ["0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab"],
             "inbound_bridges": ["0x0000000000000000000000000000000000000000"],
             "wrapper": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
@@ -179,28 +208,32 @@ class Chain:
             "1155_support": 5,
             "cp_availability": 5,
             "covalent_mapping": "avalanche-mainnet",
-            "routescan": 43114,
         },
         "Optimism": {
             "scanner": "optimistic.etherscan.io",
             "base_asset": "ETH",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "backup_api": ChainApiType.ROUTESCAN_V2,
             "api_key": "OPTIMISTIC_ETHERSCAN_API_KEY",
+            "api_url": "https://api-optimistic.etherscan.io/api",
+            "evm_chain_id": 10,
             "wrapper": "0x4200000000000000000000000000000000000006",
             "coingecko_platform": "optimistic-ethereum",
             "coingecko_id": "ethereum",
             "debank_mapping": "op",
             "reservoir_mapping": "optimism",
-            "explorer_url": "https://api-optimistic.etherscan.io/api",
             # 'covalent_mapping': 10, #covalent fees are also wrong
             "order": 6,
             "support": 5,
             "cp_availability": 3,
-            "routescan": 10,
         },
         "Fantom": {
             "scanner": "ftmscan.com",
             "base_asset": "FTM",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "FTMSCAN_API_KEY",
+            "api_url": "https://api.ftmscan.com/api",
+            "evm_chain_id": 250,
             "wrapper": "0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83",
             "debank_mapping": "ftm",
             "covalent_mapping": "fantom-mainnet",
@@ -212,7 +245,10 @@ class Chain:
         "Cronos": {
             "scanner": "cronoscan.com",
             "base_asset": "CRO",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "CRONOSCAN_API_KEY",
+            "api_url": "https://api.cronoscan.com/api",
+            "evm_chain_id": 25,
             "wrapper": "0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23",
             "coingecko_id": "crypto-com-chain",
             "debank_mapping": "cro",
@@ -222,16 +258,19 @@ class Chain:
         },
         "Solana": {
             "scanner": "solscan.io",
+            "base_asset": "SOL",
+            "coingecko_id": "solana",
             "order": 9,
             "support": 10,
             "cp_availability": 5,
-            "base_asset": "SOL",
-            "coingecko_id": "solana",
         },  # special handling
         "Kava": {
             "scanner": "explorer.kava.io",
+            "base_asset": "KAVA",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://explorer.kava.io/api",
+            "evm_chain_id": 2222,
             "wrapper": "0xc86c7c0efbd6a49b35e8714c5f59d99de09a225b",
-            "blockscout": 1,
             "debank_mapping": "kava",
             "order": 10,
             "support": 0,
@@ -239,7 +278,10 @@ class Chain:
         "Celo": {
             "scanner": "celoscan.io",
             "base_asset": "CELO",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "CELOSCAN_API_KEY",
+            "api_url": "https://api.celoscan.io/api",
+            "evm_chain_id": 42220,
             "wrapper": "0xc579D1f3CF86749E05CD06f7ADe17856c2CE3126",
             "debank_mapping": "celo",
             "order": 11,
@@ -247,9 +289,11 @@ class Chain:
         },
         "Moonbeam": {
             "scanner": "moonscan.io",
-            "explorer_url": "https://api-moonbeam.moonscan.io/api",
             "base_asset": "GLMR",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "MOONSCAN_API_KEY",
+            "api_url": "https://api-moonbeam.moonscan.io/api",
+            "evm_chain_id": 1284,
             "wrapper": "0xacc15dc74880c9944775448304b263d191c6077f",
             "debank_mapping": "mobm",
             "order": 10,
@@ -257,8 +301,11 @@ class Chain:
         },
         "Canto": {
             "scanner": "explorer.plexnode.wtf",
+            "base_asset": "CANTO",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://explorer.plexnode.wtf/api",
+            "evm_chain_id": 7700,
             "wrapper": "0x826551890dc65655a0aceca109ab11abdbd7a07b",
-            "blockscout": 1,
             "debank_mapping": "canto",
             "order": 10,
             "support": 3,
@@ -266,8 +313,10 @@ class Chain:
         "Aurora": {
             "scanner": "explorer.mainnet.aurora.dev",
             "base_asset": "ETH",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://explorer.mainnet.aurora.dev/api",
+            "evm_chain_id": 1313161554,
             "debank_mapping": "aurora",
-            "blockscout": 1,
             "order": 10,
             "support": 3,
             "cp_availability": 3,
@@ -275,6 +324,10 @@ class Chain:
         "HECO": {
             "scanner": "hecoinfo.com",
             "base_asset": "HT",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_key": "HECOINFO_API_KEY",
+            "api_url": "https://api.hecoinfo.com/api",
+            "evm_chain_id": 128,
             "wrapper": "0x5545153ccfca01fbd7dd11c0b23ba694d9509a6f",
             "inbound_bridges": ["0xd8e32fbfb7da70237c130a6d8d6e12471f6d029d"],
             "outbound_bridges": ["0xd8e32fbfb7da70237c130a6d8d6e12471f6d029d"],
@@ -288,12 +341,14 @@ class Chain:
         "Gnosis": {
             "scanner": "gnosisscan.io",
             "base_asset": "XDAI",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "GNOSISSCAN_API_KEY",
+            "api_url": "https://api.gnosisscan.io/api",
+            "evm_chain_id": 100,
             "wrapper": "0xe91d153e0b41518a2ce8dd3d7944fa863463a97d",
             "coingecko_platform": "xdai",
             "coingecko_id": "xdai",
             "debank_mapping": "xdai",
-            "dexscreener_mapping": "gnosischain",
             "order": 16,
             "support": 3,
             "1155_support": 3,
@@ -301,19 +356,22 @@ class Chain:
         "KCC": {
             "scanner": "scan.kcc.io",
             "base_asset": "KCS",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://scan.kcc.io/api",
+            "evm_chain_id": 321,
             "coingecko_platform": "kucoin-community-chain",
             "coingecko_id": "kucoin-shares",
             "debank_mapping": "kcc",
-            "blockscout": 1,
             "order": 17,
             "support": 3,
         },
         "Moonriver": {
             "scanner": "moonriver.moonscan.io",
-            "scanner_name": "Moonscan",
-            "explorer_url": "https://api-moonriver.moonscan.io/api",
             "base_asset": "MOVR",
+            "primary_api": ChainApiType.ETHERSCAN_V1,
             "api_key": "MOONRIVER_MOONSCAN_API_KEY",
+            "api_url": "https://api-moonriver.moonscan.io/api",
+            "evm_chain_id": 1285,
             "wrapper": "0x98878b06940ae243284ca214f92bb71a2b032b8a",
             "debank_mapping": "movr",
             "order": 18,
@@ -321,85 +379,97 @@ class Chain:
         },
         "Metis": {
             "scanner": "explorer.metis.io",
-            "explorer_url": "https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api",
+            "base_asset": "METIS",
+            "primary_api": ChainApiType.ROUTESCAN_V2,
+            "evm_chain_id": 1088,
             "wrapper": "0x75cb093e4d61d2a2e65d8e0bbb01de8d89b53481",
             "coingecko_platform": "metis-andromeda",
             "coingecko_id": "metis-token",
             "debank_mapping": "metis",
             "order": 19,
             "support": 3,
-            "routescan": 1088,
         },
         "Oasis": {
             "scanner": "explorer.emerald.oasis.dev",
             "base_asset": "ROSE",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://explorer.emerald.oasis.dev/api",
+            "evm_chain_id": 42262,
             "wrapper": "0x21c718c22d52d0f3a789b752d4c2fd5908a8a733",
             "coingecko_id": "oasis-network",
-            "dexscreener_mapping": "oasisemerald",
             "debank_mapping": None,
-            "blockscout": 1,
             "order": 20,
             "support": 0,
         },
         "Songbird": {
             "scanner": "songbird-explorer.flare.network",
             "base_asset": "SGB",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_url": "https://songbird-explorer.flare.network/api",
+            "evm_chain_id": 19,
             "wrapper": "0x02f0826ef6ad107cfc861152b32b52fd11bab9ed",
-            "dexscreener_mapping": None,
-            "blockscout": 1,
             "order": 21,
             "support": 3,
-            "routescan": 19,
         },
         "Flare": {
             "scanner": "flare-explorer.flare.network",
             "base_asset": "FLR",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_url": "https://flare-explorer.flare.network/api",
+            "evm_chain_id": 14,
             "wrapper": "0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d",
             "coingecko_id": "flare-networks",
             "coingecko_platform": "flare-network",
             "debank_mapping": "flr",
-            "blockscout": 1,
             "order": 22,
             "support": 3,
-            "routescan": 14,
         },
         "Step": {
             "scanner": "stepscan.io",
-            "scanner_name": "Stepscan",
             "base_asset": "FITFI",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_url": "https://stepscan.io/api",
+            "evm_chain_id": 1234,
             "wrapper": "0xb58a9d5920af6ac1a9522b0b10f55df16686d1b6",
             "coingecko_platform": "step-network",
             "coingecko_id": "step-app-fitfi",
             "debank_mapping": "step",
-            "dexscreener_mapping": "stepnetwork",
-            "blockscout": 1,
             "order": 23,
             "support": 3,
-            "routescan": 1234,
         },
         "Doge": {
             "scanner": "explorer.dogechain.dog",
+            "base_asset": "DOGE",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://explorer.dogechain.dog/api",
+            "evm_chain_id": 2000,
             "wrapper": "0xb7ddc6414bf4f5515b52d8bdd69973ae205ff101",
             "coingecko_platform": "dogechain",
             "coingecko_id": "dogecoin",
             "debank_mapping": "doge",
-            "dexscreener_mapping": "dogechain",
-            "blockscout": 1,
             "order": 24,
             "support": 3,
         },
         "Velas": {
             "scanner": "evmexplorer.velas.com",
             "base_asset": "VLX",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://evmexplorer.velas.com/api",
+            "evm_chain_id": 106,
             "wrapper": "0xb58a9d5920af6ac1a9522b0b10f55df16686d1b6",
             "debank_mapping": None,
-            "blockscout": 1,
             "order": 25,
             "support": 3,
         },
         "Boba": {
             "scanner": "bobascan.com",
-            "scanner_name": "Bobascan",
+            "base_asset": "ETH",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://bobascan.com/api",
+            "evm_chain_id": 288,
             "wrapper": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000",
             "debank_mapping": "boba",
             "order": 26,
@@ -407,41 +477,48 @@ class Chain:
         },
         "SXnetwork": {
             "scanner": "explorer.sx.technology",
+            "base_asset": "SX",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://explorer.sx.technology/api",
+            "evm_chain_id": 416,
             "wrapper": "0xaa99bE3356a11eE92c3f099BD7a038399633566f",
             "coingecko_platform": "sx-network",
             "coingecko_id": "sx-network",
             "debank_mapping": None,
-            "blockscout": 1,
             "order": 27,
             "support": 3,
         },
         "smartBCH": {
             "scanner": "sonar.cash",
-            "scanner_name": "SonarCash",
             "base_asset": "BCH",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://sonar.cash/api",
+            "evm_chain_id": 10000,
             "wrapper": "0x3743ec0673453e5009310c727ba4eaf7b3a1cc04",
             "coingecko_id": "bitcoin-cash",
             "debank_mapping": None,
-            "blockscout": 1,
             "order": 28,
             "support": 0,
         },
         "EVMOS": {
             "scanner": "blockscout.evmos.org",
+            "base_asset": "EVMOS",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://blockscout.evmos.org/api",
+            "evm_chain_id": 9001,
             "wrapper": "0xd4949664cd82660aae99bedc034a0dea8a0bd517",
-            "blockscout": 1,
             "order": 29,
             "support": 0,
         },
         "ETC": {
             "scanner": "blockscout.com",
-            "explorer_url": "https://blockscout.com/etc/mainnet/api",
             "base_asset": "ETC",
+            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://blockscout.com/etc/mainnet/api",
+            "evm_chain_id": 61,
             "wrapper": "0x1953cab0E5bFa6D4a9BaD6E05fD46C1CC6527a5a",
             "coingecko_platform": "ethereum-classic",
             "coingecko_id": "ethereum-classic",
-            "dexscreener_mapping": "ethereumclassic",
-            "blockscout": 1,
             "order": 100,
             "support": 3,
         },
@@ -453,31 +530,25 @@ class Chain:
         domain,
         main_asset,
         api_key,
+        primary_api=None,
+        backup_api=None,
+        evm_chain_id=None,
         outbound_bridges=(),
         inbound_bridges=(),
         wrapper=None,
         rate_limit=5,
-        blockscout=False,
-        explorer_url=None,
+        api_url=None,
         is_upload=False,
         discontinued=False,
-        routescan_id=None,
     ):
         self.is_upload = is_upload
         self.domain = domain
-        self.explorer_url = None
-        if domain is not None:
-            if explorer_url is not None:
-                self.explorer_url = explorer_url
-            else:
-                if blockscout:
-                    self.explorer_url = "https://" + domain + "/api"
-                else:
-                    self.explorer_url = "https://api." + domain + "/api"
-
-        self.blockscout = blockscout
         self.main_asset = main_asset
         self.api_key = api_key
+        self.primary_api = primary_api
+        self.backup_api = backup_api
+        self.evm_chain_id = evm_chain_id
+        self.api_url = api_url
         self.name = name
         self.outbound_bridges = []
         self.inbound_bridges = []
@@ -507,10 +578,6 @@ class Chain:
         self.proxy = "http://5uu5k:7sdcf2x2@104.128.115.239:5432"
         self.discontinued = discontinued
 
-        self.routescan_id = routescan_id
-        self.use_routescan_backup = False
-        if self.explorer_url is not None and "routescan.io" in self.explorer_url:
-            self.use_routescan_backup = True
         self.current_import = None
 
     def __str__(self):
@@ -543,8 +610,6 @@ class Chain:
             dump[chain_name] = {"scanner": scanner, "debank": debank}
         return dump
 
-        # scanner:'etherscan.io', base_token:'ETH', scanner_name:'Etherscan', debank:1
-
     @classmethod
     def from_upload(cls, upload_source):
         chain = Chain(upload_source, None, None, None, is_upload=True)
@@ -559,13 +624,13 @@ class Chain:
 
         api_key = None
         if "api_key" in conf:
-            api_key = current_app.config[conf["api_key"]]
+            api_key = current_app.config.get(conf["api_key"])
+
         outbound_bridges = ()
         inbound_bridges = ()
         wrapper = None
         rate_limit = 5
-        blockscout = False
-        explorer_url = None
+        api_url = None
 
         if "outbound_bridges" in conf:
             outbound_bridges = conf["outbound_bridges"]
@@ -579,33 +644,27 @@ class Chain:
         if "rate_limit" in conf:
             rate_limit = conf["rate_limit"]
 
-        if "blockscout" in conf:
-            blockscout = conf["blockscout"]
-
-        if "explorer_url" in conf:
-            explorer_url = conf["explorer_url"]
+        if "api_url" in conf:
+            api_url = conf["api_url"]
 
         discontinued = False
         if "support" in conf and conf["support"] == 0:
             discontinued = True
-
-        routescan_id = None
-        if "routescan" in conf:
-            routescan_id = conf["routescan"]
 
         chain = Chain(
             chain_name,
             conf["scanner"],
             base_asset,
             api_key,
+            conf.get("primary_api"),
+            conf.get("backup_api"),
+            conf.get("evm_chain_id"),
             outbound_bridges=outbound_bridges,
             inbound_bridges=inbound_bridges,
             wrapper=wrapper,
-            blockscout=blockscout,
-            explorer_url=explorer_url,
+            api_url=api_url,
             rate_limit=rate_limit,
             discontinued=discontinued,
-            routescan_id=routescan_id,
         )
         return chain
 
@@ -618,7 +677,7 @@ class Chain:
     def init_addresses(self, address_db, contract_list=None):
         log("init_addresses", self.name, filename="address_lookups.txt")
         t = time.time()
-        if self.addresses_initialized or self.blockscout:
+        if self.addresses_initialized or self.primary_api is ChainApiType.BLOCKSCOUT:
             return
 
         try:
@@ -684,9 +743,7 @@ class Chain:
         sort="asc",
         startblock=0,
     ):
-
         done = False
-        # errors = set()
         all_data = []
         tr_uids = set()
         cur_rep = 0
@@ -695,53 +752,65 @@ class Chain:
         if startblock is not None:
             sb = str(startblock)
 
-        headers = {}
-        if self.name in ["Moonriver", "Moonbeam"]:  # ,'Arbitrum','Optimism']:
-            headers = {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
-                ),
-                "cache-control": "max-age=0",
-                "accept-language": "en-US,en;q=0.9,ru;q=0.8",
-                "upgrade-insecure-requests": "1",
-                "accept": (
-                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
-                    "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
-                ),
-            }
         while not done:
             overlap_cnt = 0
             self.update_pb()
-            if self.use_routescan_backup:
-                explorer_url = (
-                    f"https://api.routescan.io/v2/network/mainnet/evm/"
-                    f"{self.routescan_id}/etherscan/api"
-                )
-                offset = 10000
-            else:
-                explorer_url = self.explorer_url
 
-            url = explorer_url + "?module=account&action=" + action + "&address=" + address
+            params = {}
+            if self.primary_api is ChainApiType.ETHERSCAN_V2:
+                if not self.evm_chain_id:
+                    raise RuntimeError("Missing evm_chain_id")
+
+                url = "https://api.etherscan.io/v2/api"
+                params["chainid"] = self.evm_chain_id
+                params["apikey"] = current_app.config["ETHERSCAN_API_KEY"]
+            elif self.primary_api is ChainApiType.ETHERSCAN_V1:
+                if not self.api_url:
+                    raise RuntimeError("Missing api_url")
+
+                if not self.api_key:
+                    raise RuntimeError("Missing api_key")
+
+                url = self.api_url
+                params["apikey"] = self.api_key
+            elif self.primary_api is ChainApiType.ROUTESCAN_V2:
+                if not self.evm_chain_id:
+                    raise RuntimeError("Missing evm_chain_id")
+
+                offset = 10000
+                url = (
+                    f"https://api.routescan.io/v2/network/mainnet/evm/"
+                    f"{self.evm_chain_id}/etherscan/api"
+                )
+            elif self.primary_api is ChainApiType.BLOCKSCOUT:
+                if not self.api_url:
+                    raise RuntimeError("Missing api_url")
+
+                url = self.api_url
+            else:
+                raise RuntimeError("Unexpected ChainApiType")
+
+            params["module"] = "account"
+            params["action"] = action
+            params["address"] = address
+
             if startblock is not None:
-                url += "&startblock=" + sb
-                if self.name == "HECO":
-                    url += "&endblock=1000000000"
-            if self.api_key is not None:
-                url += "&apikey=" + self.api_key
+                params["startblock"] = sb
             if offset is not None:
-                url += "&offset=" + str(offset)
+                params["offset"] = offset
             if page is not None:
-                url += "&page=" + str(page)
+                params["page"] = page
             if sort is not None:
-                url += "&sort=" + str(sort)
-            log("URL", url)
+                params["sort"] = sort
+
+            log("URL", url, params)
             resp = None
             try:
-                resp = requests.get(url, headers=headers, timeout=timeout)
+                resp = requests.get(url, params=params, timeout=timeout)
             except:
-                if self.routescan_id is not None and self.use_routescan_backup is False:
-                    self.use_routescan_backup = True
+                if self.backup_api:
+                    self.primary_api = self.backup_api
+
                     return self.get_all_transaction_from_api(
                         address,
                         action,
@@ -764,6 +833,7 @@ class Chain:
                     log_error(
                         "Failed to get transactions after " + str(reps) + " tries",
                         url,
+                        params,
                         "exception",
                         action,
                         address,
@@ -796,6 +866,7 @@ class Chain:
                         log_error(
                             "Failed to get transactions, bad status",
                             url,
+                            params,
                             action,
                             address,
                             self.name,
@@ -813,6 +884,7 @@ class Chain:
                     log_error(
                         "Failed to get transactions after " + str(reps) + " tries",
                         url,
+                        params,
                         "exception",
                         action,
                         address,
@@ -842,7 +914,15 @@ class Chain:
                     self.current_import.add_error(
                         Import.UNEXPECTED_DATA, chain=self, address=address, txtype=action
                     )
-                    log_error("Unexpected data from scanner", url, action, address, self.name, data)
+                    log_error(
+                        "Unexpected data from scanner",
+                        url,
+                        params,
+                        action,
+                        address,
+                        self.name,
+                        data,
+                    )
                     break
                 if uid not in tr_uids:
                     tr_uids.add(uid)
@@ -899,7 +979,7 @@ class Chain:
             mpp = 1000
 
         rq_cnt = 2
-        if not self.blockscout:
+        if self.primary_api is not ChainApiType.BLOCKSCOUT:
             rq_cnt += 1
         if self.name in [
             "ETH",
@@ -1013,7 +1093,7 @@ class Chain:
                 continue
 
             if self.name != "HECO":
-                if self.blockscout:
+                if self.primary_api is ChainApiType.BLOCKSCOUT:
                     hash = entry["transactionHash"]
                 else:
                     hash = entry["hash"]
@@ -1082,7 +1162,7 @@ class Chain:
             type = Transfer.ERC20
 
             # blockscout sticks NFT transactions together with tokens
-            if self.blockscout and "tokenID" in entry:
+            if self.primary_api is ChainApiType.BLOCKSCOUT and "tokenID" in entry:
                 token_nft_id = str(entry["tokenID"])
                 val = 1
                 token = entry["tokenSymbol"]
@@ -1150,7 +1230,7 @@ class Chain:
             ]
             transactions[hash].append(type, row)
 
-        if not self.blockscout:
+        if self.primary_api is not ChainApiType.BLOCKSCOUT:
             self.update_pb("Retrieving NFT transactions for " + address, per_type_alloc)
             data = self.get_all_transaction_from_api(address, "tokennfttx", max_per_page=mpp)
             for entry in data:
@@ -1311,7 +1391,7 @@ class Chain:
                     total_fee += base_fee
 
             # wrap/unwrap missing a transfer?
-            if wrap and self.name != "Fantom" and not self.blockscout:
+            if wrap and self.name != "Fantom" and self.primary_api is not ChainApiType.BLOCKSCOUT:
                 if (
                     self.name == "Arbitrum"
                 ):  # remove duplicate internal transfer on wrap, but not on unwrap
@@ -1890,35 +1970,49 @@ class Chain:
             return True, []
         creators = {}
         if self.name != "HECO":
-            headers = {}
-            if self.name in ["Moonriver", "Moonbeam"]:  # ,'Arbitrum','Optimism']:
-                headers = {
-                    "User-Agent": (
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
-                    ),
-                    "cache-control": "max-age=0",
-                    "accept-language": "en-US,en;q=0.9,ru;q=0.8",
-                    "upgrade-insecure-requests": "1",
-                    "accept": (
-                        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
-                        "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
-                    ),
-                }
+            params = {}
+            if self.primary_api is ChainApiType.ETHERSCAN_V2:
+                if not self.evm_chain_id:
+                    raise RuntimeError("Missing evm_chain_id")
 
-            url = (
-                self.explorer_url
-                + "?module=contract&action=getcontractcreation&contractaddresses="
-                + ",".join(addresses)
-                + "&apikey="
-                + self.api_key
-            )
-            log(self.name, "five address lookup url", url, filename="address_lookups.txt")
+                url = "https://api.etherscan.io/v2/api"
+                params["chainid"] = self.evm_chain_id
+                params["apikey"] = current_app.config["ETHERSCAN_API_KEY"]
+            elif self.primary_api is ChainApiType.ETHERSCAN_V1:
+                if not self.api_url:
+                    raise RuntimeError("Missing api_url")
+
+                if not self.api_key:
+                    raise RuntimeError("Missing api_key")
+
+                url = self.api_url
+                params["apikey"] = self.api_key
+            elif self.primary_api is ChainApiType.ROUTESCAN_V2:
+                if not self.evm_chain_id:
+                    raise RuntimeError("Missing evm_chain_id")
+
+                url = (
+                    f"https://api.routescan.io/v2/network/mainnet/evm/"
+                    f"{self.evm_chain_id}/etherscan/api"
+                )
+            elif self.primary_api is ChainApiType.BLOCKSCOUT:
+                if not self.api_url:
+                    raise RuntimeError("Missing api_url")
+
+                url = self.api_url
+            else:
+                raise RuntimeError("Unexpected ChainApiType")
+
+            params["module"] = "contract"
+            params["action"] = "getcontractcreation"
+            params["contractaddresses"] = ",".join(addresses)
+
+            log(self.name, "five address lookup url", url, params, filename="address_lookups.txt")
             try:
-                resp = requests.get(url, headers=headers, timeout=20)
+                resp = requests.get(url, params, timeout=20)
                 time.sleep(self.wait_time)
             except:
-                log_error("Failed to get contract creators", url)
+                log_error("Failed to get contract creators", url, params)
                 self.current_import.add_error(
                     Import.NO_CREATORS, chain=self, debug_info=traceback.format_exc()
                 )
@@ -1929,7 +2023,9 @@ class Chain:
             try:
                 js = resp.json()
             except:
-                log_error("Failed to get contract creators", url, resp.status_code, resp.content)
+                log_error(
+                    "Failed to get contract creators", url, params, resp.status_code, resp.content
+                )
                 self.current_import.add_error(
                     Import.NO_CREATORS, chain=self, debug_info=traceback.format_exc()
                 )
@@ -2073,7 +2169,7 @@ class Chain:
 
     def update_progenitors(self, counterparty_list, pb_alloc):
         all_db_writes = []
-        if self.blockscout:
+        if self.primary_api is ChainApiType.BLOCKSCOUT:
             return None
 
         if len(counterparty_list) == 0:

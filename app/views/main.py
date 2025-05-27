@@ -7,7 +7,7 @@ import traceback
 
 from flask import Blueprint, current_app, render_template, request
 
-from ..chain import Chain
+from ..chain import Chain, ChainApiType
 from ..coingecko import Coingecko
 from ..constants import USER_DIRNAME
 from ..fiat_rates import Twelve
@@ -558,7 +558,10 @@ def do_process(primary, import_addresses, ac_str, redis, app_context):
             threads = []
             for chain_name, chain_data in all_chains.items():
                 chain = chain_data["chain"]
-                if not chain.blockscout and not chain.is_upload and not chain.use_routescan_backup:
+                if not chain.is_upload and chain.primary_api in (
+                    ChainApiType.ETHERSCAN_V1,
+                    ChainApiType.ETHERSCAN_V2,
+                ):
                     filtered_counterparty_list = chain.filter_progenitors(
                         list(counterparty_by_chain[chain_name])
                     )
