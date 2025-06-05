@@ -7,7 +7,7 @@ chains = Blueprint("chains", __name__)
 
 
 @chains.route("/chains.html")
-def chain_support():
+def chain_support() -> str:
     chains_support_info = []
     support_level_text_map = {10: "High", 5: "Medium", 3: "Low", 0: "None"}
     for chain_name in Chain.list(alphabetical=True):
@@ -20,7 +20,7 @@ def chain_support():
         data_source_url = "https://" + conf["scanner"]
         data_source_name = conf["scanner"]
 
-        erc1155_support = conf.get("1155_support", 0)
+        erc1155_support = conf.get("erc1155_support", 0)
 
         balance_token_support = "Available"
         if "debank_mapping" in conf and conf["debank_mapping"] is None:
@@ -31,7 +31,7 @@ def chain_support():
             balance_nft_support = "Available"
 
         cp_availability = conf.get("cp_availability", 3)
-        if conf.get("primary_api") is ChainApiType.BLOCKSCOUT:
+        if conf.get("api_type") is ChainApiType.BLOCKSCOUT:
             cp_availability = 0
 
         if chain_name == "Solana":

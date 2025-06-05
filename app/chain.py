@@ -13,10 +13,19 @@ import bs4
 import requests
 from flask import current_app
 
+from .evm_api import (
+    BlockscoutApi,
+    EtherscanV1Api,
+    EtherscanV2Api,
+    EvmAccountAction,
+    EvmApiFailureBadResponse,
+    EvmApiFailureNoResponse,
+    RoutescanV2Api,
+)
 from .imports import Import
 from .pool import Pools
-from .transaction import Transaction, Transfer, normalize_address
-from .util import is_ethereum, log, log_error
+from .transaction import Transaction, Transfer
+from .util import is_ethereum, log, log_error, normalize_address
 
 
 class ChainApiType(Enum):
@@ -24,6 +33,28 @@ class ChainApiType(Enum):
     ETHERSCAN_V2 = "Etherscan v2 API"
     ROUTESCAN_V2 = "Routescan v2 API"
     BLOCKSCOUT = "Blockscout API"
+    JSON_RPC = "JSON RPC API"
+
+
+class ChainConfig(TypedDict):
+    scanner: str
+    base_asset: str
+    api_type: ChainApiType
+    api_key: NotRequired[str]
+    api_url: NotRequired[str]
+    evm_chain_id: NotRequired[int]
+    outbound_bridges: NotRequired[List[str]]
+    inbound_bridges: NotRequired[List[str]]
+    wrapper: NotRequired[str]
+    coingecko_platform: NotRequired[str]
+    coingecko_id: NotRequired[str]
+    debank_mapping: NotRequired[Optional[str]]
+    reservoir_mapping: NotRequired[str]
+    covalent_mapping: NotRequired[str]
+    order: float
+    support: int
+    erc1155_support: NotRequired[int]
+    cp_availability: NotRequired[int]
 
 
 class ChainData(TypedDict):  # pylint: disable=too-few-public-methods
@@ -47,11 +78,11 @@ class CurrentToken(TypedDict):  # pylint: disable=too-few-public-methods
 
 
 class Chain:
-    CONFIG: Dict[str, Dict[str, Any]] = {
+    CONFIG: Dict[str, ChainConfig] = {
         "ETH": {
             "scanner": "etherscan.io",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
-            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "base_asset": "ETH",
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "ETHERSCAN_API_KEY",
             "api_url": "https://api.etherscan.io/api",
             "evm_chain_id": 1,
@@ -73,20 +104,19 @@ class Chain:
                 "0x09357819e5099232111d8377d5e089540e0b48bb",
             ],
             "wrapper": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-            "rate_limit": 10,
             "coingecko_platform": "ethereum",
             "coingecko_id": "ethereum",
             "reservoir_mapping": "",
             "covalent_mapping": "eth-mainnet",
             "order": 0,
             "support": 10,
-            "1155_support": 10,
+            "erc1155_support": 10,
             "cp_availability": 10,
         },
         "BSC": {
             "scanner": "bscscan.com",
             "base_asset": "BNB",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "BSCSCAN_API_KEY",
             "api_url": "https://api.bscscan.com/api",
             "evm_chain_id": 56,
@@ -105,7 +135,7 @@ class Chain:
         "Arbitrum": {
             "scanner": "arbiscan.io",
             "base_asset": "ETH",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "ARBISCAN_API_KEY",
             "api_url": "https://api.arbiscan.io/api",
             "evm_chain_id": 42161,
@@ -119,13 +149,13 @@ class Chain:
             "covalent_mapping": "arbitrum-mainnet",
             "order": 2,
             "support": 10,
-            "1155_support": 5,
+            "erc1155_support": 5,
             "cp_availability": 5,
         },
         "Arbitrum Nova": {
             "scanner": "nova.arbiscan.io",
             "base_asset": "ETH",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "NOVA_ARBISCAN_API_KEY",
             "api_url": "https://api-nova.arbiscan.io/api",
             "evm_chain_id": 42170,
@@ -140,7 +170,7 @@ class Chain:
         "Polygon": {
             "scanner": "polygonscan.com",
             "base_asset": "MATIC",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "POLYGONSCAN_API_KEY",
             "api_url": "https://api.polygonscan.com/api",
             "evm_chain_id": 137,
@@ -154,13 +184,13 @@ class Chain:
             "reservoir_mapping": "polygon",
             "order": 4,
             "support": 10,
-            "1155_support": 3,
+            "erc1155_support": 3,
             "cp_availability": 10,
         },
         "zkEVM": {
             "scanner": "zkevm.polygonscan.com",
             "base_asset": "ETH",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "ZKEVM_POLYGONSCAN_API_KEY",
             "api_url": "https://api-zkevm.polygonscan.com/api",
             "evm_chain_id": 1101,
@@ -171,13 +201,12 @@ class Chain:
             "reservoir_mapping": "polygon-zkevm",
             "order": 4.5,
             "support": 3,
-            "1155_support": 3,
+            "erc1155_support": 3,
         },
         "Base": {
             "scanner": "basescan.org",
             "base_asset": "ETH",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
-            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "BASESCAN_API_KEY",
             "api_url": "https://api.basescan.org/api",
             "evm_chain_id": 8453,
@@ -187,13 +216,12 @@ class Chain:
             "reservoir_mapping": "base",
             "order": 4.6,
             "support": 3,
-            "1155_support": 3,
+            "erc1155_support": 3,
         },
         "Avalanche": {
             "scanner": "snowscan.xyz",
             "base_asset": "AVAX",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
-            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "SNOWSCAN_API_KEY",
             "api_url": "https://api.snowscan.xyz/api",
             "evm_chain_id": 43114,
@@ -205,15 +233,14 @@ class Chain:
             "reservoir_mapping": "avalanche",
             "order": 5,
             "support": 10,
-            "1155_support": 5,
+            "erc1155_support": 5,
             "cp_availability": 5,
             "covalent_mapping": "avalanche-mainnet",
         },
         "Optimism": {
             "scanner": "optimistic.etherscan.io",
             "base_asset": "ETH",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
-            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "OPTIMISTIC_ETHERSCAN_API_KEY",
             "api_url": "https://api-optimistic.etherscan.io/api",
             "evm_chain_id": 10,
@@ -230,7 +257,7 @@ class Chain:
         "Fantom": {
             "scanner": "ftmscan.com",
             "base_asset": "FTM",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "FTMSCAN_API_KEY",
             "api_url": "https://api.ftmscan.com/api",
             "evm_chain_id": 250,
@@ -239,13 +266,13 @@ class Chain:
             "covalent_mapping": "fantom-mainnet",
             "order": 7,
             "support": 10,
-            "1155_support": 5,
+            "erc1155_support": 5,
             "cp_availability": 10,
         },
         "Cronos": {
             "scanner": "cronoscan.com",
             "base_asset": "CRO",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "CRONOSCAN_API_KEY",
             "api_url": "https://api.cronoscan.com/api",
             "evm_chain_id": 25,
@@ -259,6 +286,7 @@ class Chain:
         "Solana": {
             "scanner": "solscan.io",
             "base_asset": "SOL",
+            "api_type": ChainApiType.JSON_RPC,
             "coingecko_id": "solana",
             "order": 9,
             "support": 10,
@@ -267,7 +295,7 @@ class Chain:
         "Kava": {
             "scanner": "explorer.kava.io",
             "base_asset": "KAVA",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://explorer.kava.io/api",
             "evm_chain_id": 2222,
             "wrapper": "0xc86c7c0efbd6a49b35e8714c5f59d99de09a225b",
@@ -278,7 +306,7 @@ class Chain:
         "Celo": {
             "scanner": "celoscan.io",
             "base_asset": "CELO",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "CELOSCAN_API_KEY",
             "api_url": "https://api.celoscan.io/api",
             "evm_chain_id": 42220,
@@ -290,7 +318,7 @@ class Chain:
         "Moonbeam": {
             "scanner": "moonscan.io",
             "base_asset": "GLMR",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "MOONSCAN_API_KEY",
             "api_url": "https://api-moonbeam.moonscan.io/api",
             "evm_chain_id": 1284,
@@ -302,7 +330,7 @@ class Chain:
         "Canto": {
             "scanner": "explorer.plexnode.wtf",
             "base_asset": "CANTO",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://explorer.plexnode.wtf/api",
             "evm_chain_id": 7700,
             "wrapper": "0x826551890dc65655a0aceca109ab11abdbd7a07b",
@@ -313,7 +341,7 @@ class Chain:
         "Aurora": {
             "scanner": "explorer.mainnet.aurora.dev",
             "base_asset": "ETH",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://explorer.mainnet.aurora.dev/api",
             "evm_chain_id": 1313161554,
             "debank_mapping": "aurora",
@@ -324,7 +352,7 @@ class Chain:
         "HECO": {
             "scanner": "hecoinfo.com",
             "base_asset": "HT",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "HECOINFO_API_KEY",
             "api_url": "https://api.hecoinfo.com/api",
             "evm_chain_id": 128,
@@ -341,7 +369,7 @@ class Chain:
         "Gnosis": {
             "scanner": "gnosisscan.io",
             "base_asset": "XDAI",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "GNOSISSCAN_API_KEY",
             "api_url": "https://api.gnosisscan.io/api",
             "evm_chain_id": 100,
@@ -351,12 +379,12 @@ class Chain:
             "debank_mapping": "xdai",
             "order": 16,
             "support": 3,
-            "1155_support": 3,
+            "erc1155_support": 3,
         },
         "KCC": {
             "scanner": "scan.kcc.io",
             "base_asset": "KCS",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://scan.kcc.io/api",
             "evm_chain_id": 321,
             "coingecko_platform": "kucoin-community-chain",
@@ -368,7 +396,7 @@ class Chain:
         "Moonriver": {
             "scanner": "moonriver.moonscan.io",
             "base_asset": "MOVR",
-            "primary_api": ChainApiType.ETHERSCAN_V1,
+            "api_type": ChainApiType.ETHERSCAN_V1,
             "api_key": "MOONRIVER_MOONSCAN_API_KEY",
             "api_url": "https://api-moonriver.moonscan.io/api",
             "evm_chain_id": 1285,
@@ -380,7 +408,7 @@ class Chain:
         "Metis": {
             "scanner": "explorer.metis.io",
             "base_asset": "METIS",
-            "primary_api": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.ROUTESCAN_V2,
             "evm_chain_id": 1088,
             "wrapper": "0x75cb093e4d61d2a2e65d8e0bbb01de8d89b53481",
             "coingecko_platform": "metis-andromeda",
@@ -392,7 +420,7 @@ class Chain:
         "Oasis": {
             "scanner": "explorer.emerald.oasis.dev",
             "base_asset": "ROSE",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://explorer.emerald.oasis.dev/api",
             "evm_chain_id": 42262,
             "wrapper": "0x21c718c22d52d0f3a789b752d4c2fd5908a8a733",
@@ -404,8 +432,7 @@ class Chain:
         "Songbird": {
             "scanner": "songbird-explorer.flare.network",
             "base_asset": "SGB",
-            "primary_api": ChainApiType.BLOCKSCOUT,
-            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://songbird-explorer.flare.network/api",
             "evm_chain_id": 19,
             "wrapper": "0x02f0826ef6ad107cfc861152b32b52fd11bab9ed",
@@ -415,8 +442,7 @@ class Chain:
         "Flare": {
             "scanner": "flare-explorer.flare.network",
             "base_asset": "FLR",
-            "primary_api": ChainApiType.BLOCKSCOUT,
-            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://flare-explorer.flare.network/api",
             "evm_chain_id": 14,
             "wrapper": "0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d",
@@ -429,8 +455,7 @@ class Chain:
         "Step": {
             "scanner": "stepscan.io",
             "base_asset": "FITFI",
-            "primary_api": ChainApiType.BLOCKSCOUT,
-            "backup_api": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://stepscan.io/api",
             "evm_chain_id": 1234,
             "wrapper": "0xb58a9d5920af6ac1a9522b0b10f55df16686d1b6",
@@ -443,7 +468,7 @@ class Chain:
         "Doge": {
             "scanner": "explorer.dogechain.dog",
             "base_asset": "DOGE",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://explorer.dogechain.dog/api",
             "evm_chain_id": 2000,
             "wrapper": "0xb7ddc6414bf4f5515b52d8bdd69973ae205ff101",
@@ -456,7 +481,7 @@ class Chain:
         "Velas": {
             "scanner": "evmexplorer.velas.com",
             "base_asset": "VLX",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://evmexplorer.velas.com/api",
             "evm_chain_id": 106,
             "wrapper": "0xb58a9d5920af6ac1a9522b0b10f55df16686d1b6",
@@ -467,7 +492,7 @@ class Chain:
         "Boba": {
             "scanner": "bobascan.com",
             "base_asset": "ETH",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://bobascan.com/api",
             "evm_chain_id": 288,
             "wrapper": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000",
@@ -478,7 +503,7 @@ class Chain:
         "SXnetwork": {
             "scanner": "explorer.sx.technology",
             "base_asset": "SX",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://explorer.sx.technology/api",
             "evm_chain_id": 416,
             "wrapper": "0xaa99bE3356a11eE92c3f099BD7a038399633566f",
@@ -491,7 +516,7 @@ class Chain:
         "smartBCH": {
             "scanner": "sonar.cash",
             "base_asset": "BCH",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://sonar.cash/api",
             "evm_chain_id": 10000,
             "wrapper": "0x3743ec0673453e5009310c727ba4eaf7b3a1cc04",
@@ -503,7 +528,7 @@ class Chain:
         "EVMOS": {
             "scanner": "blockscout.evmos.org",
             "base_asset": "EVMOS",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://blockscout.evmos.org/api",
             "evm_chain_id": 9001,
             "wrapper": "0xd4949664cd82660aae99bedc034a0dea8a0bd517",
@@ -513,7 +538,7 @@ class Chain:
         "ETC": {
             "scanner": "blockscout.com",
             "base_asset": "ETC",
-            "primary_api": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT,
             "api_url": "https://blockscout.com/etc/mainnet/api",
             "evm_chain_id": 61,
             "wrapper": "0x1953cab0E5bFa6D4a9BaD6E05fD46C1CC6527a5a",
@@ -529,26 +554,17 @@ class Chain:
         name,
         domain,
         main_asset,
-        api_key,
-        primary_api=None,
-        backup_api=None,
-        evm_chain_id=None,
+        api=None,
         outbound_bridges=(),
         inbound_bridges=(),
         wrapper=None,
-        rate_limit=5,
-        api_url=None,
         is_upload=False,
         discontinued=False,
     ):
         self.is_upload = is_upload
         self.domain = domain
         self.main_asset = main_asset
-        self.api_key = api_key
-        self.primary_api = primary_api
-        self.backup_api = backup_api
-        self.evm_chain_id = evm_chain_id
-        self.api_url = api_url
+        self.api = api
         self.name = name
         self.outbound_bridges = []
         self.inbound_bridges = []
@@ -560,10 +576,6 @@ class Chain:
         self.wrapper = None
         if wrapper is not None:
             self.wrapper = normalize_address(wrapper)
-
-        self.wait_time = 1 / float(rate_limit) + 0.05
-
-        self.wait_time *= 2
 
         self.entity_map = {}
         self.addresses_initialized = False
@@ -587,7 +599,7 @@ class Chain:
         return self.__str__()
 
     @classmethod
-    def list(cls, alphabetical=False):
+    def list(cls, alphabetical: bool = False) -> List[str]:
         dict_items = list(Chain.CONFIG.items())
         if alphabetical:
             dict_list = sorted(dict_items, key=lambda item: item[0].lower())
@@ -618,19 +630,22 @@ class Chain:
     @classmethod
     def from_name(cls, chain_name):
         conf = Chain.CONFIG[chain_name]
-        base_asset = chain_name
-        if "base_asset" in conf:
-            base_asset = conf["base_asset"]
+        base_asset = conf["base_asset"]
 
-        api_key = None
-        if "api_key" in conf:
-            api_key = current_app.config.get(conf["api_key"])
+        if conf["api_type"] is ChainApiType.ETHERSCAN_V1:
+            api = EtherscanV1Api(conf["api_url"], conf["api_key"])
+        elif conf["api_type"] is ChainApiType.ETHERSCAN_V2:
+            api = EtherscanV2Api(conf["evm_chain_id"])
+        elif conf["api_type"] is ChainApiType.ROUTESCAN_V2:
+            api = RoutescanV2Api(conf["evm_chain_id"])
+        elif conf["api_type"] is ChainApiType.BLOCKSCOUT:
+            api = BlockscoutApi(conf["api_url"])
+        else:
+            raise RuntimeError("Unexpected ChainApiType")
 
         outbound_bridges = ()
         inbound_bridges = ()
         wrapper = None
-        rate_limit = 5
-        api_url = None
 
         if "outbound_bridges" in conf:
             outbound_bridges = conf["outbound_bridges"]
@@ -641,12 +656,6 @@ class Chain:
         if "wrapper" in conf:
             wrapper = conf["wrapper"]
 
-        if "rate_limit" in conf:
-            rate_limit = conf["rate_limit"]
-
-        if "api_url" in conf:
-            api_url = conf["api_url"]
-
         discontinued = False
         if "support" in conf and conf["support"] == 0:
             discontinued = True
@@ -655,15 +664,10 @@ class Chain:
             chain_name,
             conf["scanner"],
             base_asset,
-            api_key,
-            conf.get("primary_api"),
-            conf.get("backup_api"),
-            conf.get("evm_chain_id"),
+            api,
             outbound_bridges=outbound_bridges,
             inbound_bridges=inbound_bridges,
             wrapper=wrapper,
-            api_url=api_url,
-            rate_limit=rate_limit,
             discontinued=discontinued,
         )
         return chain
@@ -677,7 +681,7 @@ class Chain:
     def init_addresses(self, address_db, contract_list=None):
         log("init_addresses", self.name, filename="address_lookups.txt")
         t = time.time()
-        if self.addresses_initialized or self.primary_api is ChainApiType.BLOCKSCOUT:
+        if self.addresses_initialized or isinstance(self.api, BlockscoutApi):
             return
 
         try:
@@ -730,217 +734,18 @@ class Chain:
             return self.entity_map[address]
         return None, None
 
-    def get_all_transaction_from_api(
-        self,
-        address,
-        action,
-        reps=3,
-        offset=None,
-        max_pages=5,
-        max_per_page=10000,
-        timeout=30,
-        page=None,
-        sort="asc",
-        startblock=0,
-    ):
-        done = False
-        all_data = []
-        tr_uids = set()
-        cur_rep = 0
-        page_idx = 0
-
-        if startblock is not None:
-            sb = str(startblock)
-
-        while not done:
-            overlap_cnt = 0
-            self.update_pb()
-
-            params = {}
-            if self.primary_api is ChainApiType.ETHERSCAN_V2:
-                if not self.evm_chain_id:
-                    raise RuntimeError("Missing evm_chain_id")
-
-                url = "https://api.etherscan.io/v2/api"
-                params["chainid"] = self.evm_chain_id
-                params["apikey"] = current_app.config["ETHERSCAN_API_KEY"]
-            elif self.primary_api is ChainApiType.ETHERSCAN_V1:
-                if not self.api_url:
-                    raise RuntimeError("Missing api_url")
-
-                if not self.api_key:
-                    raise RuntimeError("Missing api_key")
-
-                url = self.api_url
-                params["apikey"] = self.api_key
-            elif self.primary_api is ChainApiType.ROUTESCAN_V2:
-                if not self.evm_chain_id:
-                    raise RuntimeError("Missing evm_chain_id")
-
-                offset = 10000
-                url = (
-                    f"https://api.routescan.io/v2/network/mainnet/evm/"
-                    f"{self.evm_chain_id}/etherscan/api"
-                )
-            elif self.primary_api is ChainApiType.BLOCKSCOUT:
-                if not self.api_url:
-                    raise RuntimeError("Missing api_url")
-
-                url = self.api_url
-            else:
-                raise RuntimeError("Unexpected ChainApiType")
-
-            params["module"] = "account"
-            params["action"] = action
-            params["address"] = address
-
-            if startblock is not None:
-                params["startblock"] = sb
-            if offset is not None:
-                params["offset"] = offset
-            if page is not None:
-                params["page"] = page
-            if sort is not None:
-                params["sort"] = sort
-
-            log("URL", url, params)
-            resp = None
-            try:
-                resp = requests.get(url, params=params, timeout=timeout)
-            except:
-                if self.backup_api:
-                    self.primary_api = self.backup_api
-
-                    return self.get_all_transaction_from_api(
-                        address,
-                        action,
-                        reps=reps - 1,
-                        offset=offset,
-                        max_pages=max_pages,
-                        max_per_page=max_per_page,
-                        timeout=timeout,
-                        page=page,
-                        sort=sort,
-                        startblock=startblock,
-                    )
-
-                time.sleep(3)
-                cur_rep += 1
-                if cur_rep == reps:
-                    self.current_import.add_error(
-                        Import.NO_API_RESPONSE, chain=self, address=address, txtype=action
-                    )
-                    log_error(
-                        "Failed to get transactions after " + str(reps) + " tries",
-                        url,
-                        params,
-                        "exception",
-                        action,
-                        address,
-                        self.name,
-                    )
-                    break
-                continue
-
-            try:
-                res = resp.json()
-                if (
-                    "status" in res
-                    and res["status"] in [0, "0"]
-                    and "message" in res
-                    and res["message"]
-                    not in [
-                        "No transactions found",
-                        "No internal transactions found",
-                        "No token transfers found",
-                    ]
-                ):
-                    if action != "token1155tx":
-                        self.current_import.add_error(
-                            Import.NOTHING_RETURNED,
-                            chain=self,
-                            address=address,
-                            txtype=action,
-                            debug_info=res["message"],
-                        )
-                        log_error(
-                            "Failed to get transactions, bad status",
-                            url,
-                            params,
-                            action,
-                            address,
-                            self.name,
-                            res,
-                        )
-                    break
-                data = res["result"]
-            except:
-                time.sleep(3)
-                cur_rep += 1
-                if cur_rep == reps:
-                    self.current_import.add_error(
-                        Import.BAD_API_RESPONSE, chain=self, address=address, txtype=action
-                    )
-                    log_error(
-                        "Failed to get transactions after " + str(reps) + " tries",
-                        url,
-                        params,
-                        "exception",
-                        action,
-                        address,
-                        self.name,
-                        "last response",
-                        resp.status_code,
-                        resp.content,
-                    )
-                    break
-                continue
-
-            if not isinstance(data, list):
-                data = []
-            cur_rep = 0
-            for entry in data:
-                entry["confirmations"] = (
-                    1  # overwrite this because it changes between paginated API requests,
-                    # causing the same entry to be recorded twice
-                )
-                uid = str(entry)
-                try:
-                    if (
-                        uid not in tr_uids or entry["blockNumber"] != sb
-                    ):  # possible duplicates on rollover of a block
-                        all_data.append(entry)
-                except:
-                    self.current_import.add_error(
-                        Import.UNEXPECTED_DATA, chain=self, address=address, txtype=action
-                    )
-                    log_error(
-                        "Unexpected data from scanner",
-                        url,
-                        params,
-                        action,
-                        address,
-                        self.name,
-                        data,
-                    )
-                    break
-                if uid not in tr_uids:
-                    tr_uids.add(uid)
-                else:
-                    overlap_cnt += 1
-            page_idx += 1
-            if len(data) < max_per_page or page_idx == max_pages or overlap_cnt > max_per_page // 2:
-                done = True
-                if len(all_data) >= max_per_page * 5 - 200:
-                    self.current_import.add_error(
-                        Import.TOO_MANY_TRANSACTIONS, chain=self, address=address, txtype=action
-                    )
-
-            else:
-                sb = data[-1]["blockNumber"]
-            time.sleep(1)
-
-        return all_data
+    def get_all_transaction_from_api(self, address: str, action: EvmAccountAction) -> List[Any]:
+        try:
+            return self.api.account_query(action, address)
+        except EvmApiFailureNoResponse:
+            self.current_import.add_error(
+                Import.NO_API_RESPONSE, chain=self, address=address, txtype=action.value
+            )
+        except EvmApiFailureBadResponse:
+            self.current_import.add_error(
+                Import.BAD_API_RESPONSE, chain=self, address=address, txtype=action.value
+            )
+        return []
 
     def check_validity(self, address: str) -> bool:
         if self.name == "Solana":
@@ -953,33 +758,39 @@ class Chain:
             return False
         return True
 
-    def check_presence(self, address):
+    def check_presence(self, address: str) -> bool:
         if self.discontinued:
             return False
-        if self.name == "EVMOS":
-            data = self.get_all_transaction_from_api(
-                address, "txlist", reps=1, max_pages=1, timeout=5, sort=None, startblock=None
+
+        try:
+            data = self.api.presence_query(address)
+            for entry in data:
+                fr = normalize_address(entry["from"])
+                to = normalize_address(entry["to"])
+                if address in (fr, to):
+                    return True
+        except EvmApiFailureNoResponse:
+            self.current_import.add_error(
+                Import.NO_API_RESPONSE,
+                chain=self,
+                address=address,
+                txtype=EvmAccountAction.TX_LIST.value,
             )
-        else:
-            data = self.get_all_transaction_from_api(
-                address, "txlist", page=1, offset=100, reps=1, max_pages=1, timeout=30
+        except EvmApiFailureBadResponse:
+            self.current_import.add_error(
+                Import.BAD_API_RESPONSE,
+                chain=self,
+                address=address,
+                txtype=EvmAccountAction.TX_LIST.value,
             )
-        for entry in data:
-            fr = normalize_address(entry["from"])
-            to = normalize_address(entry["to"])
-            if address in (fr, to):
-                return True
         return False
 
     def get_transactions(self, user, address, pb_alloc):
         if self.discontinued:
             return {}
-        mpp = 10000
-        if self.name == "HECO":
-            mpp = 1000
 
         rq_cnt = 2
-        if self.primary_api is not ChainApiType.BLOCKSCOUT:
+        if not isinstance(self.api, BlockscoutApi):
             rq_cnt += 1
         if self.name in [
             "ETH",
@@ -1005,7 +816,7 @@ class Chain:
         if self.name == "HECO":
             blockmap = defaultdict(list)
 
-        data = self.get_all_transaction_from_api(address, "txlist", max_per_page=mpp)
+        data = self.get_all_transaction_from_api(address, EvmAccountAction.TX_LIST)
 
         base_vals = defaultdict(
             list
@@ -1082,10 +893,8 @@ class Chain:
             T.append(Transfer.BASE, row)
 
         self.update_pb("Retrieving internal transactions for " + address, per_type_alloc)
-        data = self.get_all_transaction_from_api(address, "txlistinternal", max_per_page=mpp)
+        data = self.get_all_transaction_from_api(address, EvmAccountAction.TX_LIST_INTERNAL)
         for entry in data:
-            # print(entry)
-
             ts = entry["timeStamp"]
             block = entry["blockNumber"]
             type = entry["type"]
@@ -1093,7 +902,7 @@ class Chain:
                 continue
 
             if self.name != "HECO":
-                if self.primary_api is ChainApiType.BLOCKSCOUT:
+                if isinstance(self.api, BlockscoutApi):
                     hash = entry["transactionHash"]
                 else:
                     hash = entry["hash"]
@@ -1143,7 +952,7 @@ class Chain:
             transactions[hash].append(Transfer.INTERNAL, row)
 
         self.update_pb("Retrieving token transactions for " + address, per_type_alloc)
-        data = self.get_all_transaction_from_api(address, "tokentx", max_per_page=mpp)
+        data = self.get_all_transaction_from_api(address, EvmAccountAction.TOKEN_TX)
         for entry in data:
             hash = entry["hash"]
             ts = entry["timeStamp"]
@@ -1162,7 +971,7 @@ class Chain:
             type = Transfer.ERC20
 
             # blockscout sticks NFT transactions together with tokens
-            if self.primary_api is ChainApiType.BLOCKSCOUT and "tokenID" in entry:
+            if isinstance(self.api, BlockscoutApi) and "tokenID" in entry:
                 token_nft_id = str(entry["tokenID"])
                 val = 1
                 token = entry["tokenSymbol"]
@@ -1230,9 +1039,9 @@ class Chain:
             ]
             transactions[hash].append(type, row)
 
-        if self.primary_api is not ChainApiType.BLOCKSCOUT:
+        if not isinstance(self.api, BlockscoutApi):
             self.update_pb("Retrieving NFT transactions for " + address, per_type_alloc)
-            data = self.get_all_transaction_from_api(address, "tokennfttx", max_per_page=mpp)
+            data = self.get_all_transaction_from_api(address, EvmAccountAction.TOKEN_NFT_TX)
             for entry in data:
                 hash = entry["hash"]
                 ts = entry["timeStamp"]
@@ -1283,7 +1092,7 @@ class Chain:
             "Base",
         ]:
             self.update_pb("Retrieving ERC1155 transactions for " + address, per_type_alloc)
-            data = self.get_all_transaction_from_api(address, "token1155tx", max_per_page=mpp)
+            data = self.get_all_transaction_from_api(address, EvmAccountAction.TOKEN_1155_TX)
             log("erc1155 transfer count on", self.name, len(data), filename="aux_log.txt")
             for entry in data:
                 hash = entry["hash"]
@@ -1391,7 +1200,7 @@ class Chain:
                     total_fee += base_fee
 
             # wrap/unwrap missing a transfer?
-            if wrap and self.name != "Fantom" and self.primary_api is not ChainApiType.BLOCKSCOUT:
+            if wrap and self.name != "Fantom" and not isinstance(self.api, BlockscoutApi):
                 if (
                     self.name == "Arbitrum"
                 ):  # remove duplicate internal transfer on wrap, but not on unwrap
@@ -1964,90 +1773,33 @@ class Chain:
 
     def update_multiple_addresses_from_scan(self, addresses):
         log(self.name, "five address lookup", addresses, filename="address_lookups.txt")
-        db_writes = []
 
         if len(addresses) == 0:
             return True, []
+
         creators = {}
-        if self.name != "HECO":
-            params = {}
-            if self.primary_api is ChainApiType.ETHERSCAN_V2:
-                if not self.evm_chain_id:
-                    raise RuntimeError("Missing evm_chain_id")
-
-                url = "https://api.etherscan.io/v2/api"
-                params["chainid"] = self.evm_chain_id
-                params["apikey"] = current_app.config["ETHERSCAN_API_KEY"]
-            elif self.primary_api is ChainApiType.ETHERSCAN_V1:
-                if not self.api_url:
-                    raise RuntimeError("Missing api_url")
-
-                if not self.api_key:
-                    raise RuntimeError("Missing api_key")
-
-                url = self.api_url
-                params["apikey"] = self.api_key
-            elif self.primary_api is ChainApiType.ROUTESCAN_V2:
-                if not self.evm_chain_id:
-                    raise RuntimeError("Missing evm_chain_id")
-
-                url = (
-                    f"https://api.routescan.io/v2/network/mainnet/evm/"
-                    f"{self.evm_chain_id}/etherscan/api"
+        try:
+            data = self.api.contract_query(addresses)
+            creators = {
+                normalize_address(c.get("contractAddress")): normalize_address(
+                    c.get("contractCreator")
                 )
-            elif self.primary_api is ChainApiType.BLOCKSCOUT:
-                if not self.api_url:
-                    raise RuntimeError("Missing api_url")
-
-                url = self.api_url
-            else:
-                raise RuntimeError("Unexpected ChainApiType")
-
-            params["module"] = "contract"
-            params["action"] = "getcontractcreation"
-            params["contractaddresses"] = ",".join(addresses)
-
-            log(self.name, "five address lookup url", url, params, filename="address_lookups.txt")
-            try:
-                resp = requests.get(url, params, timeout=20)
-                time.sleep(self.wait_time)
-            except:
-                log_error("Failed to get contract creators", url, params)
-                self.current_import.add_error(
-                    Import.NO_CREATORS, chain=self, debug_info=traceback.format_exc()
-                )
-                return False, []
-
-            log(self.name, "fal 4", filename="address_lookups.txt")
-
-            try:
-                js = resp.json()
-            except:
-                log_error(
-                    "Failed to get contract creators", url, params, resp.status_code, resp.content
-                )
-                self.current_import.add_error(
-                    Import.NO_CREATORS, chain=self, debug_info=traceback.format_exc()
-                )
-                return False, []
-            if "result" in js:
-                data = js["result"]
-                if data is not None:
-                    for entry in data:
-                        try:
-                            creators[normalize_address(entry["contractAddress"])] = (
-                                normalize_address(entry["contractCreator"])
-                            )
-                        except:
-                            log("Unexpected data", entry, filename="address_lookups.txt")
-
-            log(
-                self.name,
-                "five address lookup creator data",
-                creators,
-                filename="address_lookups.txt",
+                for c in data
+            }
+        except (EvmApiFailureNoResponse, EvmApiFailureBadResponse):
+            self.current_import.add_error(
+                Import.NO_CREATORS, chain=self, debug_info=traceback.format_exc()
             )
+            return False, []
 
+        log(
+            self.name,
+            "five address lookup creator data",
+            creators,
+            filename="address_lookups.txt",
+        )
+
+        db_writes = []
         for address in addresses:
             creator = None
             entity = "unknown"
@@ -2070,7 +1822,6 @@ class Chain:
                     db_writes.append([self.name, [creator, None, None, entity, "lookup"]])
                     self.entity_map[address] = [entity, creator]
                     self.entity_map[creator] = [entity, None]
-
             else:
                 log(
                     self.name,
@@ -2093,7 +1844,6 @@ class Chain:
                     filename="address_lookups.txt",
                 )
             db_writes.append([self.name, [address, None, creator, entity, "lookup"]])
-
         return True, db_writes
 
     def scrape_blockscan(self, address):
@@ -2169,7 +1919,7 @@ class Chain:
 
     def update_progenitors(self, counterparty_list, pb_alloc):
         all_db_writes = []
-        if self.primary_api is ChainApiType.BLOCKSCOUT:
+        if isinstance(self.api, BlockscoutApi):
             return None
 
         if len(counterparty_list) == 0:
