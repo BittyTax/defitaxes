@@ -1,3 +1,4 @@
+import threading
 import time
 from enum import Enum
 from http import HTTPMethod, HTTPStatus
@@ -32,11 +33,13 @@ class EvmApi:
     MODULE_CONTRACT = "contract"
     ACTION_GET_CONTRACT_CREATION = "getcontractcreation"
     SORT_ASCENDING = "asc"
+    STATUS_OK = "1"
     STATUS_NOT_OK = "0"
 
     def __init__(
-        self, rate_limit=5, timeout=30, retries=3, backoff_factor=0.5, tx_per_page=10000
+        self, rate_limit=5, timeout=30, retries=3, backoff_factor=1, tx_per_page=10000
     ) -> None:
+        self.api_lock = threading.Lock()
         self.session = requests.Session()
         self.last_request_time = float(0)
 
@@ -48,87 +51,81 @@ class EvmApi:
         self.retry_after = int(180)
 
     def _request_with_retries(self, url: str, params: Dict[str, str]) -> List[Any]:
-        for attempt in range(self.retries):
-            self._rate_limit()
-            try:
-                request = requests.Request(HTTPMethod.GET, url, params=params)
-                requestp = request.prepare()
+        with self.api_lock:
+            for attempt in range(1 + self.retries):
+                self._rate_limit()
+                try:
+                    request = requests.Request(HTTPMethod.GET, url, params=params)
+                    requestp = request.prepare()
 
-                current_app.logger.info(
-                    f"{id(self)} Request "
-                    f"{f'(attempt={attempt+1} of {self.retries}): ' if attempt > 0 else ''}"
-                    f"url={requestp.url} timeout={self.timeout}"
-                )
-                response = self.session.send(requestp, timeout=self.timeout)
+                    current_app.logger.info(
+                        f"{id(self)} Request "
+                        f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
+                        f"url={requestp.url} timeout={self.timeout}"
+                    )
+                    response = self.session.send(requestp, timeout=self.timeout)
+                    if response.status_code == HTTPStatus.OK:
+                        json = response.json()
+                        if json.get("status"):
+                            if json["status"] == self.STATUS_OK:
+                                if "result" in json and isinstance(json["result"], list):
+                                    return json["result"]
 
-                if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+                            if json["status"] == self.STATUS_NOT_OK:
+                                if json.get("result") and "rate limit reached" in json["result"]:
+                                    raise EvmApiRateLimitReached(
+                                        f"content={response.content.decode()}"
+                                    )
+                                if json.get("message") and json["message"] in (
+                                    "No transactions found",
+                                    "No internal transactions found",
+                                    "No token transfers found",
+                                    "No data found",
+                                ):
+                                    return []
+
                     current_app.logger.error(
-                        f"{id(self)} Bad Response (attempt={attempt+1} of {self.retries}): "
+                        f"{id(self)} Bad Response "
+                        f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
                         f"{requestp.url} status_code={response.status_code} "
                         f"content={response.content.decode()}"
                     )
-                    if "retry-after" in response.headers:
-                        self.retry_after = int(response.headers["retry-after"])
+                    if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+                        if "retry-after" in response.headers:
+                            self.retry_after = int(response.headers["retry-after"])
 
-                    if self._retry(attempt, self.retry_after):
-                        continue
-                    raise EvmApiFailureBadResponse
+                        if not self._retry(attempt, self.retry_after):
+                            raise EvmApiFailureBadResponse
 
-                json = response.json()
+                    if not self._retry(attempt):
+                        raise EvmApiFailureBadResponse
 
-                if json.get("status") and json["status"] == self.STATUS_NOT_OK:
-                    if json.get("result") and "rate limit reached" in json["result"]:
-                        raise EvmApiRateLimitReached(
-                            f"status_code={response.status_code} "
-                            f"content={response.content.decode()}"
-                        )
-
-                    if json.get("message") and json["message"] in (
-                        "No transactions found",
-                        "No internal transactions found",
-                        "No token transfers found",
-                        "No data found",
-                    ):
-                        return []
-
+                except (requests.exceptions.JSONDecodeError, EvmApiRateLimitReached) as e:
                     current_app.logger.error(
-                        f"{id(self)} Bad Response: {requestp.url} "
-                        f"status_code={response.status_code} content={response.content.decode()}"
+                        f"{id(self)} Bad Response "
+                        f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
+                        f"{requestp.url} status_code={response.status_code} {e}"
                     )
-                    raise EvmApiFailureBadResponse
+                    if not self._retry(attempt):
+                        raise EvmApiFailureBadResponse from e
+                except (
+                    requests.exceptions.ConnectionError,
+                    requests.RequestException,
+                    requests.exceptions.Timeout,
+                ) as e:
+                    current_app.logger.error(
+                        f"{id(self)} No Response "
+                        f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
+                        f"{requestp.url} {e}"
+                    )
+                    if not self._retry(attempt):
+                        raise EvmApiFailureNoResponse from e
 
-                if "result" in json and isinstance(json["result"], list):
-                    return json["result"]
-
-                current_app.logger.error(
-                    f"{id(self)} Bad Response: {requestp.url} "
-                    f"status_code={response.status_code} content={response.content.decode()}"
-                )
-                raise EvmApiFailureBadResponse
-            except (requests.exceptions.JSONDecodeError, EvmApiRateLimitReached) as e:
-                current_app.logger.error(
-                    f"{id(self)} Bad Response (attempt={attempt+1} of {self.retries}): "
-                    f"{requestp.url} {e}"
-                )
-                if not self._retry(attempt):
-                    raise EvmApiFailureBadResponse from e
-            except (
-                requests.exceptions.ConnectionError,
-                requests.RequestException,
-                requests.exceptions.Timeout,
-            ) as e:
-                current_app.logger.error(
-                    f"{id(self)} No Response (attempt={attempt+1} of {self.retries}): "
-                    f"{requestp.url} {e}"
-                )
-                if not self._retry(attempt):
-                    raise EvmApiFailureNoResponse from e
-
-        raise EvmApiFailureNoResponse
+            raise EvmApiFailureNoResponse
 
     def _rate_limit(self) -> None:
         elapsed_time = time.time() - self.last_request_time
-        wait_time = (1 / self.rate_limit) - elapsed_time
+        wait_time = (1 / self.rate_limit) - elapsed_time + 0.05
 
         if wait_time > 0:
             current_app.logger.debug(f"{id(self)} Rate-limit, wait: {wait_time:.2f} seconds")
@@ -137,7 +134,7 @@ class EvmApi:
         self.last_request_time = time.time()
 
     def _retry(self, attempt: int, retry_after: Optional[int] = None) -> bool:
-        if attempt < self.retries - 1:
+        if attempt < self.retries:
             if retry_after:
                 wait_time = retry_after
             else:
@@ -170,7 +167,6 @@ class EvmApi:
         params["offset"] = str(self.tx_per_page)
 
         all_tx = []
-
         while True:
             result = self._request_with_retries(url, params)
 
