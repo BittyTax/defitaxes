@@ -1438,7 +1438,6 @@ input#coingecko_id_input {
 
 ul#display_address_selector,
 ul#upload_list {
-    width: 400px;
     margin: auto;
     margin-top: 20px;
     text-align: left;
@@ -1446,7 +1445,7 @@ ul#upload_list {
 }
 
 div.display_address_option {
-    width: 370px;
+    width: 410px;
     display: inline-block;
 }
 
@@ -1559,8 +1558,10 @@ div#dc_fix_popup ul {
 }
 
 div#address_matrix {
-    margin-top: 20px;
+    height: 200px;
+    margin: auto;
     white-space: nowrap;
+    overflow-y: auto;
 }
 
 table#address_matrix_left {
