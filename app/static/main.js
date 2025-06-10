@@ -1031,7 +1031,7 @@ function process_data(primary) {
 
         success: function (js) {
             $('#address_form').css({
-                'margin-top': '0px', 'padding-top': '0px', 'position': 'fixed', 'left': '0', 'right': '0', 'top': '0', 'transform': 'none',
+                'margin': 'auto', 'margin-top': '0px', 'padding-top': '0px', 'position': 'fixed', 'left': '0', 'right': '0', 'top': '0', 'transform': 'none',
                 'background-color': '#FAFAFA', 'border-bottom': '1px solid #DFDFDF', 'padding': '0px'
             });
             $('#main_form').css({ 'margin': 'auto', 'margin-top': '0px', 'padding': '5px', 'border-width': '0px', 'width': '50%' });
