@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <link rel="stylesheet"
-              href="{{ url_for('static', filename='styles.css', v=version) }}">
+              href="{{ url_for('static', filename='css/styles.css', v=version) }}">
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
         <link rel="stylesheet"
               href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
@@ -56,13 +56,13 @@
             <div id="made_by">Last updated 2025-03-29</div>
         </div>
     </body>
-    <script src="{{url_for('static', filename='pagination.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='main.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='typing.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='inspections.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='tax_calc.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='manual_transaction.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='uploads.js', v=version)}}"></script>
-    <script src="{{url_for('static', filename='help.js', v=version)}}"></script>
+    <script src="{{url_for('static', filename='js/pagination.js', v=version)}}"></script>
+    <script src="{{url_for('static', filename='js/main.js', v=version)}}"></script>
+    <script src="{{url_for('static', filename='js/typing.js', v=version)}}"></script>
+    <script src="{{url_for('static', filename='js/inspections.js', v=version)}}"></script>
+    <script src="{{url_for('static', filename='js/tax_calc.js', v=version)}}"></script>
+    <script src="{{url_for('static', filename='js/manual_transaction.js', v=version)}}"></script>
+    <script src="{{url_for('static', filename='js/uploads.js', v=version)}}"></script>
+    <script src="{{url_for('static', filename='js/help.js', v=version)}}"></script>
     <script>address = "{{ address }}"; </script>
 </html>

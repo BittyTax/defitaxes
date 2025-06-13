@@ -174,7 +174,7 @@ div.t_class_ca_0 {
     width: 16px;
     height: 16px;
     display: inline-block;
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     background-position: -32px -78px;
 }
 
@@ -280,7 +280,7 @@ span.mt_r_arrow {
 td.r_arrow div,
 span.r_arrow div,
 span.mt_r_arrow div {
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     background-position: -32px -49px;
     width: 16px;
     height: 16px;
@@ -425,7 +425,7 @@ div.scroll_row {
     width: 16px;
     height: 16px;
     display: inline-block;
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     cursor: pointer;
     position: relative;
     top: 3px;
@@ -547,7 +547,7 @@ div.ct_icon,
 .mt_r_rem div,
 div.up_icon,
 div.delete_address {
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     width: 16px;
     height: 16px;
 }
@@ -681,7 +681,7 @@ div.note {
 }
 
 div.help {
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     width: 14px;
     height: 14px;
     cursor: pointer;
@@ -844,7 +844,7 @@ div#color_undo {
     width: 20px;
     height: 20px;
     display: inline-block;
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     background-position: 2px -62px;
 }
 
@@ -935,7 +935,7 @@ div.inspect_item_ic {
     right: 0px;
     width: 16px;
     height: 16px;
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     background-position: -16px -128px;
 }
 
@@ -1035,7 +1035,7 @@ div.mt_r_add div {
     width: 16px;
     height: 16px;
     display: inline-block;
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     background-position: -32px -126px;
 }
 
@@ -1227,7 +1227,7 @@ div#close_help_main {
     width: 16px;
     height: 16px;
     display: inline-block;
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     background-position: -96px -129px;
     position: absolute;
     top: 15px;
@@ -1364,7 +1364,7 @@ div#top_menu {
 }
 
 div#top_menu_icon {
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     width: 16px;
     height: 16px;
     cursor: pointer;
@@ -1748,7 +1748,7 @@ ul.opt_radio_list {
 }
 
 div.transaction span.t_hide {
-    background-image: url(icons.png);
+    background-image: url("/static/img/icons.png");
     width: 16px;
     height: 16px;
     cursor: pointer;

@@ -2555,7 +2555,7 @@ $('body').on('click', 'a.edit_coingecko_id', function () {
         html += "It will not affect other chains/uploads, or other tokens with the same symbol. It may cause the software to download additional rate data from coingecko, "
         html += "and it may affect your taxes. All tokens with the same CoinGecko ID are treated as the same asset when calculating your taxes.</p>"
         html += "<p>You can find CoinGecko ID in the browser address bar on CoinGecko, or here:<br>"
-        html += "<img src='static/coingecko_id.png'></p>"
+        html += "<img src='/static/img/coingecko_id.png'></p>"
         html += "</div>"
 
         if (current_id == 'not found')
