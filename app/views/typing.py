@@ -9,12 +9,11 @@ from ..util import log, log_error, normalize_address
 typing = Blueprint("typing", __name__)
 
 
-@typing.route("/save_type", methods=["GET", "POST"])
+@typing.route("/save_type", methods=["POST"])
 def save_type():
     address = normalize_address(request.args.get("address"))
     try:
         form = request.form
-
         name = form["tc_name"]
         chain_specific = False
         if "tc_chain" in form:
@@ -47,11 +46,8 @@ def save_type():
             type_id = form["type_id"]
 
         log("create_type", address, name, chain_specific, type_id, rules)
-
-        # T = Typing()
         user = User(address)
         user.save_custom_type(name, description, balanced, rules, id=type_id)
-
         custom_types = user.load_custom_types()
         user.done()
         js = {"custom_types": custom_types}
@@ -63,20 +59,16 @@ def save_type():
     return data
 
 
-@typing.route("/delete_type", methods=["GET", "POST"])
+@typing.route("/delete_type", methods=["POST"])
 def delete_type():
     address = normalize_address(request.args.get("address"))
     try:
         form = request.form
-
         type_id = form["type_id"]
-
         log("delete_type", address, type_id)
-
         user = User(address)
         processed_transactions = user.unapply_custom_type(type_id)
         user.delete_custom_type(type_id)
-
         custom_types = user.load_custom_types()
         user.done()
         js = {"custom_types": custom_types, "transactions": processed_transactions}
@@ -88,15 +80,13 @@ def delete_type():
     return data
 
 
-@typing.route("/apply_type", methods=["GET", "POST"])
+@typing.route("/apply_type", methods=["POST"])
 def apply_type():
     address = normalize_address(request.args.get("address"))
     try:
         form = request.form
-
         type_id = form["type_id"]
         transactions = form["transactions"]
-
         log("apply_type", address, type_id, transactions)
         user = User(address)
         user.get_custom_rates()
@@ -111,15 +101,13 @@ def apply_type():
     return data
 
 
-@typing.route("/unapply_type", methods=["GET", "POST"])
+@typing.route("/unapply_type", methods=["POST"])
 def unapply_type():
     address = normalize_address(request.args.get("address"))
     try:
         form = request.form
-
         type_id = form["type_id"]
         transactions = form["transactions"]
-
         log("unapply_type", address, type_id, transactions)
         user = User(address)
         user.get_custom_rates()

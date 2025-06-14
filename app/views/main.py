@@ -42,7 +42,7 @@ def index():
     )
 
 
-@main.route("/last_update")
+@main.route("/last_update", methods=["GET"])
 def last_update():
     address = request.args.get("address")
     primary = normalize_address(address)  # Address(address)
@@ -74,7 +74,7 @@ def _last_update_inner(user):
     return int(rows[0][0])
 
 
-@main.route("/process")
+@main.route("/process", methods=["GET"])
 def process():
     primary = normalize_address(request.args.get("address"))
     import_addresses = request.args.get("import_addresses")
@@ -85,7 +85,7 @@ def process():
     redis = Redis(primary)
     if not redis.is_running():
         t = threading.Thread(
-            target=do_process,
+            target=_do_process,
             args=(primary, import_addresses, ac_str, redis, current_app.app_context()),
         )
         t.start()
@@ -100,13 +100,13 @@ def process():
     return json.dumps(js)
 
 
-@main.route("/process_data")
+@main.route("/process_data", methods=["GET"])
 def process_data():
     primary = normalize_address(request.args.get("address"))
     return _recreate_data_from_caches(primary)
 
 
-def do_process(primary, import_addresses, ac_str, redis, app_context):
+def _do_process(primary, import_addresses, ac_str, redis, app_context):
     app_context.push()
     redis.start()
 
@@ -794,7 +794,7 @@ def _recreate_data_from_caches(primary):
     return data
 
 
-@main.route("/save_custom_val", methods=["GET", "POST"])
+@main.route("/save_custom_val", methods=["POST"])
 def save_custom_val():
     address = normalize_address(request.args.get("address"))
     try:
@@ -824,7 +824,7 @@ def save_custom_val():
     return data
 
 
-@main.route("/undo_custom_changes", methods=["GET", "POST"])
+@main.route("/undo_custom_changes", methods=["POST"])
 def undo_custom_changes():
     address = normalize_address(request.args.get("address"))
 
@@ -846,7 +846,7 @@ def undo_custom_changes():
     return data
 
 
-@main.route("/recolor", methods=["GET", "POST"])
+@main.route("/recolor", methods=["POST"])
 def recolor():
     t = time.time()
     address = normalize_address(request.args.get("address"))
@@ -873,7 +873,7 @@ def recolor():
     return data
 
 
-@main.route("/save_note", methods=["GET", "POST"])
+@main.route("/save_note", methods=["POST"])
 def save_note():
     address = normalize_address(request.args.get("address"))
     try:
@@ -894,7 +894,7 @@ def save_note():
     return data
 
 
-@main.route("/progress_bar")
+@main.route("/progress_bar", methods=["GET"])
 def get_progress_bar():
     address = normalize_address(request.args.get("address"))
     try:
@@ -914,7 +914,7 @@ def get_progress_bar():
     return json.dumps(js)
 
 
-@main.route("/update_progenitors")
+@main.route("/update_progenitors", methods=["GET"])
 def update_progenitors():
     address = request.args.get("user")
     chain_name = request.args.get("chain")
@@ -936,7 +936,7 @@ def update_progenitors():
     return json.dumps(js)
 
 
-@main.route("/save_info", methods=["GET", "POST"])
+@main.route("/save_info", methods=["GET"])
 def save_info():
     address = normalize_address(request.args.get("address"))
     try:
@@ -955,7 +955,7 @@ def save_info():
     return data
 
 
-@main.route("/minmax_transactions", methods=["GET", "POST"])
+@main.route("/minmax_transactions", methods=["POST"])
 def minmax_transactions():
     address = normalize_address(request.args.get("address"))
     try:
@@ -978,7 +978,7 @@ def minmax_transactions():
     return data
 
 
-@main.route("/delete_address", methods=["GET", "POST"])
+@main.route("/delete_address", methods=["POST"])
 def delete_address():
     address = normalize_address(request.args.get("address"))
     try:
@@ -1002,7 +1002,7 @@ def delete_address():
     return data
 
 
-@main.route("/update_coingecko_id", methods=["GET", "POST"])
+@main.route("/update_coingecko_id", methods=["GET"])
 def update_coingecko_id():
     address = normalize_address(request.args.get("address"))
     redis = Redis(address)

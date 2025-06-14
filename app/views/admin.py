@@ -12,7 +12,7 @@ from ..util import log, log_error, normalize_address
 admin = Blueprint("admin", __name__)
 
 
-@admin.route("/wipe", methods=["GET", "POST"])
+@admin.route("/wipe", methods=["GET"])
 def wipe():
     address = normalize_address(request.args.get("address"))
     try:
@@ -28,7 +28,7 @@ def wipe():
     return data
 
 
-@admin.route("/restore", methods=["GET", "POST"])
+@admin.route("/restore", methods=["GET"])
 def restore():
     address = normalize_address(request.args.get("address"))
     try:
@@ -44,7 +44,7 @@ def restore():
     return data
 
 
-@admin.route("/cross_user")
+@admin.route("/cross_user", methods=["GET"])
 def cross_user():
     dirs = os.listdir(os.path.join(current_app.instance_path, USER_DIRNAME))
     query = "SELECT count(id) FROM custom_types_rules WHERE token=='base'"

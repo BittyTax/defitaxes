@@ -13,7 +13,7 @@ from ..util import log, log_error, normalize_address
 tax_calc = Blueprint("tax_calc", __name__)
 
 
-@tax_calc.route("/calc_tax", methods=["GET", "POST"])
+@tax_calc.route("/calc_tax", methods=["POST"])
 def calc_tax():
     address = normalize_address(request.args.get("address"))
     try:
@@ -57,7 +57,7 @@ def calc_tax():
     return data
 
 
-@tax_calc.route("/download")
+@tax_calc.route("/download", methods=["GET"])
 def download():
     address = normalize_address(request.args.get("address"))
     try:
@@ -110,7 +110,7 @@ def download():
     return None
 
 
-@tax_calc.route("/save_js", methods=["GET", "POST"])
+@tax_calc.route("/save_js", methods=["POST"])
 def save_js():
     address = normalize_address(request.args.get("address"))
     path = os.path.join(current_app.instance_path, USER_DIRNAME)
@@ -132,7 +132,7 @@ def save_js():
     return data
 
 
-@tax_calc.route("/save_options", methods=["GET", "POST"])
+@tax_calc.route("/save_options", methods=["POST"])
 def save_options():
     address = normalize_address(request.args.get("address"))
     try:

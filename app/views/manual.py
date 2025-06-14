@@ -10,13 +10,12 @@ from ..util import log, log_error, normalize_address
 manual_transactions = Blueprint("manual_transactions", __name__)
 
 
-@manual_transactions.route("/save_manual_transaction", methods=["GET", "POST"])
+@manual_transactions.route("/save_manual_transaction", methods=["POST"])
 def save_manual_transaction():
     address = normalize_address(request.args.get("address"))
     chain_name = request.args.get("chain")
 
     try:
-
         form = request.form
         done = False
         idx = 0
@@ -73,16 +72,13 @@ def save_manual_transaction():
     return data
 
 
-@manual_transactions.route("/delete_manual_transaction", methods=["GET", "POST"])
+@manual_transactions.route("/delete_manual_transaction", methods=["POST"])
 def delete_manual_transaction():
     address = normalize_address(request.args.get("address"))
     try:
         form = request.form
-
         txid = form["txid"]
-
         log("delete manual transaction", address, txid)
-
         user = User(address)
         user.delete_manual_transaction(txid)
         user.done()

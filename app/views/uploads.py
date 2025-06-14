@@ -11,7 +11,7 @@ from ..util import log, log_error, normalize_address
 uploads = Blueprint("uploads", __name__)
 
 
-@uploads.route("/upload_csv", methods=["GET", "POST"])
+@uploads.route("/upload_csv", methods=["POST"])
 def upload_csv():
     address = normalize_address(request.args.get("address"))
     redis = Redis(address)
@@ -45,16 +45,13 @@ def upload_csv():
     return data
 
 
-@uploads.route("/delete_upload", methods=["GET", "POST"])
+@uploads.route("/delete_upload", methods=["POST"])
 def delete_upload():
     address = normalize_address(request.args.get("address"))
     try:
         form = request.form
-
         upload_source = form["chain"]
-
         log("delete upload", address, upload_source)
-
         user = User(address)
         txids_to_delete = user.delete_upload(upload_source)
         user.load_addresses()
