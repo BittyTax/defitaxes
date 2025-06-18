@@ -979,8 +979,7 @@ function show_eula() {
         $('#content').append(html);
         $('#agree_eula').on('click', function () {
             document.cookie = "eula_agreed=1;path=/;expires=Fri, 31 Dec 9999 23:59:59 GMT";
-            $('#overlay').remove();
-            $('#eula').remove();
+            $('#overlay, #eula').remove();
         });
         $('#disagree_eula').on('click', function () {
             window.open("https://www.google.com")
@@ -1035,8 +1034,7 @@ function process_data(primary) {
                 'background-color': '#FAFAFA', 'border-bottom': '1px solid #DFDFDF', 'padding': '0px'
             });
             $('#main_form').css({ 'margin': 'auto', 'margin-top': '0px', 'padding': '5px', 'border-width': '0px', 'width': '50%' });
-            $('.header').remove();
-            $('.footer').remove();
+            $('.header, .footer').remove();
 
             try {
                 data = JSON.parse(js);
@@ -1135,7 +1133,6 @@ $(function () {
     $(document).ready(function () {
         show_eula();
         activate_clickables();
-        //            $('a#submit_address').click(function() {
         $('#main_form').submit(function (e) {
             console.log('main')
             e.preventDefault();
@@ -1151,50 +1148,100 @@ $(function () {
 
             if (!demo)
                 document.cookie = "address=" + primary + ";path=/;expires=Fri, 31 Dec 9999 23:59:59 GMT";
+
             prev_selection = null;
             uniqueid = uid();
             window.sessionStorage.setItem('address', primary);
             window.sessionStorage.setItem('uid', uniqueid);
-            let import_addresses = ''
-            //            let display_addresses = '';
 
-            if ($('#import_new_transactions').length) {
-                if ($('#import_new_transactions').is(':checked')) {
-                    import_addresses = 'all';
-                }
-            }
+            const import_addresses = $('#import_new_transactions').is(':checked') ? 'all' : get_import_addresses();
+            const ac_str = $('#address_matrix .ac_cb:checked')
+                .map((_, el) => `${$(el).attr('chain')}:${$(el).attr('address')}`)
+                .get()
+                .join(',');
 
-            ac_str = ''
-            if ($('#aa').length) {
-                import_addresses = $('#aa').val();
-            } else {
-                ac_ar = []
-                boxes = $('#address_matrix').find('.ac_cb:checked').each(function () {
-                    ac_ar.push($(this).attr('chain') + ":" + $(this).attr('address'))
-                });
-                ac_str = ac_ar.join(',')
-            }
-
-            $('#demo').remove()
-            $('#demo_link').remove()
-            $('#initial_options').remove()
-            $('#supported_chain_list').remove()
+            $('#demo, #demo_link, #initial_options, #supported_chain_list').remove();
             $(document.body).css({ 'cursor': 'wait' });
 
-            let pb_mode = 'initial'
-            if ($('#address_form').css('position') == 'absolute')
-                pb_mode = 'middle'
-
+            const pb_mode = $('#address_form').css('position') == 'absolute' ? 'middle' : 'initial';
             start_progress_bar(pb_mode)
+
             close_top_menu();
-            //            force_forget_derived = 0
-            //            if ($('#force_forget_derived').length)
-            //                force_forget_derived = $('#force_forget_derived').val()
             need_reproc(false)
             process(primary, uniqueid, import_addresses, ac_str);
+            $('#submit_address').val("Process transactions");
         });
     });
 });
+
+$('body').on('click', '#aa_clicker', function () {
+    if (demo) {
+        $('#content').append(`
+            <div id="overlay"></div>
+            <div id="aa_popup" class="popup">
+                <div>You can't add another address in a demo, sorry.</div>
+                <div id='aa_cancel'>Cancel</div>
+            </div>`);
+    }
+    else {
+        $('#content').append(`
+            <div id="overlay"></div>
+            <div id="aa_popup" class="popup">
+                <input type="text" id="aa_input" placeholder="Ethereum or Solana address">
+                <div id='aa_add'>Add</div>
+                <div id='aa_cancel'>Cancel</div>
+            </div>`);
+    }
+});
+
+$('body').on('click', '#aa_add', function () {
+    let aa = $('#aa_input').val().trim();
+    $('#aa_popup .error').remove();
+
+    if (aa.length < 32 || aa.length > 44 || !aa.match(/^[0-9a-z]+$/i)) {
+        $('#aa_input').after("<div class='error'>Not a valid address</div>");
+        return
+    }
+
+    if (aa.toLowerCase() in all_address_info || aa in all_address_info) {
+        $('#aa_input').after("<div class='error'>Already imported</div>");
+        return
+    }
+
+    aa_list = get_import_addresses()
+
+    if (aa_list.includes(aa)) {
+        $('#aa_input').after("<div class='error'>Already added</div>");
+        return
+    }
+
+    if ($('#address_matrix').is(':empty')) {
+        $('#address_matrix').append(`
+            <table id='address_matrix_left'>
+                <tr class='chain_names_row'>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </table>`);
+    }
+
+    $('#address_matrix_left tbody').append(`
+        <tr import_addr="${aa}">
+            <td class='addresses_column'>
+                ${display_hash(aa, 'address', true, false)}
+                <div class='delete_address' addr="${aa}" title='Delete this address'></div>
+            </td>
+            <td class="all_chains_column"></td>
+        </tr>`);
+
+    $('#address_matrix').scrollTop($('#address_matrix')[0].scrollHeight);
+    $('#submit_address').val("Import transactions");
+    $('#aa_popup, #overlay').remove();
+});
+
+function get_import_addresses() {
+    return Array.from($('#address_matrix tr[import_addr]'), row => $(row).attr('import_addr').trim());
+}
 
 function select_transaction(txel, keep_secondary = false) {
     t1 = performance.now();
@@ -1601,14 +1648,12 @@ function change_multiple(txid, trid, prop, new_val) {
 
 $('body').on('click', '#change_val_multi_confirm', function () {
     save_custom_val($('#cm_txid').val(), $('#cm_trid_str').val(), $('#cm_prop').val(), $('#cm_val').val())
-    $('#overlay').remove();
-    $('#popup').remove();
+    $('#overlay, #popup').remove();
 });
 
 $('body').on('click', '#change_val_multi_deny', function () {
     save_custom_val($('#cm_txid').val(), $('#cm_trid').val(), $('#cm_prop').val(), $('#cm_val').val())
-    $('#overlay').remove();
-    $('#popup').remove();
+    $('#overlay, #popup').remove();
 });
 
 function save_custom_val(txid, trid_str, prop, value) {
@@ -2221,40 +2266,8 @@ function get_symbol(token_id, chain_name = null) {
     else return token_entry['default_symbol']
 }
 
-$('body').on('click', '#aa_clicker', function () {
-    let html = "<div id='overlay'></div><div id='aa_popup' class='popup'>";
-    if (demo) html += "<div>You can't add another address in a demo, sorry.</div>";
-    else {
-        html += "<input type=text placeholder='Ethereum or Solana address' id='aa_input'><div id='aa_process'>Import transactions</div>";
-    }
-    html += "<div id='aa_cancel'>Cancel</div></div>";
-    $('#content').append(html);
-});
-
 $('body').on('click', '#aa_cancel, #hi_cancel, #dc_fix_cancel, #dl_cancel, #up_cancel, #cg_cancel, #opt_cancel', function () {
-    $('.popup').remove();
-    $('#overlay').remove();
-});
-
-$('body').on('click', '#aa_process', function () {
-    let aa = $('#aa_input').val().trim();
-    //    aa = aa.toLowerCase()
-    $('#aa_popup .error').remove();
-
-    if (aa.length < 32 || aa.length > 44 || !aa.match(/^[0-9a-z]+$/i)) {
-        $('#aa_input').after("<div class='error'>Not a valid address</div>");
-        return
-    }
-
-    if (aa.toLowerCase() in all_address_info) {
-        $('#aa_input').after("<div class='error'>Already imported</div>");
-        return
-    }
-
-    $('.popup').remove();
-    $('#overlay').remove();
-    $('#main_form').append("<input type=hidden id='aa' value='" + aa + "'>");
-    $('#main_form').submit();
+    $('.popup, #overlay').remove();
 });
 
 $('body').on('click', '#hi_conf', function () {
@@ -2278,8 +2291,7 @@ $('body').on('click', '#hi_update', function () {
     //    $.get("save_info?address="+primary+"&field=high_impact_amount&value="+high_impact_amount);
     $('#hi_conf').html('$' + high_impact_amount + '+');
     highlight_impact();
-    $('.popup').remove();
-    $('#overlay').remove();
+    $('.popup, #overlay').remove();
 });
 
 function address_matrix_html() {
@@ -2299,94 +2311,80 @@ function address_matrix_html() {
     console.log('addresses for matrix', addresses, addresses.size)
     console.log('chains for matrix', used_chains, used_chains.size)
     html = "<div id='address_matrix'>"
-    if (used_chains.size == 1) {
-        let chain = Array.from(used_chains)[0];
-        ordered_chains = [chain]
-        if (dict_len(all_address_info) > 1) {
-            html += "<ul id='display_address_selector'>"
-            for (let address in all_address_info) {
-                if (address == 'my account')
-                    continue
-                let addr_dict = all_address_info[address][chain]
-                let used = addr_dict['used']
-                let tx_count = 0
-                if ('tx_count' in addr_dict)
-                    tx_count = addr_dict['tx_count']
-                html += "<li><label><input type=checkbox class=ac_cb id=" + address + "_displayed address=" + address + " chain='" + chain + "'"
-                if (used)
-                    html += " checked "
-                html += "><div class='display_address_option'>" + address + "</div></label> (" + tx_count + " transactions)"
-                if (address.toLowerCase() != primary.toLowerCase()) {
-                    html += "<div class='delete_address' addr='" + address + "' title='Delete this address'></div>"
-                }
-                html += "</li>"
-            }
-            html += "</ul>"
-        }
-    } else {
-        html += "<table id='address_matrix_left'>"
+    html += "<table id='address_matrix_left'>"
+    if (used_chains.size > 1)
         html += "<tr class='chain_names_row'><td></td><td class='all_chains_column'>All chains</td></tr>"
-        if (addresses.size > 1)
+    else
+        html += "<tr class='chain_names_row'><td></td><td class='all_chains_column'></td></tr>"
+
+    if (addresses.size > 1)
+        if (used_chains.size > 1)
             html += "<tr row_addr=all class='all_addresses_row'><td class='addresses_column'>All addresses</td><td class='all_chains_column'><input type=checkbox id='toggle_all'></td></tr>"
-        for (let address in all_address_info) {
-            if (address == 'my account')
-                continue
-            html += "<tr row_addr=" + address + "><td class='addresses_column'>" + display_hash(address, name = 'address', copiable = true, replace_users_address = false)
-            if (address.toLowerCase() != primary.toLowerCase()) {
-                html += "<div class='delete_address' addr='" + address + "' title='Delete this address'></div>"
-            }
-            html += "</td>"
-            html += "<td class='all_chains_column'><input type=checkbox class='toggle_all_chains'></td></tr>"
+        else
+            html += "<tr row_addr=all class='all_addresses_row'><td class='addresses_column'></td><td class='all_chains_column'></td></tr>"
+
+    for (let address in all_address_info) {
+        if (address == 'my account')
+            continue
+
+        html += "<tr row_addr=" + address + "><td class='addresses_column'>" + display_hash(address, name = 'address', copiable = true, replace_users_address = false)
+        if (address.toLowerCase() != primary.toLowerCase()) {
+            html += "<div class='delete_address' addr='" + address + "' title='Delete this address'></div>"
         }
-        html += "</table>"
-        html += "<table id='address_matrix_right'>"
-        ordered_chains = []
-        html += "<tr class='chain_names_row'>"
-        for (let chain in chain_config) {
-            if (used_chains.has(chain)) {
-                ordered_chains.push(chain)
-                html += "<td>" + chain + "</td>"
+        html += "</td>"
+        if (used_chains.size > 1)
+            html += "<td class='all_chains_column'><input type=checkbox class='toggle_all_chains'></td></tr>"
+        else
+            html += "<td class='all_chains_column'></td></tr>"
+    }
+    html += "</table>"
+    html += "<table id='address_matrix_right'>"
+    ordered_chains = []
+    html += "<tr class='chain_names_row'>"
+    for (let chain in chain_config) {
+        if (used_chains.has(chain)) {
+            ordered_chains.push(chain)
+            html += "<td>" + chain + "</td>"
+        }
+    }
+    html += "</tr>"
+    console.log('ordered_chains', ordered_chains)
+
+    if (addresses.size > 1) {
+        html += "<tr row_addr=all class='all_addresses_row'>"
+        for (let chain of ordered_chains) {
+            html += "<td><input type=checkbox class='toggle_all_addresses' chain='" + chain + "'></td>"
+        }
+        html += "</tr>"
+    }
+
+    for (let address in all_address_info) {
+        if (address == 'my account')
+            continue
+        html += "<tr row_addr=" + address + ">"
+        for (let chain of ordered_chains) {
+            if (chain in all_address_info[address]) {
+                addr_dict = all_address_info[address][chain]
+                if (addr_dict['present']) {
+                    used = addr_dict['used']
+                    checked = ""
+                    if (used)
+                        checked = " checked "
+                    tx_count = 0
+                    if ('tx_count' in addr_dict)
+                        tx_count = addr_dict['tx_count']
+                    let title = tx_count + " transactions for " + address + " on " + chain
+                    html += "<td><input type=checkbox class=ac_cb chain='" + chain + "' address=" + address + " " + checked + "><div class='adr_tx_count' title='" + title + "'>" + tx_count + "</div></td>"
+                } else {
+                    html += "<td><input type=checkbox disabled></td>"
+                }
+            } else {
+                html += "<td></td>"
             }
         }
         html += "</tr>"
-        console.log('ordered_chains', ordered_chains)
-
-        if (addresses.size > 1) {
-            html += "<tr row_addr=all class='all_addresses_row'>"
-            for (let chain of ordered_chains) {
-                html += "<td><input type=checkbox class='toggle_all_addresses' chain='" + chain + "'></td>"
-            }
-            html += "</tr>"
-        }
-
-        for (let address in all_address_info) {
-            if (address == 'my account')
-                continue
-            html += "<tr row_addr=" + address + ">"
-            for (let chain of ordered_chains) {
-                if (chain in all_address_info[address]) {
-                    addr_dict = all_address_info[address][chain]
-                    if (addr_dict['present']) {
-                        used = addr_dict['used']
-                        checked = ""
-                        if (used)
-                            checked = " checked "
-                        tx_count = 0
-                        if ('tx_count' in addr_dict)
-                            tx_count = addr_dict['tx_count']
-                        let title = tx_count + " transactions for " + address + " on " + chain
-                        html += "<td><input type=checkbox class=ac_cb chain='" + chain + "' address=" + address + " " + checked + "><div class='adr_tx_count' title='" + title + "'>" + tx_count + "</div></td>"
-                    } else {
-                        html += "<td><input type=checkbox disabled></td>"
-                    }
-                } else {
-                    html += "<td></td>"
-                }
-            }
-            html += "</tr>"
-        }
-        html += "</table>"
     }
+    html += "</table>"
 
     if ('my account' in all_address_info) {
         html += "<ul id='upload_list'><div id='upload_list_header'>Your uploads:</div>"
@@ -2411,27 +2409,20 @@ function address_matrix_html() {
 }
 
 $('body').on('change', '.toggle_all_chains', function () {
-    row_addr = $(this).closest('tr').attr('row_addr')
-    checked = false
-    if ($(this).is(':checked'))
-        checked = true
-    $('#address_matrix_right').find('input[address=' + row_addr + ']').prop('checked', checked)
+    const row_addr = $(this).closest('tr').attr('row_addr');
+    const checked = $(this).is(':checked');
+    $('#address_matrix_right').find(`input[address="${row_addr}"]`).prop('checked', checked);
 });
 
 $('body').on('change', '.toggle_all_addresses', function () {
-    chain = $(this).attr('chain')
-    checked = false
-    if ($(this).is(':checked'))
-        checked = true
-    $('#address_matrix_right').find('input[chain=' + chain + ']').prop('checked', checked)
+    const chain = $(this).attr('chain');
+    const checked = $(this).is(':checked');
+    $('#address_matrix_right').find(`input[chain="${chain}"]`).prop('checked', checked);
 });
 
 $('body').on('change', '#toggle_all', function () {
-    checked = false
-    if ($(this).is(':checked'))
-        checked = true
-    $('#address_matrix_right').find('input').prop('checked', checked)
-    $('.toggle_all_chains').prop('checked', checked)
+    const checked = $(this).is(':checked');
+    $('#address_matrix_right input, .toggle_all_chains').prop('checked', checked);
 });
 
 function make_top() {
@@ -2573,8 +2564,7 @@ $('body').on('click', '#cg_process', function () {
     new_id = el.val()
     current_id = el.attr('current_coingecko_id')
     if (new_id == current_id) {
-        $('.popup').remove();
-        $('#overlay').remove();
+        $('.popup, #overlay').remove();
         return
     }
     if (new_id == fiat) {
@@ -2596,8 +2586,7 @@ $('body').on('click', '#cg_process', function () {
             new_txids = add_transactions(data['transactions'])
             make_pagination();
             need_recalc();
-            $('.popup').remove();
-            $('#overlay').remove();
+            $('.popup, #overlay').remove();
         }
     });
 })
@@ -2642,27 +2631,38 @@ $('body').on('click', '.t_hide', function (event) {
     event.stopPropagation()
 });
 
-
 $('body').on('click', '.delete_address', function () {
-    let address = $(this).attr('addr')
-    html = "<div id='overlay'></div><div id='delete_address_popup' class='popup'><form id='delete_address_form'><input type=hidden name=address_to_delete value='" + address + "'> ";
-    html += "Really delete " + address + "? This will also delete all transfers associated with it.";
-    html += "<div class='sim_buttons'>";
-    html += "<div id='delete_address_confirm'>Delete address</div>";
-    html += "<div id='delete_address_cancel'>Cancel</div></div>";
-    html += "</form></div>";
-    $('#content').append(html);
+    const $tr = $(this).closest("tr");
+    const address = $(this).attr('addr');
+
+    if ($tr.attr("row_addr")) {
+        $('#content').append(`
+            <div id='overlay'></div>
+            <div id='delete_address_popup' class='popup'>
+                <form id='delete_address_form'>
+                    <input type='hidden' name='address_to_delete' value='${address}'>
+                    Really delete ${address}? This will also delete all transfers associated with it.
+                    <div class='sim_buttons'>
+                        <div id='delete_address_confirm'>Delete address</div>
+                        <div id='delete_address_cancel'>Cancel</div>
+                    </div>
+                </form>
+            </div>`);
+    } else if ($tr.attr("import_addr")) {
+        $tr.remove();
+        if (!get_import_addresses().length) {
+            $('#submit_address').val("Process transactions");
+        }
+    }
 });
 
 $('body').on('click', '#delete_address_cancel', function () {
-    $('#delete_address_popup').remove();
-    $('#overlay').remove();
+    $('#delete_address_popup, #overlay').remove();
 });
 
 $('body').on('click', '#delete_address_confirm', function () {
     data = $('#delete_address_form').serialize();
     $.post("delete_address?address=" + primary, data, function (resp) {
-        //        console.log(resp);
         var data = JSON.parse(resp);
         if (data.hasOwnProperty('error')) {
             $("#delete_address_form").after("<div class='err_mes'>" + data['error'] + "</div>");
@@ -2673,24 +2673,7 @@ $('body').on('click', '#delete_address_confirm', function () {
                 $('#main_form').submit();
                 return
             }
-            $('#delete_address_popup').remove();
-            $('#overlay').remove();
+            $('#delete_address_popup, #overlay').remove();
         }
     });
-});
-
-$('body').on('click', '#donations_main', function () {
-    html = "<div id='overlay'></div><div id='donations_popup' class='popup'>";
-    html += "<p>Thank you for clicking here. My name is Ilya Raykhel, and development of this website is my full-time job. Additionally, I spend about $7K/year on hosting costs and various paid APIs. ";
-    html += "If you found my website useful and would like to contribute to its development, I would appreciate a donation to 0xbf01E689Dd71206A47186f204afBf3b8e7bB8114.</p> "
-    html += "<p>If there's ever a token or an NFT project associated with this website in the future (no promises), all donators will be generously rewarded.</p>"
-    html += "<div class='sim_buttons'>";
-    html += "<div id='donations_popup_cancel'>Close popup</div></div>";
-    html += "</div>";
-    $('#content').append(html);
-});
-
-$('body').on('click', '#donations_popup_cancel', function () {
-    $('#donations_popup').remove();
-    $('#overlay').remove();
 });

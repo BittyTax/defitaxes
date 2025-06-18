@@ -1403,6 +1403,7 @@ div#up_popup {
     height: 80px;
 }
 
+div#aa_add,
 div#aa_process,
 div#aa_cancel,
 div#hi_update,
@@ -1558,7 +1559,7 @@ div#dc_fix_popup ul {
 }
 
 div#address_matrix {
-    height: 200px;
+    max-height: 200px;
     margin: auto;
     white-space: nowrap;
     overflow-y: auto;
