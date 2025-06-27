@@ -21,6 +21,7 @@ class Config:  # pylint: disable=too-few-public-methods
     ZKEVM_POLYGONSCAN_API_KEY = os.environ.get("DEFITAXES_ZKEVM_POLYGONSCAN_API_KEY", "")
     SNOWSCAN_API_KEY = os.environ.get("DEFITAXES_SNOWSCAN_API_KEY", "")
     FTMSCAN_API_KEY = os.environ.get("DEFITAXES_FTMSCAN_API_KEY", "")
+    SONICSCAN_API_KEY = os.environ.get("DEFITAXES_SONICSCAN_API_KEY", "")
     CRONOSCAN_API_KEY = os.environ.get("DEFITAXES_CRONOSCAN_API_KEY", "")
     CELOSCAN_API_KEY = os.environ.get("DEFITAXES_CELOSCAN_API_KEY", "")
     MOONSCAN_API_KEY = os.environ.get("DEFITAXES_MOONSCAN_API_KEY", "")

@@ -89,6 +89,7 @@ API keys can mostly be obtained for free by subscribing to the websites listed b
 | `DEFITAXES_ZKEVM_POLYGONSCAN_API_KEY` | [zkEVM Polygonscan](https://zkevm.polygonscan.com) - Polygon zkEVM (ETH) Blockchain Explorer |
 | `DEFITAXES_SNOWSCAN_API_KEY` | [SnowScan](https://snowscan.xyz) - Avalanche C-Chain (AVAX) Blockchain Explorer |
 | `DEFITAXES_FTMSCAN_API_KEY` | [FTMScan](https://ftmscan.com) - Fantom (FTM) Blockchain Explorer |
+| `DEFITAXES_SONICSCAN_API_KEY` | [SonicScan](https://sonicscan.org) - Sonic (S) Blockchain Explorer |
 | `DEFITAXES_CRONOSCAN_API_KEY` | [Cronoscan](https://cronoscan.com) - Cronos Chain (CRO) Blockchain Explorer |
 | `DEFITAXES_CELOSCAN_API_KEY` | [Celoscan](https://celoscan.io) - Celo Chain (CELO) Blockchain Explorer |
 | `DEFITAXES_MOONSCAN_API_KEY` | [Moonbeam](https://moonscan.io) - Moonbeam Chain (GLMR) Blockchain Explorer |
