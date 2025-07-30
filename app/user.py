@@ -101,7 +101,7 @@ class User:
                 "import_id INTEGER, upload_id INTEGER",
                 drop=drop,
             )
-            self.db.create_index("transactions_idx", "transactions", "hash", unique=True)
+            self.db.create_index("transactions_idx", "transactions", "chain, hash", unique=True)
 
             self.db.create_table(
                 "transaction_transfers",
@@ -435,6 +435,10 @@ class User:
 
             if current_version < 1.42:
                 self.db.query("ALTER TABLE transactions ADD COLUMN minimized INTEGER")
+
+            if current_version < 1.43:
+                self.db.query("DROP INDEX transactions_idx")
+                self.db.create_index("transactions_idx", "transactions", "chain, hash", unique=True)
 
             if current_version != version:
                 self.set_info("data_version", data_version)
@@ -786,7 +790,12 @@ class User:
     ):
         db = self.db
         rows = db.select(
-            "SELECT * FROM transactions WHERE hash='" + hash + "'", return_dictionaries=True
+            "SELECT * FROM transactions WHERE LOWER(chain)=LOWER('"
+            + chain_name
+            + "') and hash='"
+            + hash
+            + "'",
+            return_dictionaries=True,
         )
         interacted_addr_id = self.locate_insert_address(
             chain_name, interacted
