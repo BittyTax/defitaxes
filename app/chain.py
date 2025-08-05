@@ -424,7 +424,8 @@ class Chain:
         "Metis": {
             "scanner": "explorer.metis.io",
             "base_asset": "METIS",
-            "api_type": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://andromeda-explorer.metis.io/api",
             "evm_chain_id": 1088,
             "wrapper": "0x75cb093e4d61d2a2e65d8e0bbb01de8d89b53481",
             "coingecko_platform": "metis-andromeda",
