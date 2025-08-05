@@ -265,7 +265,7 @@ class Chain:
             "debank_mapping": "ftm",
             "covalent_mapping": "fantom-mainnet",
             "order": 7,
-            "support": 10,
+            "support": 0,
             "erc1155_support": 5,
             "cp_availability": 10,
         },
