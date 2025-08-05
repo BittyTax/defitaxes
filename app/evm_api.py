@@ -31,10 +31,19 @@ class EvmAccountAction(Enum):
 class EvmApi:
     MODULE_ACCOUNT = "account"
     MODULE_CONTRACT = "contract"
+
     ACTION_GET_CONTRACT_CREATION = "getcontractcreation"
     SORT_ASCENDING = "asc"
+
     STATUS_OK = "1"
     STATUS_NOT_OK = "0"
+
+    MESSAGE_NO_TRANSACTIONS = "No transactions found"
+    MESSAGE_NO_INTERNAL_TRANSACTIONS = "No internal transactions found"
+    MESSAGE_NO_TOKEN_TRANSFERS = "No token transfers found"
+    MESSAGE_NO_DATA = "No data found"
+
+    RESULT_RATE_LIMIT = "rate limit reached"
 
     def __init__(
         self, rate_limit=5, timeout=30, retries=3, backoff_factor=1, tx_per_page=10000
@@ -72,15 +81,15 @@ class EvmApi:
                                     return json["result"]
 
                             if json["status"] == self.STATUS_NOT_OK:
-                                if json.get("result") and "rate limit reached" in json["result"]:
+                                if json.get("result") and self.RESULT_RATE_LIMIT in json["result"]:
                                     raise EvmApiRateLimitReached(
                                         f"content={response.content.decode()}"
                                     )
                                 if json.get("message") and json["message"] in (
-                                    "No transactions found",
-                                    "No internal transactions found",
-                                    "No token transfers found",
-                                    "No data found",
+                                    self.MESSAGE_NO_TRANSACTIONS,
+                                    self.MESSAGE_NO_INTERNAL_TRANSACTIONS,
+                                    self.MESSAGE_NO_TOKEN_TRANSFERS,
+                                    self.MESSAGE_NO_DATA,
                                 ):
                                     return []
 
@@ -93,6 +102,8 @@ class EvmApi:
                     if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
                         if "retry-after" in response.headers:
                             self.retry_after = int(response.headers["retry-after"])
+                        elif "x-ratelimit-rpm-retry-after" in response.headers:
+                            self.retry_after = int(response.headers["x-ratelimit-rpm-retry-after"])
 
                         if not self._retry(attempt, self.retry_after):
                             raise EvmApiFailureBadResponse
