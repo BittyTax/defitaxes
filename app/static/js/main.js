@@ -999,7 +999,12 @@ $('body').on('click', '#demo_link', function () {
 
 function process(primary, uniqueid = '', import_addresses = '', ac_str = '') {
     $.ajax({
-        url: "process?address=" + primary + "&uid=" + uniqueid + "&import_addresses=" + import_addresses + "&ac_str=" + ac_str,
+        type: 'POST', url: "process?address=" + primary + "&uid=" + uniqueid,
+        data: JSON.stringify({
+            import_addresses: import_addresses,
+            ac_str: ac_str
+        }),
+        contentType: "application/json",
 
         success: function (js) {
             try {
@@ -1026,7 +1031,7 @@ function process(primary, uniqueid = '', import_addresses = '', ac_str = '') {
 
 function process_data(primary) {
     $.ajax({
-        url: "process_data?address=" + primary,
+        type: 'POST', url: "process_data?address=" + primary,
 
         success: function (js) {
             $('#address_form').css({

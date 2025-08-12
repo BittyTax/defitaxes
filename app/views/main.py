@@ -74,12 +74,18 @@ def _last_update_inner(user):
     return int(rows[0][0])
 
 
-@main.route("/process", methods=["GET"])
+@main.route("/process", methods=["POST"])
 def process():
     primary = normalize_address(request.args.get("address"))
-    import_addresses = request.args.get("import_addresses")
+    data = request.get_json(silent=True) or {}
+
+    if "import_addresses" not in data or "ac_str" not in data:
+        js = {"error": "Missing import_addresses or ac_str in JSON request body"}
+        return json.dumps(js), 400
+
+    import_addresses = data.get("import_addresses")
+    ac_str = data.get("ac_str")
     log("import_addresses provided", import_addresses)
-    ac_str = request.args.get("ac_str")
     log("ac_str", ac_str)
 
     redis = Redis(primary)
@@ -100,7 +106,7 @@ def process():
     return json.dumps(js)
 
 
-@main.route("/process_data", methods=["GET"])
+@main.route("/process_data", methods=["POST"])
 def process_data():
     primary = normalize_address(request.args.get("address"))
     return _recreate_data_from_caches(primary)
@@ -139,14 +145,12 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
 
         log("all chains", all_chains)
 
-        if import_addresses is not None and import_addresses != "":
+        if import_addresses:
             if import_addresses == "all":
                 if len(all_previous_addresses) == 0:
                     import_addresses = [primary]
                 else:
                     import_addresses = all_previous_addresses
-            else:
-                import_addresses = import_addresses.split(",")
         elif len(all_previous_addresses) == 0:
             import_addresses = [primary]
         else:
