@@ -1386,6 +1386,7 @@ div.top_menu_icon_open {
 }
 
 div#aa_clicker,
+div#bulk_clicker,
 div#up_clicker {
     color: blue;
     cursor: pointer;
@@ -1412,7 +1413,9 @@ div#dl_cancel,
 div#up_process,
 div#up_cancel,
 div#opt_process,
-div#opt_cancel {
+div#opt_cancel,
+div#bulk_add,
+div#bulk_cancel {
     padding: 5px;
     text-align: center;
     display: inline-block;
@@ -1490,6 +1493,16 @@ div.add_note {
     display: block;
     margin-top: 10px;
     margin-bottom: 3px;
+}
+
+#bulk_popup textarea {
+    height: 350px;
+    width: 350px;
+    border: 1px solid #777777;
+    border-radius: 5px;
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 div.note_buttons {
@@ -1585,6 +1598,7 @@ div#address_matrix td {
     width: 50px;
     text-align: center;
     vertical-align: top;
+    padding: 5px;
 }
 
 div#address_matrix tr.all_addresses_row td {

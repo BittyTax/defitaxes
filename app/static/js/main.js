@@ -1244,6 +1244,57 @@ $('body').on('click', '#aa_add', function () {
     $('#aa_popup, #overlay').remove();
 });
 
+$('body').on('click', '#bulk_clicker', function () {
+    $('#content').append(`
+        <div id="overlay"></div>
+            <div id="bulk_popup" class="popup">
+                <textarea id="bulk_input" placeholder="Ethereum or Solana addresses seperated by a newline or whitespace"></textarea>
+                <div id='bulk_add'>Add</div>
+                <div id='bulk_cancel'>Cancel</div>
+            </div>
+    `);
+});
+
+$('body').on('click', '#bulk_cancel', function () {
+    $('#bulk_popup, #overlay').remove();
+});
+
+$('body').on('click', '#bulk_add', function () {
+    let input = $('#bulk_input').val();
+    let addresses = input.split(/\s+/).map(a => a.trim()).filter(a => a);
+
+    addresses.forEach(function (aa) {
+        if (aa.length < 32 || aa.length > 44 || !aa.match(/^[0-9a-z]+$/i)) {
+            return;
+        }
+        if (aa.toLowerCase() in all_address_info || aa in all_address_info) {
+            return;
+        }
+        let aa_list = get_import_addresses();
+        if (aa_list.includes(aa)) return;
+
+        if ($('#address_matrix').is(':empty')) {
+            $('#address_matrix').append(`
+                <table id='address_matrix_left'>
+                    <tr class='chain_names_row'><td></td><td></td></tr>
+                </table>`);
+        }
+
+        $('#address_matrix_left tbody').append(`
+            <tr import_addr="${aa}">
+                <td class='addresses_column'>
+                    ${display_hash(aa, 'address', true, false)}
+                    <div class='delete_address' addr="${aa}" title='Delete this address'></div>
+                </td>
+                <td class="all_chains_column"></td>
+            </tr>`);
+    });
+
+    $('#address_matrix').scrollTop($('#address_matrix')[0].scrollHeight);
+    $('#submit_address').val("Import transactions");
+    $('#bulk_popup, #overlay').remove();
+});
+
 function get_import_addresses() {
     return Array.from($('#address_matrix tr[import_addr]'), row => $(row).attr('import_addr').trim());
 }
@@ -2470,6 +2521,7 @@ function make_top() {
     let top_menu_html = "";
     top_menu_html += address_matrix_html()
     top_menu_html += "<div id='aa_clicker'>Add another address</div>";
+    top_menu_html += "<div id='bulk_clicker'>Bulk add addresses</div>";
     top_menu_html += "<div id='up_clicker'>Upload transactions from a CSV</div>";
     //    top_menu_html += "<input type=hidden id=force_forget_derived value=0 />"
     $('#top_menu').html(top_menu_html)
