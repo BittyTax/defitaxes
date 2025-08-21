@@ -1222,7 +1222,7 @@ $('body').on('click', '#aa_add', function () {
 
     if ($('#address_matrix').is(':empty')) {
         $('#address_matrix').append(`
-            <table id='address_matrix_left'>
+            <table>
                 <tr class='chain_names_row'>
                     <td></td>
                     <td></td>
@@ -1230,7 +1230,7 @@ $('body').on('click', '#aa_add', function () {
             </table>`);
     }
 
-    $('#address_matrix_left tbody').append(`
+    $('#address_matrix tbody').append(`
         <tr import_addr="${aa}">
             <td class='addresses_column'>
                 ${display_hash(aa, 'address', true, false)}
@@ -1275,12 +1275,12 @@ $('body').on('click', '#bulk_add', function () {
 
         if ($('#address_matrix').is(':empty')) {
             $('#address_matrix').append(`
-                <table id='address_matrix_left'>
+                <table>
                     <tr class='chain_names_row'><td></td><td></td></tr>
                 </table>`);
         }
 
-        $('#address_matrix_left tbody').append(`
+        $('#address_matrix tbody').append(`
             <tr import_addr="${aa}">
                 <td class='addresses_column'>
                     ${display_hash(aa, 'address', true, false)}
@@ -2351,134 +2351,140 @@ $('body').on('click', '#hi_update', function () {
 });
 
 function address_matrix_html() {
-    let addresses = new Set()
-    used_chains = new Set()
+    let addresses = new Set();
+    used_chains = new Set();
     for (let address in all_address_info) {
-        if (address == 'my account')
-            continue
+        if (address == 'my account') continue;
         for (let chain in all_address_info[address]) {
-            let addr_dict = all_address_info[address][chain]
+            let addr_dict = all_address_info[address][chain];
             if (addr_dict['present']) {
-                addresses.add(address)
-                used_chains.add(chain)
+                addresses.add(address);
+                used_chains.add(chain);
             }
         }
     }
-    console.log('addresses for matrix', addresses, addresses.size)
-    console.log('chains for matrix', used_chains, used_chains.size)
-    html = "<div id='address_matrix'>"
-    html += "<table id='address_matrix_left'>"
-    if (used_chains.size > 1)
-        html += "<tr class='chain_names_row'><td></td><td class='all_chains_column'>All chains</td></tr>"
-    else
-        html += "<tr class='chain_names_row'><td></td><td class='all_chains_column'></td></tr>"
-
-    if (addresses.size > 1)
-        if (used_chains.size > 1)
-            html += "<tr row_addr=all class='all_addresses_row'><td class='addresses_column'>All addresses</td><td class='all_chains_column'><input type=checkbox id='toggle_all'></td></tr>"
-        else
-            html += "<tr row_addr=all class='all_addresses_row'><td class='addresses_column'></td><td class='all_chains_column'></td></tr>"
-
-    for (let address in all_address_info) {
-        if (address == 'my account')
-            continue
-
-        html += "<tr row_addr=" + address + "><td class='addresses_column'>" + display_hash(address, name = 'address', copiable = true, replace_users_address = false)
-        if (address.toLowerCase() != primary.toLowerCase()) {
-            html += "<div class='delete_address' addr='" + address + "' title='Delete this address'></div>"
-        }
-        html += "</td>"
-        if (used_chains.size > 1)
-            html += "<td class='all_chains_column'><input type=checkbox class='toggle_all_chains'></td></tr>"
-        else
-            html += "<td class='all_chains_column'></td></tr>"
-    }
-    html += "</table>"
-    html += "<table id='address_matrix_right'>"
-    ordered_chains = []
-    html += "<tr class='chain_names_row'>"
+    ordered_chains = [];
     for (let chain in chain_config) {
         if (used_chains.has(chain)) {
-            ordered_chains.push(chain)
-            html += "<td>" + chain + "</td>"
+            ordered_chains.push(chain);
         }
     }
-    html += "</tr>"
-    console.log('ordered_chains', ordered_chains)
+    console.log('addresses for matrix', addresses, addresses.size);
+    console.log('chains for matrix', used_chains, used_chains.size);
+    console.log('ordered_chains', ordered_chains);
+
+    let html = `<div id='address_matrix'>
+                <table>`;
+
+    if (used_chains.size > 1)
+        html += `<tr class='chain_names_row'>
+                    <td></td>
+                    <td class='all_chains_column'>All chains</td>`;
+    else
+        html += `<tr class='chain_names_row'>
+                    <td></td>
+                    <td class='all_chains_column'></td>`;
+
+    for (let chain of ordered_chains) {
+        html += `<td>${chain}</td>`;
+    }
+    html += `</tr>`;
 
     if (addresses.size > 1) {
-        html += "<tr row_addr=all class='all_addresses_row'>"
+        if (used_chains.size > 1)
+            html += `<tr row_addr=all class='all_addresses_row'>
+                        <td class='addresses_column'>All addresses</td>
+                        <td class='all_chains_column'><input type=checkbox id='toggle_all'></td>`;
+        else
+            html += `<tr row_addr=all class='all_addresses_row'>
+                        <td class='addresses_column'></td>
+                        <td class='all_chains_column'></td>`;
+
         for (let chain of ordered_chains) {
-            html += "<td><input type=checkbox class='toggle_all_addresses' chain='" + chain + "'></td>"
+            html += `<td><input type=checkbox class='toggle_all_addresses' chain='${chain}'></td>`;
         }
-        html += "</tr>"
+        html += `</tr>`;
     }
 
     for (let address in all_address_info) {
-        if (address == 'my account')
-            continue
-        html += "<tr row_addr=" + address + ">"
+        if (address == 'my account') continue;
+
+        html += `<tr row_addr=${address}>
+                    <td class='addresses_column'>` + display_hash(address, name = 'address', copiable = true, replace_users_address = false);
+        if (address.toLowerCase() != primary.toLowerCase()) {
+            html += `<div class='delete_address' addr='${address}' title='Delete this address'></div>`;
+        }
+        html += `</td>`;
+        if (used_chains.size > 1)
+            html += `<td class='all_chains_column'><input type=checkbox class='toggle_all_chains'></td>`;
+        else
+            html += `<td class='all_chains_column'></td>`;
+
         for (let chain of ordered_chains) {
             if (chain in all_address_info[address]) {
-                addr_dict = all_address_info[address][chain]
+                let addr_dict = all_address_info[address][chain];
                 if (addr_dict['present']) {
-                    used = addr_dict['used']
-                    checked = ""
-                    if (used)
-                        checked = " checked "
-                    tx_count = 0
+                    let used = addr_dict['used'];
+                    let checked = used ? " checked " : "";
+                    let tx_count = 0;
                     if ('tx_count' in addr_dict)
-                        tx_count = addr_dict['tx_count']
-                    let title = tx_count + " transactions for " + address + " on " + chain
-                    html += "<td><input type=checkbox class=ac_cb chain='" + chain + "' address=" + address + " " + checked + "><div class='adr_tx_count' title='" + title + "'>" + tx_count + "</div></td>"
+                        tx_count = addr_dict['tx_count'];
+                    let title = tx_count + " transactions for " + address + " on " + chain;
+                    html += `<td>
+                                <input type=checkbox class=ac_cb chain='${chain}' address=${address} ${checked}>
+                                <div class='adr_tx_count' title='${title}'>${tx_count}</div>
+                             </td>`;
                 } else {
-                    html += "<td><input type=checkbox disabled></td>"
+                    html += `<td><input type=checkbox disabled></td>`;
                 }
             } else {
-                html += "<td></td>"
+                html += `<td></td>`;
             }
         }
-        html += "</tr>"
+        html += `</tr>`;
     }
-    html += "</table>"
+    html += `</table>`;
 
     if ('my account' in all_address_info) {
-        html += "<ul id='upload_list'><div id='upload_list_header'>Your uploads:</div>"
+        html += `<ul id='upload_list'><div id='upload_list_header'>Your uploads:</div>`;
         for (let upload in all_address_info['my account']) {
-            let addr_dict = all_address_info['my account'][upload]
-            let used = addr_dict['used']
-            let tx_count = 0
+            let addr_dict = all_address_info['my account'][upload];
+            let used = addr_dict['used'];
+            let tx_count = 0;
             if ('tx_count' in addr_dict)
-                tx_count = addr_dict['tx_count']
-            html += "<li><label><input type=checkbox class=ac_cb id=" + upload + "_displayed address='my account' chain='" + upload + "'"
-            if (used)
-                html += " checked "
-            html += "><div class='upload_option'>" + upload + "</div> (" + tx_count + " transactions)</label>"
-            html += "<div title='Add more transactions from the same source' class='up_icon up_add' chain='" + upload + "'></div>"
-            html += "<div title='Delete this upload and all its transactions' class='up_icon up_delete' chain='" + upload + "'></div>"
-            html += "</li>"
+                tx_count = addr_dict['tx_count'];
+            html += `<li>
+                        <label>
+                          <input type=checkbox class=ac_cb id=${upload}_displayed address='my account' chain='${upload}'` +
+                (used ? " checked " : "") +
+                `>
+                          <div class='upload_option'>${upload}</div> (${tx_count} transactions)
+                        </label>
+                        <div title='Add more transactions from the same source' class='up_icon up_add' chain='${upload}'></div>
+                        <div title='Delete this upload and all its transactions' class='up_icon up_delete' chain='${upload}'></div>
+                     </li>`;
         }
-        html += "</ul>"
+        html += `</ul>`;
     }
-    html += "</div>"
-    return html
+    html += `</div>`;
+    return html;
 }
 
 $('body').on('change', '.toggle_all_chains', function () {
     const row_addr = $(this).closest('tr').attr('row_addr');
     const checked = $(this).is(':checked');
-    $('#address_matrix_right').find(`input[address="${row_addr}"]`).prop('checked', checked);
+    $('#address_matrix').find(`input[address="${row_addr}"]`).prop('checked', checked);
 });
 
 $('body').on('change', '.toggle_all_addresses', function () {
     const chain = $(this).attr('chain');
     const checked = $(this).is(':checked');
-    $('#address_matrix_right').find(`input[chain="${chain}"]`).prop('checked', checked);
+    $('#address_matrix').find(`input[chain="${chain}"]`).prop('checked', checked);
 });
 
 $('body').on('change', '#toggle_all', function () {
     const checked = $(this).is(':checked');
-    $('#address_matrix_right input, .toggle_all_chains').prop('checked', checked);
+    $('#address_matrix input, .toggle_all_chains').prop('checked', checked);
 });
 
 function make_top() {

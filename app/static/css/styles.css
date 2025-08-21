@@ -1578,24 +1578,26 @@ div#address_matrix {
     overflow-y: auto;
 }
 
-table#address_matrix_left {
-    display: inline-block;
-    font-size: 12px;
-    vertical-align: top;
-    border-right: 1px solid #EEEEEE;
+div#address_matrix tr.chain_names_row td {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    background-color: #FAFAFA;
+    z-index: 2;
 }
 
-table#address_matrix_right {
-    display: inline-block;
-    max-width: 400px;
-    font-size: 12px;
-    overflow: auto;
-    vertical-align: top;
+div#address_matrix td.addresses_column {
+    position: -webkit-sticky;
+    position: sticky;
+    left: 0;
+    background-color: #FAFAFA;
+    z-index: 1;
 }
 
 div#address_matrix td {
     height: 35px;
     width: 50px;
+    font-size: 12px;
     text-align: center;
     vertical-align: top;
     padding: 5px;
@@ -1607,6 +1609,7 @@ div#address_matrix tr.all_addresses_row td {
 }
 
 div#address_matrix td.addresses_column {
+    text-align: left;
     width: 100px;
 }
 
@@ -1617,6 +1620,7 @@ div#address_matrix td.addresses_column span {
 }
 
 div#address_matrix td.all_chains_column {
+    border-right: 1px solid #EEEEEE;
     width: 30px;
 }
 
