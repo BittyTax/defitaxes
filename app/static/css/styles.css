@@ -1578,6 +1578,10 @@ div#address_matrix {
     overflow-y: auto;
 }
 
+div#address_matrix table {
+    margin: auto;
+}
+
 div#address_matrix tr.chain_names_row td {
     position: -webkit-sticky;
     position: sticky;
