@@ -81,21 +81,6 @@ API keys can mostly be obtained for free by subscribing to the websites listed b
 | Name | Description |
 | --- | --- |
 | `DEFITAXES_ETHERSCAN_API_KEY` | [Etherscan](https://etherscan.io) - Ethereum (ETH) Blockchain Explorer |
-| `DEFITAXES_OPTIMISTIC_ETHERSCAN_API_KEY` | [Optimistic](https://optimistic.etherscan.io) - OP Mainnet (ETH) Blockchain Explorer |
-| `DEFITAXES_BSCSCAN_API_KEY` | [BscScan](https://bscscan.com) - BNB Smart Chain (BNB) Blockchain Explorer |
-| `DEFITAXES_ARBISCAN_API_KEY` | [Arbiscan](https://arbiscan.io) - Arbitrum One (ETH) Blockchain Explorer |
-| `DEFITAXES_NOVA_ARBISCAN_API_KEY` | [Nova Arbiscan](https://nova.arbiscan.io) - Arbitrum Nova (ETH) Blockchain Explorer |
-| `DEFITAXES_POLYGONSCAN_API_KEY` | [Polygonscan](https://polygonscan.com) - Polygon PoS Chain (POL) Blockchain Explorer |
-| `DEFITAXES_ZKEVM_POLYGONSCAN_API_KEY` | [zkEVM Polygonscan](https://zkevm.polygonscan.com) - Polygon zkEVM (ETH) Blockchain Explorer |
-| `DEFITAXES_SNOWSCAN_API_KEY` | [SnowScan](https://snowscan.xyz) - Avalanche C-Chain (AVAX) Blockchain Explorer |
-| `DEFITAXES_FTMSCAN_API_KEY` | [FTMScan](https://ftmscan.com) - Fantom (FTM) Blockchain Explorer |
-| `DEFITAXES_SONICSCAN_API_KEY` | [SonicScan](https://sonicscan.org) - Sonic (S) Blockchain Explorer |
-| `DEFITAXES_CRONOSCAN_API_KEY` | [Cronoscan](https://cronoscan.com) - Cronos Chain (CRO) Blockchain Explorer |
-| `DEFITAXES_CELOSCAN_API_KEY` | [Celoscan](https://celoscan.io) - Celo Chain (CELO) Blockchain Explorer |
-| `DEFITAXES_MOONSCAN_API_KEY` | [Moonbeam](https://moonscan.io) - Moonbeam Chain (GLMR) Blockchain Explorer |
-| `DEFITAXES_MOONRIVER_MOONSCAN_API_KEY` | [Moonriver](https://moonriver.moonscan.io) -  Moonriver Chain (MOVR) Blockchain Explorer |
-| `DEFITAXES_GNOSISSCAN_API_KEY` | [GnosisScan](https://gnosisscan.io) - Gnosis Chain (xDAI) Blockchain Explorer |
-| `DEFITAXES_BASESCAN_API_KEY` | [BaseScan](https://basescan.org) - Base (ETH) Blockchain Explorer |
 | `DEFITAXES_BLOCKDAEMON_API_KEY` | [Blockdaemon](https://www.blockdaemon.com) - Blockdaemon Institutional Gateway to Web3 (Solana RPC) |
 | `DEFITAXES_COINGECKO_API_KEY` | [CoinGecko](https://www.coingecko.com)<sup>1</sup> - Cryptocurrency prices |
 | `DEFITAXES_TWELVEDATA_API_KEY` | [Twelve Data](https://twelvedata.com) - Fiat prices |
