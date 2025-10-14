@@ -187,7 +187,7 @@ class Chain:
             "coingecko_id": "ethereum",
             "debank_mapping": "pze",
             "order": 4.5,
-            "support": 3,
+            "support": 0,
             "erc1155_support": 3,
         },
         "Base": {
