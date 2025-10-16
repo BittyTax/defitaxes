@@ -265,7 +265,8 @@ class Chain:
         "Cronos": {
             "scanner": "cronoscan.com",
             "base_asset": "CRO",
-            "api_type": ChainApiType.ETHERSCAN_V2,
+            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://cronos.org/explorer/api",
             "evm_chain_id": 25,
             "wrapper": "0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23",
             "coingecko_id": "crypto-com-chain",
