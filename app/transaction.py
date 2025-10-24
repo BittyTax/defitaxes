@@ -84,6 +84,7 @@ class Transfer:
         "what",
         "symbol",
         "coingecko_id",
+        "principal",
         "input_len",
         "rate_found",
         "rate",
@@ -125,6 +126,7 @@ class Transfer:
         custom_treatment=None,
         custom_rate=None,
         custom_vaultid=None,
+        principal=False,
     ):
         if val is None or val == "":
             val = 0
@@ -144,6 +146,7 @@ class Transfer:
         self.what = token_contract
         self.coingecko_id = coingecko_id
         self.symbol = token_name
+        self.principal = principal
         self.input_len = input_len
         self.input_non_zero = input_len > 2
         self.rate_found = rate_found
@@ -449,6 +452,8 @@ class Transaction:
             if from_me_strict and to_me_strict:
                 self_transfer = True
 
+            principal = coingecko_rates.lookup_principal(self.chain.name, token_contract)
+
             transfer = Transfer(
                 id,
                 type,
@@ -471,6 +476,7 @@ class Transaction:
                 custom_vaultid=custom_vaultid,
                 input=passed_input,
                 synthetic=synthetic,
+                principal=principal,
             )
             t2 = time.time()
             t_fin[1] += t2 - t1

@@ -64,7 +64,9 @@ class EvmApi:
             for attempt in range(1 + self.retries):
                 self._rate_limit()
                 try:
-                    request = requests.Request(HTTPMethod.GET, url, params=params)
+                    request = requests.Request(
+                        HTTPMethod.GET, url, params=params, headers=self.session.headers
+                    )
                     requestp = request.prepare()
 
                     current_app.logger.info(

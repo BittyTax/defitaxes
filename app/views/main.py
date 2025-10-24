@@ -8,7 +8,7 @@ import traceback
 from flask import Blueprint, current_app, render_template, request
 
 from ..chain import Chain
-from ..coingecko import Coingecko
+from ..coingecko import CoinGecko
 from ..constants import USER_DIRNAME
 from ..evm_api import EtherscanV1Api, EtherscanV2Api
 from ..fiat_rates import Twelve
@@ -202,7 +202,7 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
 
         import_new = len(import_addresses) > 0
 
-        S = Signatures()
+        sig = Signatures()
 
         pb = ProgressBar(redis)
         pb.set("Starting", 0)
@@ -364,8 +364,8 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
         log("total_request_count", total_request_count, total_request_count_disp)
 
         if import_new or not use_derived:
-            C = Coingecko(verbose=True)
-            C.make_contracts_map()
+            cg = CoinGecko()
+            cg.make_contracts_map()
 
         if import_new:
             pb.set("Importing transactions", 5)
@@ -490,12 +490,6 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
                 chain.covalent_correction(chain_data)
                 chain.balance_provider_correction(chain_data)
 
-            pb.update("Loading coingecko symbols", 0)
-            try:
-                C.download_symbols_to_db(drop=True, progress_bar=pb)  # alloc 3
-            except:
-                log_error("Failed to download coingecko symbols", primary)
-
             pb.update("Storing transactions,", 0)
 
             for chain_name, chain_data in all_chains.items():
@@ -503,7 +497,7 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
                     chain_data["chain"],
                     chain_data["transactions"],
                     chain_data["import_addresses"],
-                    C,
+                    cg,
                 )
                 log("storing transactions", chain_name, len(chain_data["transactions"]))
                 user.store_current_tokens(chain_data["chain"], chain_data["current_tokens"])
@@ -619,50 +613,44 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
 
             t = time.time()
             log("contract_dict", contract_dict)
-            S.init_from_db(input_list)
+            sig.init_from_db(input_list)
 
             pb.set("Loading coingecko rates", 63)
             needed_token_times = user.get_needed_token_times(transactions)
             log("needed_token_times", needed_token_times)
 
-            C.init_from_db_2(all_chains, needed_token_times, progress_bar=pb)
+            cg.init_from_db_2(needed_token_times, progress_bar=pb)
         else:
             pb.update("Loading transactions")
             transactions, _ = user.load_transactions(all_chains, load_derived=True)
             needed_token_times = user.get_needed_token_times(transactions)
             try:
-                C = Coingecko.init_from_cache(user)
+                cg = CoinGecko.init_from_cache(user)
                 for coingecko_id in needed_token_times:
-                    assert coingecko_id in C.rates
+                    assert coingecko_id in cg.rates
             except:
-                C = Coingecko(verbose=True)
-                pb.set("Loading coingecko symbols", 60)
-                try:
-                    C.download_symbols_to_db(drop=True, progress_bar=pb)  # alloc 3
-                except:
-                    log_error("Failed to download coingecko symbols", primary)
-
+                cg = CoinGecko()
                 pb.set("Loading coingecko rates", 63)
-                C.make_contracts_map()
-                C.init_from_db_2(all_chains, needed_token_times, progress_bar=pb)
-            S = None
+                cg.make_contracts_map()
+                cg.init_from_db_2(needed_token_times, progress_bar=pb)
+            sig = None
 
         if import_new:
             user.finish_import()
-        current_tokens = user.load_current_tokens(C)
+        current_tokens = user.load_current_tokens(cg)
         log("loaded current tokens", current_tokens)
 
         if import_new:
             redis.deq()
 
-        log("coingecko initialized", C.initialized)
+        log("coingecko initialized", cg.initialized)
         pb.set("Classifying transactions", 80)
         store_derived = import_new or not use_derived
         if store_derived:
             user.wipe_derived_data()
 
         transactions_js = user.transactions_to_log(
-            C, S, transactions, progress_bar=pb, store_derived=store_derived
+            cg, sig, transactions, progress_bar=pb, store_derived=store_derived
         )  # alloc 10
         log("all transactions", transactions_js)
 
@@ -670,11 +658,11 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
         custom_types = user.load_custom_types()
 
         pb.set("Calculating taxes", 90)
-        calculator = Calculator(user, C)
+        calculator = Calculator(user, cg)
         calculator.process_transactions(transactions_js, user)  # alloc
 
         # process_transactions affects coingecko rates! Need to cache it after, not before.
-        C.dump(user)
+        cg.dump(user)
 
         pb.set("Calculating taxes", 95)
         calculator.matchup()
@@ -1019,9 +1007,9 @@ def update_coingecko_id():
         new_id = request.args.get("new_id")
 
         user = User(address)
-        C = Coingecko.init_from_cache(user)
-        C.make_contracts_map()
-        error, transactions_js = user.update_coingecko_id(chain_name, contract, new_id, C, pb)
+        cg = CoinGecko.init_from_cache(user)
+        cg.make_contracts_map()
+        error, transactions_js = user.update_coingecko_id(chain_name, contract, new_id, cg, pb)
         user.done()
         if error is None:
             js = {"success": 1, "transactions": transactions_js}

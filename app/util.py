@@ -227,3 +227,7 @@ def timestamp_to_date(
     if utc:
         return datetime.datetime.utcfromtimestamp(ts).strftime(date_format)
     return datetime.datetime.fromtimestamp(ts).strftime(date_format)
+
+
+def prettyp(data: Any) -> str:
+    return pprint.pformat(data, width=160)

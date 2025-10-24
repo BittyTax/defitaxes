@@ -17,6 +17,7 @@ class Config:  # pylint: disable=too-few-public-methods
     SOLANA_MAX_TX = 10000
 
     COINGECKO_API_KEY = os.environ.get("DEFITAXES_COINGECKO_API_KEY", "")
+    COINGECKO_DOWNLOAD_PERIOD = 24  # hrs
     COINGECKO_PRO = False
 
     TWELVEDATA_API_KEY = os.environ.get("DEFITAXES_TWELVEDATA_API_KEY", "")

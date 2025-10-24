@@ -4,7 +4,7 @@ import traceback
 
 from flask import Blueprint, current_app, request, send_file
 
-from ..coingecko import Coingecko
+from ..coingecko import CoinGecko
 from ..constants import USER_DIRNAME
 from ..tax_calc import Calculator
 from ..user import User
@@ -29,9 +29,9 @@ def calc_tax():
 
         user = User(address)
         user.get_custom_rates()
-        C = Coingecko.init_from_cache(user)
+        cg = CoinGecko.init_from_cache(user)
 
-        calculator = Calculator(user, C, mtm=mtm)
+        calculator = Calculator(user, cg, mtm=mtm)
         calculator.process_transactions(transactions_js, user)
         calculator.matchup()
         calculator.cache()
@@ -77,8 +77,8 @@ def download():
         if dl_type == "tax_forms":
             year = request.args.get("year")
             user = User(address)
-            C = Coingecko.init_from_cache(user)
-            calculator = Calculator(user, C)
+            cg = CoinGecko.init_from_cache(user)
+            calculator = Calculator(user, cg)
             calculator.from_cache()
 
             calculator.make_forms(year)
@@ -90,8 +90,8 @@ def download():
         if dl_type == "turbotax":
             year = request.args.get("year")
             user = User(address)
-            C = Coingecko.init_from_cache(user)
-            calculator = Calculator(user, C)
+            cg = CoinGecko.init_from_cache(user)
+            calculator = Calculator(user, cg)
             calculator.from_cache()
 
             batched = calculator.make_turbotax(year)

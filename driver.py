@@ -4,7 +4,7 @@ import os
 import click
 from flask import Blueprint, current_app
 
-from app.coingecko import Coingecko
+from app.coingecko import CoinGecko
 from app.signatures import Signatures
 from app.sqlite import SQLite
 from app.tax_calc import Calculator
@@ -12,6 +12,32 @@ from app.user import User
 from app.util import log
 
 driver = Blueprint("driver", __name__)
+
+
+@driver.cli.command("init")
+@click.option(
+    "--drop",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Drop existing tables before creating new ones",
+)
+@click.option(
+    "--download",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Download and populate tables with CoinGecko data after creation",
+)
+def init_database(drop=False, download=False):
+    print(f"Initializing database tables (drop={drop})")
+    cg = CoinGecko()
+    cg.create_tables(drop=drop)
+
+    if download:
+        print("Downloading coin data from CoinGecko...")
+        cg.download_symbols()
+        print("Coin data download complete")
 
 
 @driver.cli.command("process")
@@ -29,8 +55,8 @@ driver = Blueprint("driver", __name__)
 def process(address, chain_name, do_import=True, do_lookups=True, do_calc=True):
     current_app.config["DEBUG_LEVEL"] = 2
     chain_names = [chain_name]
-    S = Signatures()
-    C = Coingecko(verbose=False)
+    sig = Signatures()
+    cg = CoinGecko()
     user = User(address, do_logging=False)
     user.wipe_transactions()
     user.set_address_present(address, chain_names[0], value=1, commit=True)
@@ -72,7 +98,7 @@ def process(address, chain_name, do_import=True, do_lookups=True, do_calc=True):
         for chain_name, chain_data in chains.items():
             chain = chain_data["chain"]
             print("Storing transactions", chain, len(chain_data["transactions"]))
-            user.store_transactions(chain_data["chain"], chain_data["transactions"], address, C)
+            user.store_transactions(chain_data["chain"], chain_data["transactions"], address, cg)
             user.store_current_tokens(chain_data["chain"], chain_data["current_tokens"])
 
     user.load_addresses()
@@ -118,20 +144,22 @@ def process(address, chain_name, do_import=True, do_lookups=True, do_calc=True):
                 address_db.commit()
                 log("New addresses added", insert_cnt, filename="address_lookups.txt")
 
-    S.init_from_db(input_list)
+    sig.init_from_db(input_list)
     needed_token_times = user.get_needed_token_times(transactions)
 
-    C.init_from_db_2(chains, needed_token_times)
+    cg.init_from_db_2(needed_token_times)
     if do_import:
         user.finish_import()
-    user.load_current_tokens(C)
+    user.load_current_tokens(cg)
     address_db.disconnect()
 
-    transactions_js = user.transactions_to_log(C, S, transactions, store_derived=True)  # alloc 20
+    transactions_js = user.transactions_to_log(
+        cg, sig, transactions, store_derived=True
+    )  # alloc 20
     print("do_calc", do_calc)
     if do_calc:
         user.load_custom_types()
-        calculator = Calculator(user, C)
+        calculator = Calculator(user, cg)
         calculator.process_transactions(transactions_js, user)
         calculator.matchup()
         calculator.cache()

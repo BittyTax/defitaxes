@@ -3,7 +3,7 @@ import traceback
 
 from flask import Blueprint, request
 
-from ..coingecko import Coingecko
+from ..coingecko import CoinGecko
 from ..user import User
 from ..util import log, log_error, normalize_address
 
@@ -60,8 +60,8 @@ def save_manual_transaction():
             idx += 1
 
         user = User(address)
-        C = Coingecko.init_from_cache(user)
-        transactions_js = user.save_manual_transactions(chain_name, address, all_tx_blobs, C)
+        cg = CoinGecko.init_from_cache(user)
+        transactions_js = user.save_manual_transactions(chain_name, address, all_tx_blobs, cg)
         user.done()
         js = {"success": 1, "transactions": transactions_js}
     except:

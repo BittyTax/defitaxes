@@ -3,7 +3,7 @@ import traceback
 
 from flask import Blueprint, request
 
-from ..coingecko import Coingecko
+from ..coingecko import CoinGecko
 from ..redis_wrap import ProgressBar, Redis
 from ..user import User
 from ..util import log, log_error, normalize_address
@@ -22,10 +22,10 @@ def upload_csv():
         source = request.args.get("source")
         file = request.files["up_input"]
         user = User(address)
-        C = Coingecko.init_from_cache(user)
-        C.make_contracts_map()
-        error, transactions_js = user.upload_csv(source, file, C, pb)
-        C.dump(user)
+        cg = CoinGecko.init_from_cache(user)
+        cg.make_contracts_map()
+        error, transactions_js = user.upload_csv(source, file, cg, pb)
+        cg.dump(user)
         user.done()
 
         if error is None:

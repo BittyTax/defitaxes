@@ -18,7 +18,7 @@ from werkzeug.utils import secure_filename
 from .category import Category
 from .chain import Chain
 from .classifiers import Classifier
-from .coingecko import Coingecko
+from .coingecko import CoinGecko
 from .constants import USER_DIRNAME
 from .fiat_rates import Twelve
 from .imports import Import
@@ -1800,14 +1800,14 @@ class User:
         transactions, _chain_dict = self.load_transactions(
             tx_id_list=transaction_list, load_derived=True
         )
-        C = Coingecko.init_from_cache(self)
+        cg = CoinGecko.init_from_cache(self)
         res = []
         for _idx, transaction in enumerate(transactions):
-            transaction.finalize(C, self.fiat_rates, None)
-            self.apply_final_rate(C, transaction)
+            transaction.finalize(cg, self.fiat_rates, None)
+            self.apply_final_rate(cg, transaction)
             self.apply_custom_cp_name(transaction)
             self.apply_custom_type_one_transaction(transaction, type_name, balanced, rules)
-            transaction.infer_and_adjust_rates(self, C)
+            transaction.infer_and_adjust_rates(self, cg)
             self.apply_custom_val(transaction)
             self.apply_fiat(transaction)
             js = transaction.to_json()
@@ -1833,12 +1833,12 @@ class User:
         transactions, _chain_dict = self.load_transactions(
             tx_id_list=transaction_list, load_derived=True
         )
-        C = Coingecko.init_from_cache(self)
+        cg = CoinGecko.init_from_cache(self)
         res = []
         classifier = Classifier()
         for _idx, transaction in enumerate(transactions):
-            transaction.finalize(C, self.fiat_rates, None)
-            self.apply_final_rate(C, transaction)
+            transaction.finalize(cg, self.fiat_rates, None)
+            self.apply_final_rate(cg, transaction)
             self.apply_custom_cp_name(transaction)
             if transaction.custom_type_id is not None:
                 type_id = str(transaction.custom_type_id)
@@ -1853,7 +1853,7 @@ class User:
                 self.apply_custom_type_one_transaction(transaction, type_name, balanced, rules)
             else:
                 classifier.classify(transaction)
-            transaction.infer_and_adjust_rates(self, C)
+            transaction.infer_and_adjust_rates(self, cg)
             self.apply_custom_val(transaction)
             self.apply_fiat(transaction)
             js = transaction.to_json()
@@ -2017,10 +2017,10 @@ class User:
         transactions, _ = self.load_transactions(tx_id_list=[transaction_id], load_derived=True)
         transaction = transactions[0]
 
-        C = Coingecko.init_from_cache(self)
+        cg = CoinGecko.init_from_cache(self)
         classifier = Classifier()
 
-        transaction.finalize(C, self.fiat_rates, None)
+        transaction.finalize(cg, self.fiat_rates, None)
         log("undoing custom changes 1", transaction)
         self.apply_custom_cp_name(transaction)
 
@@ -2035,7 +2035,7 @@ class User:
             self.apply_custom_type_one_transaction(transaction, type_name, balanced, rules)
         else:
             classifier.classify(transaction)
-        transaction.infer_and_adjust_rates(self, C)
+        transaction.infer_and_adjust_rates(self, cg)
         self.apply_fiat(transaction)
         js = transaction.to_json()
 
@@ -2222,15 +2222,15 @@ class User:
 
         self.db.commit()
 
-        S = Signatures()
+        sig = Signatures()
         transactions, _ = self.load_transactions(
             {chain_name: {"chain": chain}}, tx_id_list=txid_list
         )
         _, _, input_list = self.get_contracts(transactions)
-        S.init_from_db(input_list)
-        C = Coingecko.init_from_cache(self)
+        sig.init_from_db(input_list)
+        cg = CoinGecko.init_from_cache(self)
         self.wipe_derived_data(transactions)
-        transactions_js = self.transactions_to_log(C, S, transactions, store_derived=True)
+        transactions_js = self.transactions_to_log(cg, sig, transactions, store_derived=True)
 
         return transactions_js
 
@@ -2321,7 +2321,8 @@ class User:
                     t["to_me"],
                     t["amount"],
                     t["what"],
-                    str(t["symbol"].encode("utf-8"))[2:-1],
+                    t["symbol"],
+                    self._make_symbol_unique(t["symbol"], t["principal"], t["what"]),
                     nft_id,
                     type_map[t["type"]],
                     treatment,
@@ -2353,7 +2354,8 @@ class User:
             "amount transfered",
             "token contract address",
             "token symbol",
-            "token unique ID",
+            "token unique",
+            "token ID",
             "transfer type",
             "tax treatment",
             "vault id",
@@ -2367,6 +2369,18 @@ class User:
             csvwriter = csv.writer(f)
             csvwriter.writerow(fields)
             csvwriter.writerows(csv_rows)
+
+    def _make_symbol_unique(self, symbol, principal, contract_address):
+        if contract_address == symbol:
+            return symbol
+
+        if principal is True:
+            return symbol
+        else:
+            if len(contract_address) > 11:
+                return f"{symbol}|{contract_address[:5]}...{contract_address[-3:]}"
+            else:
+                return f"{symbol}|{contract_address}"
 
     def transactions_to_log(
         self, coingecko_rates, signatures, transactions, progress_bar=None, store_derived=False
@@ -3818,17 +3832,17 @@ class User:
         log("Loading transactions", list(new_txids), filename="file_uploads.txt")
         pb.set("Loading transactions from database", 75)
         chain = self.chain_factory(source, is_upload=True)
-        S = Signatures()
+        sig = Signatures()
 
         self.load_addresses()
         self.load_tx_counts()
         transactions, _ = self.load_transactions({source: {"chain": chain}}, tx_id_list=new_txids)
         _, _, input_list = self.get_contracts(transactions)
-        S.init_from_db(input_list)
+        sig.init_from_db(input_list)
         self.wipe_derived_data(transactions)
 
         pb.set("Classifying transactions", 85)
-        transactions_js = self.transactions_to_log(coingecko, S, transactions, store_derived=True)
+        transactions_js = self.transactions_to_log(coingecko, sig, transactions, store_derived=True)
         self.set_info("force_forget_derived", 1)
 
         return None, transactions_js
@@ -3942,7 +3956,7 @@ class User:
         pb.set("Loading transactions from database", 15)
         chain = self.chain_factory(chain_name, is_upload=chain_name not in Chain.CONFIG)
         chain_dict = {chain_name: {"chain": chain}}
-        S = Signatures()
+        sig = Signatures()
         self.load_addresses()
         self.load_tx_counts()
 
@@ -3954,10 +3968,10 @@ class User:
         coingecko.dump(self)
 
         _, _, input_list = self.get_contracts(transactions)
-        S.init_from_db(input_list)
+        sig.init_from_db(input_list)
         self.wipe_derived_data(transactions)
         pb.set("Classifying transactions", 85)
-        transactions_js = self.transactions_to_log(coingecko, S, transactions, store_derived=True)
+        transactions_js = self.transactions_to_log(coingecko, sig, transactions, store_derived=True)
         self.set_info("force_forget_derived", 1)
         return None, transactions_js
 
