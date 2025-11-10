@@ -2244,7 +2244,7 @@ class User:
         self.db.query("DELETE FROM transaction_transfers WHERE transaction_id=" + txid)
         self.db.commit()
 
-    def json_to_csv(self):
+    def get_csv_data(self):
         custom_types_js = self.load_custom_types()
         custom_types = {}
         for entry in custom_types_js:
@@ -2266,6 +2266,7 @@ class User:
             21: "sent transfer from an upload",
             22: "fee transfer from an upload",
         }
+
         csv_rows = []
         for T in js:
             if "custom_color_id" in T:
@@ -2335,6 +2336,9 @@ class User:
                 csv_row = common + cp + transfer + [url]
                 csv_rows.append(csv_row)
 
+        return csv_rows
+
+    def json_to_csv(self):
         fields = [
             "timestamp",
             "UTC datetime",
@@ -2364,11 +2368,13 @@ class User:
             "USD rate",
             "url",
         ]
+        path = os.path.join(current_app.instance_path, USER_DIRNAME)
+        path = os.path.join(path, self.address)
 
         with open(os.path.join(path, "transactions.csv"), "w", encoding="utf-8") as f:
             csvwriter = csv.writer(f)
             csvwriter.writerow(fields)
-            csvwriter.writerows(csv_rows)
+            csvwriter.writerows(self.get_csv_data())
 
     def _make_symbol_unique(self, symbol, principal, contract_address):
         if contract_address == symbol:

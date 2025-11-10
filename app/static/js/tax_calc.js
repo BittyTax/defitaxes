@@ -528,16 +528,31 @@ $('body').on('click', '#download_transactions_json, #download_transactions_csv',
             $(document.body).css({ 'cursor': 'default' });
         }
     });
-    //    window.open("download?type=transactions_"+type+"&address="+primary,'_blank');
-    //    $.post("download?chain="+chain+"&address="+address+"&type=transactions_json", data, function(resp) {
-    //        console.log(resp);
-    //        var data = JSON.parse(resp);
-    //        if (data.hasOwnProperty('error')) {
-    //            $('#recolor_block').append("<div class='err_mes'>"+data['error']+"</div>");
-    //        } else {
-    //            transactions.removeClass('custom_recolor_0 custom_recolor_3 custom_recolor_5 custom_recolor_10').addClass('custom_recolor custom_recolor_'+color_id);
-    //        }
-    //    });
+});
+
+$('body').on('click', '#download_bittytax_xlsx', function () {
+    $(document.body).css({ 'cursor': 'wait' });
+    data = $.map(all_transactions, function (value, key) { return value });
+    data.sort(compare_ts);
+    js = JSON.stringify(data);
+    js = JSON.stringify(js);
+    $('#tax_block').find('.err_mes').remove();
+
+    $.ajax({
+        type: 'POST', url: "save_js?address=" + primary, data: js, contentType: 'application/json',
+        success: function (resp) {
+            var data = JSON.parse(resp);
+            if (data.hasOwnProperty('error')) {
+                $('#tax_block').append("<div class='err_mes'>" + data['error'] + "</div>");
+                $(document.body).css({ 'cursor': 'default' });
+                return;
+            }
+
+            let currency = fiat || 'USD';
+            window.open("download?type=bittytax_xlsx&currency=" + currency + "&address=" + primary, '_blank');
+            $(document.body).css({ 'cursor': 'default' });
+        }
+    });
 });
 
 function need_recalc(show = true) {
@@ -560,6 +575,7 @@ $('body').on('click', '#downloads', function () {
     html += "<ul id='download_list'>"
     html += "<li><a id='download_transactions_json'>Transactions json</a> (raw data)</li>";
     html += "<li><a id='download_transactions_csv'>Transactions csv</a> (easier to read)</li>";
+    html += "<li><a id='download_bittytax_xlsx'>BittyTax xlsx</a></li>";
     html += "<li><a id='download_tax_forms'>Tax forms for your CPA</a></li>";
     html += "<li><a id='download_turbotax'>Form 8949 for TurboTax Online</a> (you will also need to report misc. income)<div class='help help_turbotax'></div></li>";
     html += "</ul>";

@@ -1,7 +1,14 @@
+import io
 import json
 import os
+import re
 import traceback
+from contextlib import redirect_stderr
 
+from bittytax.config import config as bt_config
+from bittytax.conv.datafile import DataFile
+from bittytax.conv.output_excel import OutputExcel
+from bittytax.conv.parsers.defitaxes import defitaxes_parser
 from flask import Blueprint, current_app, request, send_file
 
 from ..coingecko import CoinGecko
@@ -73,6 +80,52 @@ def download():
             user.json_to_csv()
             user.done()
             return send_file(os.path.join(path, "transactions.csv"), as_attachment=True, max_age=0)
+
+        if dl_type == "bittytax_xlsx":
+            currency = request.args.get("currency", "USD")
+            bt_config.ccy = currency
+
+            user = User(address)
+            rows = user.get_csv_data()
+
+            def row_to_strings(row):
+                result = []
+                for value in row:
+                    if value is None:
+                        result.append("")
+                    elif not isinstance(value, str):
+                        result.append(str(value))
+                    else:
+                        result.append(value)
+                return result
+
+            data_file = DataFile(defitaxes_parser, [row_to_strings(row) for row in rows])
+
+            stderr_capture = io.StringIO()
+            with redirect_stderr(stderr_capture):
+                data_file.parse()
+
+            parse_output = stderr_capture.getvalue()
+            if parse_output:
+                # Strip ANSI color codes
+                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+                parse_output = ansi_escape.sub('', parse_output)
+                current_app.logger.debug(f"BittyTax parse output: {parse_output}")
+
+            user.done()
+
+            bi = io.BytesIO()
+            output_excel = OutputExcel("BittyTax", [data_file], stream=bi)
+            output_excel.write_excel()
+            bi.seek(0)
+
+            return send_file(
+                bi,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                as_attachment=True,
+                download_name=f"BittyTax_Records_{address}.xlsx",
+                max_age=0,
+            )
 
         if dl_type == "tax_forms":
             year = request.args.get("year")
