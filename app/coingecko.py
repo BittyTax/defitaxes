@@ -437,6 +437,9 @@ class CoinGecko:
 
             db.execute("BEGIN TRANSACTION")
 
+            # Delete all existing platform entries
+            db.execute("DELETE FROM platforms")
+
             # First mark all existing symbols as delisted (status=2) and reset principal flag
             db.execute(
                 "UPDATE symbols SET principal = 0, status = ?",
@@ -474,9 +477,6 @@ class CoinGecko:
                         coin["status"],
                     ],
                 )
-
-                # Clean and re-add platform entries for this coin
-                db.execute("DELETE FROM platforms WHERE id = ?", [cg_id])
 
                 platform_rows = []
                 for platform, address in coin["platforms"].items():
