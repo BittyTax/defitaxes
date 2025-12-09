@@ -1,6 +1,7 @@
 import datetime
 import os
 import pprint
+import re
 import time
 import traceback
 from collections import defaultdict
@@ -231,3 +232,106 @@ def timestamp_to_date(
 
 def prettyp(data: Any) -> str:
     return pprint.pformat(data, width=160)
+
+
+def convert_ansi_to_html(text):
+    """Convert ANSI color codes to HTML span tags with inline styles."""
+    # ANSI foreground color mappings (standard terminal colors)
+    ansi_fg_colors = {
+        "30": "#000000",  # black
+        "31": "#ff0000",  # red
+        "32": "#00ff00",  # green
+        "33": "#ffff00",  # yellow
+        "34": "#0000ff",  # blue
+        "35": "#ff00ff",  # magenta
+        "36": "#00ffff",  # cyan
+        "37": "#ffffff",  # white
+        "90": "#808080",  # bright black (gray)
+        "91": "#ff5555",  # bright red
+        "92": "#55ff55",  # bright green
+        "93": "#ffff55",  # bright yellow
+        "94": "#5555ff",  # bright blue
+        "95": "#ff55ff",  # bright magenta
+        "96": "#55ffff",  # bright cyan
+        "97": "#ffffff",  # bright white
+    }
+
+    # ANSI background color mappings (standard terminal colors)
+    ansi_bg_colors = {
+        "40": "#000000",  # black
+        "41": "#ff0000",  # red
+        "42": "#00ff00",  # green
+        "43": "#ffff00",  # yellow
+        "44": "#0000ff",  # blue
+        "45": "#ff00ff",  # magenta
+        "46": "#00ffff",  # cyan
+        "47": "#ffffff",  # white
+        "100": "#808080",  # bright black (gray)
+        "101": "#ff5555",  # bright red
+        "102": "#55ff55",  # bright green
+        "103": "#ffff55",  # bright yellow
+        "104": "#5555ff",  # bright blue
+        "105": "#ff55ff",  # bright magenta
+        "106": "#55ffff",  # bright cyan
+        "107": "#ffffff",  # bright white
+    }
+
+    # Match ANSI escape sequences (including \033 format)
+    ansi_pattern = re.compile(r"(?:\x1B|\033)\[([0-9;]+)m")
+
+    result = []
+    last_end = 0
+    current_fg = None
+    current_bg = None
+    span_open = False
+
+    for match in ansi_pattern.finditer(text):
+        # Add text before this match
+        result.append(text[last_end : match.start()])
+
+        codes = match.group(1).split(";")
+
+        # Process codes
+        for code in codes:
+            if code == "0":
+                # Full reset
+                current_fg = None
+                current_bg = None
+            elif code == "39":
+                # Reset foreground only
+                current_fg = None
+            elif code == "49":
+                # Reset background only
+                current_bg = None
+            elif code in ansi_fg_colors:
+                current_fg = ansi_fg_colors[code]
+            elif code in ansi_bg_colors:
+                current_bg = ansi_bg_colors[code]
+
+        # Close previous span if open
+        if span_open:
+            result.append("</span>")
+            span_open = False
+
+        # Build new span with current colors
+        styles = []
+        if current_fg:
+            styles.append(f"color: {current_fg}")
+        if current_bg:
+            styles.append(f"background-color: {current_bg}")
+
+        # Open new span if we have any styles
+        if styles:
+            result.append(f'<span style="{"; ".join(styles)}">')
+            span_open = True
+
+        last_end = match.end()
+
+    # Add remaining text
+    result.append(text[last_end:])
+
+    # Close any remaining open span
+    if span_open:
+        result.append("</span>")
+
+    return "".join(result)

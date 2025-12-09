@@ -1,21 +1,21 @@
 import io
 import json
 import os
-import re
 import traceback
 from contextlib import redirect_stderr
 
 from bittytax.config import config as bt_config
 from bittytax.conv.datafile import DataFile
 from bittytax.conv.output_excel import OutputExcel
-from bittytax.conv.parsers.defitaxes import defitaxes_parser
+from bittytax.conv.parsers.defitaxes import DtConfig, DtTransferMapping, defitaxes_parser
 from flask import Blueprint, current_app, request, send_file
 
 from ..coingecko import CoinGecko
 from ..constants import USER_DIRNAME
 from ..tax_calc import Calculator
 from ..user import User
-from ..util import log, log_error, normalize_address
+from ..user_config import UserConfig
+from ..util import convert_ansi_to_html, log, log_error, normalize_address
 
 tax_calc = Blueprint("tax_calc", __name__)
 
@@ -67,6 +67,7 @@ def calc_tax():
 @tax_calc.route("/download", methods=["GET"])
 def download():
     address = normalize_address(request.args.get("address"))
+
     try:
         dl_type = request.args.get("type")
         path = os.path.join(current_app.instance_path, USER_DIRNAME)
@@ -82,42 +83,25 @@ def download():
             return send_file(os.path.join(path, "transactions.csv"), as_attachment=True, max_age=0)
 
         if dl_type == "bittytax_xlsx":
-            currency = request.args.get("currency", "USD")
-            bt_config.ccy = currency
+            redis_client = current_app.extensions["redis_binary"]
+            redis_prefix = current_app.config["REDIS_PREFIX"]
+            redis_key = f"{redis_prefix}:bittytax_excel_{address}"
+            excel_data = redis_client.get(redis_key)
 
-            user = User(address)
-            rows = user.get_csv_data()
+            if not excel_data:
+                current_app.logger.warning(
+                    f"No BittyTax Excel file found in Redis for address {address}"
+                )
+                return (
+                    "BittyTax file not exported or has expired. Please export the file again.",
+                    400,
+                )
 
-            def row_to_strings(row):
-                result = []
-                for value in row:
-                    if value is None:
-                        result.append("")
-                    elif not isinstance(value, str):
-                        result.append(str(value))
-                    else:
-                        result.append(value)
-                return result
-
-            data_file = DataFile(defitaxes_parser, [row_to_strings(row) for row in rows])
-
-            stderr_capture = io.StringIO()
-            with redirect_stderr(stderr_capture):
-                data_file.parse()
-
-            parse_output = stderr_capture.getvalue()
-            if parse_output:
-                # Strip ANSI color codes
-                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-                parse_output = ansi_escape.sub('', parse_output)
-                current_app.logger.debug(f"BittyTax parse output: {parse_output}")
-
-            user.done()
-
-            bi = io.BytesIO()
-            output_excel = OutputExcel("BittyTax", [data_file], stream=bi)
-            output_excel.write_excel()
-            bi.seek(0)
+            bi = io.BytesIO(excel_data)
+            redis_client.delete(redis_key)
+            current_app.logger.info(
+                f"Retrieved and deleted BittyTax Excel file from Redis for address {address}"
+            )
 
             return send_file(
                 bi,
@@ -161,6 +145,95 @@ def download():
         log("EXCEPTION in download", traceback.format_exc())
         return "EXCEPTION " + str(traceback.format_exc())
     return None
+
+
+@tax_calc.route("/process_bittytax", methods=["POST"])
+def process_bittytax():
+    address = normalize_address(request.args.get("address"))
+    try:
+        currency = request.args.get("currency", "USD")
+        bt_config.ccy = currency
+
+        transfer_in_known = int(request.args.get("transfer_in_known", "0"))
+        transfer_in_unknown = int(request.args.get("transfer_in_unknown", "0"))
+        transfer_out_known = int(request.args.get("transfer_out_known", "0"))
+        transfer_out_unknown = int(request.args.get("transfer_out_unknown", "0"))
+
+        username = request.headers.get("X-Remote-User")
+        if username:
+            try:
+                user_config = UserConfig(username)
+                user_config.save_settings(
+                    transfer_in_known,
+                    transfer_in_unknown,
+                    transfer_out_known,
+                    transfer_out_unknown,
+                    currency,
+                )
+            except Exception as e:
+                current_app.logger.error(f"Error saving user config for {username}, {e}")
+
+        dt_config = DtConfig(
+            transfer_in_known=DtTransferMapping(transfer_in_known),
+            transfer_in_unknown=DtTransferMapping(transfer_in_unknown),
+            transfer_out_known=DtTransferMapping(transfer_out_known),
+            transfer_out_unknown=DtTransferMapping(transfer_out_unknown),
+        )
+
+        user = User(address)
+        rows = user.get_csv_data()
+
+        def row_to_strings(row):
+            result = []
+            for value in row:
+                if value is None:
+                    result.append("")
+                elif not isinstance(value, str):
+                    result.append(str(value))
+                else:
+                    result.append(value)
+            return result
+
+        data_file = DataFile(defitaxes_parser, [row_to_strings(row) for row in rows])
+
+        stderr_capture = io.StringIO()
+        with redirect_stderr(stderr_capture):
+            data_file.parse(dt_config=dt_config)
+
+        parse_output = stderr_capture.getvalue()
+        if parse_output:
+            parse_output = convert_ansi_to_html(parse_output)
+
+        user.done()
+
+        bi = io.BytesIO()
+        output_excel = OutputExcel("BittyTax", [data_file], stream=bi)
+        output_excel.write_excel()
+        bi.seek(0)
+
+        redis_client = current_app.extensions["redis_binary"]
+        redis_prefix = current_app.config["REDIS_PREFIX"]
+        redis_key = f"{redis_prefix}:bittytax_excel_{address}"
+        excel_data = bi.getvalue()
+        redis_client.setex(redis_key, 3600, excel_data)
+        current_app.logger.info(f"Stored BittyTax Excel file in Redis for address {address}")
+
+        js = {
+            "success": True,
+            "parse_output": parse_output if parse_output else None,
+            "message": "BittyTax export successful",
+        }
+
+    except Exception as e:
+        log("EXCEPTION in process_bittytax", traceback.format_exc())
+        log_error("EXCEPTION in process_bittytax", address, request.args)
+        js = {
+            "success": False,
+            "error": "An error occurred while exporting for BittyTax",
+            "details": str(e),
+        }
+
+    return json.dumps(js)
 
 
 @tax_calc.route("/save_js", methods=["POST"])

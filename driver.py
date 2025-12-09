@@ -9,6 +9,7 @@ from app.signatures import Signatures
 from app.sqlite import SQLite
 from app.tax_calc import Calculator
 from app.user import User
+from app.user_config import UserConfig
 from app.util import log
 
 driver = Blueprint("driver", __name__)
@@ -33,6 +34,7 @@ def init_database(drop=False, download=False):
     print(f"Initializing database tables (drop={drop})")
     cg = CoinGecko()
     cg.create_tables(drop=drop)
+    UserConfig.create_table(drop=drop)
 
     if download:
         print("Downloading coin data from CoinGecko...")

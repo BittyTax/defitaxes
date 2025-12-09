@@ -46,9 +46,7 @@
                 <a id="discord_link"
                    href="https://discord.gg/E7yuUZ3W4X"
                    target="_blank">Discord</a>
-                <a id="twitter_link"
-                   href="https://x.com/defitaxes"
-                   target="_blank">X</a>
+                <a id="twitter_link" href="https://x.com/defitaxes" target="_blank">X</a>
                 <a id="github"
                    href="https://github.com/BittyTax/defitaxes"
                    target="_blank">GitHub</a>
@@ -64,5 +62,8 @@
     <script src="{{url_for('static', filename='js/manual_transaction.js', v=version)}}"></script>
     <script src="{{url_for('static', filename='js/uploads.js', v=version)}}"></script>
     <script src="{{url_for('static', filename='js/help.js', v=version)}}"></script>
-    <script>address = "{{ address }}"; </script>
+    <script>
+        address = "{{ address }}";
+        userConfig = {{ user_config | tojson }};
+    </script>
 </html>

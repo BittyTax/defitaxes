@@ -17,6 +17,7 @@ from ..signatures import Signatures
 from ..sqlite import SQLite
 from ..tax_calc import Calculator
 from ..user import Import, User
+from ..user_config import UserConfig
 from ..util import log, log_error, normalize_address, sql_in
 
 main = Blueprint("main", __name__)
@@ -33,12 +34,24 @@ def index():
             address = address_cookie
 
     blockchain_count = len(Chain.CONFIG)
+
+    username = request.headers.get("X-Remote-User")
+    settings = None
+
+    if username:
+        try:
+            user_config = UserConfig(username)
+            settings = user_config.get_all_settings()
+        except Exception as e:
+            current_app.logger.error(f"Error loading user config: {e}")
+
     return render_template(
         "index.html",
         title="Blockchain transactions to US tax form",
         address=address,
         blockchain_count=blockchain_count,
         version=current_app.config["APP_VERSION"],
+        user_config=settings,
     )
 
 

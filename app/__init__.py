@@ -18,8 +18,14 @@ def create_app(config_class: type[Config], instance_path: Optional[str] = None) 
     app = Flask(__name__, instance_path=instance_path)
     app.config.from_object(config_class)
 
+    # Primary Redis client with decode_responses=True for text data
     app.extensions["redis"] = redis.Redis.from_url(
         str(app.config.get("REDIS_URL")), decode_responses=True
+    )
+
+    # Binary Redis client for binary data like Excel files
+    app.extensions["redis_binary"] = redis.Redis.from_url(
+        str(app.config.get("REDIS_URL")), decode_responses=False
     )
 
     app.register_blueprint(main)

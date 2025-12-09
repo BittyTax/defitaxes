@@ -1,6 +1,7 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
+from typing import Any
 
 from flask_apscheduler import APScheduler
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -64,6 +65,22 @@ with application.app_context():
         max_instances=1,
     )
     application.logger.info("Scheduled job: %s", job)
+
+    if os.environ.get("DEV_USER"):
+
+        class DevAuthMiddleware:  # pylint: disable=too-few-public-methods
+            def __init__(self, app: Any) -> None:
+                self.app = app
+
+            def __call__(self, environ: dict[str, Any], start_response: Any) -> Any:
+                test_user = os.environ.get("DEV_USER", "testuser")
+                environ["HTTP_X_REMOTE_USER"] = test_user
+                return self.app(environ, start_response)
+
+        application.wsgi_app = DevAuthMiddleware(  # type: ignore[method-assign]
+            application.wsgi_app
+        )
+        application.logger.info("Adding basic auth user: %s", os.environ.get("DEV_USER"))
 
 # Assumes Nginx is acting as a reverse proxy.
 application.wsgi_app = ProxyFix(  # type: ignore[method-assign]

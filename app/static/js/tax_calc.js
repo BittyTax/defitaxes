@@ -1,57 +1,50 @@
 mtm = false;
 
 function display_tax_block() {
-    var html = "<div id='tax_block'>";
-    year_html = "<div id='year_selector'>Tax year:<select id='tax_year'>";
-    let current_year = new Date().getFullYear();
-    year = 2019;
-    while (year != current_year + 1) {
-        if (year == current_year - 1) {
-            selected = " selected ";
-        } else {
-            selected = "";
-        }
-        year_html += "<option value=" + year + selected + ">" + year + "</option>";
-        year += 1;
-    }
-    year_html += "</select></div>\n";
-    html += "<div id='matchups_selector'><label>Show gains & losses<input type=checkbox id='matchups_visible' "
-    if (params['matchups_visible']) html += " checked "
-    html += "></label></div>";
-    //    html +="<div id='mtm_selector'><label>Mark-to-market <div class='help help_mtm'></div><input type=checkbox id='mtm'></label></div>";
-    //    html += "<div id='download_transactions_block'><div class='header'>Download all transactions:</div>";
-    //    html +="<a id='download_transactions_json'>json (raw data)</a>";
-    //    html +="<a id='download_transactions_csv'>csv (easier to read)</a>";
-    //    html += "</div>";
-    //    html += "<a href='download?address="+address+"&type=transactions_csv' id='download_transactions_csv'>csv</a></div>";
-    html += "<div id='tax_data'>";
-    html += year_html;
-    //    html +="<a id='download_tax_forms'>Download tax forms</a>";
-    html += "<a id='options'>Tax options</a>";
-    html += "<a id='downloads'>Download stuff</a>";
-    html += "</div>";
-    html += "<a id='calc_tax'>Recalculate taxes</a>";
-    html += "</div>";
-    $('#content').append(html);
-    //    $('#calc_tax').click(calc_tax);
-    //    calc_tax();
-}
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({ length: currentYear - 2018 }, (_, i) => {
+        const year = 2019 + i;
+        const selected = year === currentYear - 1 ? " selected" : "";
+        return `<option value="${year}"${selected}>${year}</option>`;
+    }).join('');
 
-//$('body').on('click','#download_transactions_json, #download_transactions_csv',function() {
-////    let address = window.sessionStorage.getItem('address');
-////    let chain = window.sessionStorage.getItem('chain');
-//    let type = $(this).attr('id').substr(22);
-//    window.open("download?type=transactions_"+type+"&address="+primary,'_blank');
-////    $.post("download?chain="+chain+"&address="+address+"&type=transactions_json", data, function(resp) {
-////        console.log(resp);
-////        var data = JSON.parse(resp);
-////        if (data.hasOwnProperty('error')) {
-////            $('#recolor_block').append("<div class='err_mes'>"+data['error']+"</div>");
-////        } else {
-////            transactions.removeClass('custom_recolor_0 custom_recolor_3 custom_recolor_5 custom_recolor_10').addClass('custom_recolor custom_recolor_'+color_id);
-////        }
-////    });
-//});
+    const yearSelector = `
+        <div id="year_selector">
+            Tax year:
+            <select id="tax_year">
+                ${yearOptions}
+            </select>
+        </div>
+    `;
+
+    const matchupsSelector = `
+        <div id="matchups_selector">
+            <label>
+                Show gains & losses
+                <input type="checkbox" id="matchups_visible" ${params['matchups_visible'] ? "checked" : ""}>
+            </label>
+        </div>
+    `;
+
+    const taxData = `
+        <div id="tax_data">
+            ${yearSelector}
+            <a id="options">Tax options</a>
+            <a id="downloads">Download stuff</a>
+            <a id="bittytax_export">BittyTax export</a>
+        </div>
+    `;
+
+    const html = `
+        <div id="tax_block">
+            ${matchupsSelector}
+            ${taxData}
+            <a id="calc_tax">Recalculate taxes</a>
+        </div>
+    `;
+
+    $('#content').append(html);
+}
 
 function process_tax_js(js) {
     year = $('#tax_year').val();
@@ -430,13 +423,6 @@ $('body').on('click', '#calc_tax', function () {
     calc_tax();
 });
 
-$('body').on('click', '#download_tax_forms, #download_turbotax', function () {
-    let year = $('#tax_year').val();
-    let mtm = false
-    let dltype = $(this).attr('id').substr(9);
-    window.open("download?type=" + dltype + "&year=" + year + "&mtm=" + mtm + "&address=" + primary, '_blank');
-});
-
 $('body').on('change', '#tax_year', function () {
     year = $('#tax_year').val();
     //    console.log(year);
@@ -505,6 +491,48 @@ function calc_tax() {
     });
 }
 
+function need_recalc(show = true) {
+    if (show && $('#need_recalc').length == 0) {
+        $('#calc_tax').before("<div id='need_recalc'>Recalculation needed</div>");
+        $('#tax_data').addClass('outdated');
+        $('#inspect_summary').addClass('outdated');
+        //        $('#dc_inspections_block').addClass('tax_data_outdated');
+    }
+
+    if (!show) {
+        $('#need_recalc').remove();
+        $('.outdated').removeClass('outdated');
+    }
+}
+
+$('body').on('click', '#downloads', function () {
+    const downloadOptions = [
+        { id: 'download_transactions_json', text: 'Transactions json', note: '(raw data)' },
+        { id: 'download_transactions_csv', text: 'Transactions csv', note: '(easier to read)' },
+        { id: 'download_tax_forms', text: 'Tax forms for your CPA' },
+        { id: 'download_turbotax', text: 'Form 8949 for TurboTax Online', note: '(you will also need to report misc. income)', helpClass: 'help_turbotax' }
+    ];
+
+    let html = `
+        <div id="overlay"></div>
+        <div id="dl_popup" class="popup">
+            <div class="header">What do you want to download?</div>
+            <ul id="download_list">
+                ${downloadOptions.map(option => `
+                    <li>
+                        <a id="${option.id}">${option.text}</a>
+                        ${option.note ? option.note : ''}
+                        ${option.helpClass ? `<div class="help ${option.helpClass}"></div>` : ''}
+                    </li>
+                `).join('')}
+            </ul>
+            <div id="dl_cancel">Cancel</div>
+        </div>
+    `;
+
+    $('#content').append(html);
+});
+
 $('body').on('click', '#download_transactions_json, #download_transactions_csv', function () {
     $(document.body).css({ 'cursor': 'wait' });
     let type = $(this).attr('id').substr(22);
@@ -524,137 +552,126 @@ $('body').on('click', '#download_transactions_json, #download_transactions_csv',
                 return;
             }
 
-            window.open("download?type=transactions_" + type + "&address=" + primary, '_blank');
+            window.location.href = "download?type=transactions_" + type + "&address=" + primary;
             $(document.body).css({ 'cursor': 'default' });
+
+            $('#dl_popup').remove();
+            $('#overlay').remove();
         }
     });
 });
 
-$('body').on('click', '#download_bittytax_xlsx', function () {
-    $(document.body).css({ 'cursor': 'wait' });
-    data = $.map(all_transactions, function (value, key) { return value });
-    data.sort(compare_ts);
-    js = JSON.stringify(data);
-    js = JSON.stringify(js);
-    $('#tax_block').find('.err_mes').remove();
+$('body').on('click', '#download_tax_forms, #download_turbotax', function () {
+    let year = $('#tax_year').val();
+    let mtm = false
+    let dltype = $(this).attr('id').substr(9);
 
-    $.ajax({
-        type: 'POST', url: "save_js?address=" + primary, data: js, contentType: 'application/json',
-        success: function (resp) {
-            var data = JSON.parse(resp);
-            if (data.hasOwnProperty('error')) {
-                $('#tax_block').append("<div class='err_mes'>" + data['error'] + "</div>");
-                $(document.body).css({ 'cursor': 'default' });
-                return;
-            }
+    window.location.href = "download?type=" + dltype + "&year=" + year + "&mtm=" + mtm + "&address=" + primary;
 
-            let currency = fiat || 'USD';
-            window.open("download?type=bittytax_xlsx&currency=" + currency + "&address=" + primary, '_blank');
-            $(document.body).css({ 'cursor': 'default' });
-        }
-    });
-});
-
-function need_recalc(show = true) {
-    if (show && $('#need_recalc').length == 0) {
-        $('#calc_tax').before("<div id='need_recalc'>Recalculation needed</div>");
-        $('#tax_data').addClass('outdated');
-        $('#inspect_summary').addClass('outdated');
-        //        $('#dc_inspections_block').addClass('tax_data_outdated');
-    }
-
-    if (!show) {
-        $('#need_recalc').remove();
-        $('.outdated').removeClass('outdated');
-    }
-}
-
-$('body').on('click', '#downloads', function () {
-    let html = "<div id='overlay'></div><div id='dl_popup' class='popup'>";
-    html += "<div class='header'>What do you want to download?</div>";
-    html += "<ul id='download_list'>"
-    html += "<li><a id='download_transactions_json'>Transactions json</a> (raw data)</li>";
-    html += "<li><a id='download_transactions_csv'>Transactions csv</a> (easier to read)</li>";
-    html += "<li><a id='download_bittytax_xlsx'>BittyTax xlsx</a></li>";
-    html += "<li><a id='download_tax_forms'>Tax forms for your CPA</a></li>";
-    html += "<li><a id='download_turbotax'>Form 8949 for TurboTax Online</a> (you will also need to report misc. income)<div class='help help_turbotax'></div></li>";
-    html += "</ul>";
-    html += "<div id='dl_cancel'>Cancel</div>";
-    $('#content').append(html);
+    $('#dl_popup').remove();
+    $('#overlay').remove();
 });
 
 $('body').on('click', '#options', function () {
-    let html = "<div id='overlay'></div><div id='opt_popup' class='popup'>";
-    html += "<form id='opt_form'>"
-    //    html += "<table id='option_list'>"
-    //    html +="<tr><td>Your currency:</td>";
-    //    html += "<td><select id='currency_select' name='opt_fiat'>";
-    //    for (symbol in fiat_info) {
-    //        let selected = ""
-    //        if (symbol == fiat)
-    //            selected = "selected"
-    //        html += "<option "+selected+" value='"+symbol+"'>"+symbol+"</option>";
-    //    }
-    //    html += "</select></td></tr>";
-    //    html += "</table>"
-    html += "<ul id='option_list'>"
-    html += "<li>Your currency:<select id='opt_fiat' name='opt_fiat'>"
-    for (symbol in fiat_info) {
-        let selected = ""
-        if (symbol == fiat)
-            selected = "selected"
-        html += "<option " + selected + " value='" + symbol + "'>" + symbol + "</option>";
-    }
-    html += "</select>"
-    html += "<div class='opt_note'>Note: this will only affect you currency and exchange rates. Tax forms are still going to be in the US format, but all values will be in the new currency.</div>"
-    html += "</li>"
-    html += "<li><div class='opt_left'>Your transaction costs are treated as part of your cost basis when the transaction involves a taxable event. How should they be treated if it doesn't? "
-    html += "For example, when you approve a contract, or when you stake something without getting anything back?</div>"
-    html += "<div class='opt_right'><ul class='opt_radio_list'>"
-    let opts = [['sell', 'Sale (not tax-deductible)'], ['expense', 'Business expense'], ['loss', 'Capital loss']]
-    for (let opt of opts) {
-        let checked = ""
-        if (global_options["opt_tx_costs"] == opt[0])
-            checked = "checked"
-        html += "<li><label><input type=radio " + checked + " name=opt_tx_costs value='" + opt[0] + "'>" + opt[1] + "</label></li>"
-    }
-    html += "</ul></div></li>"
-    html += "<li><div class='opt_left'>If you deposited something to a vault, and later withdrew more than you deposited, how should we treat this extra money?</div>"
-    html += "<div class='opt_right'><ul class='opt_radio_list'>"
-    opts = [['income', 'Income (taxable immediately as income)'], ['gain', 'Free acquisition (taxable as capital gain when sold)']]
-    for (let opt of opts) {
-        let checked = ""
-        if (global_options["opt_vault_gain"] == opt[0])
-            checked = "checked"
-        html += "<li><label><input type=radio " + checked + " name=opt_vault_gain value='" + opt[0] + "'>" + opt[1] + "</label></li>"
-    }
-    html += "</ul></div></li>"
-    html += "<li><div class='opt_left'>If you deposited something to a vault, but later exited the vault with a loss, how should we treat this loss?</div>"
-    html += "<div class='opt_right'><ul class='opt_radio_list'>"
-    opts = [['sell', 'Sale (not tax-deductible)'], ['expense', 'Business expense'], ['loss', 'Capital loss']]
-    for (let opt of opts) {
-        let checked = ""
-        if (global_options["opt_vault_loss"] == opt[0])
-            checked = "checked"
-        html += "<li><label><input type=radio " + checked + " name=opt_vault_loss value='" + opt[0] + "'>" + opt[1] + "</label></li>"
-    }
-    html += "</ul></div></li>"
-    html += "</ul>"
-    html += "</form>";
-    html += "<div class='sim_buttons'><div id='opt_process'>Save changes</div>";
-    html += "<div id='opt_cancel'>Cancel</div></div>";
+    const createOptionList = (options, selectedValue, name) => {
+        return options.map(([value, label]) => {
+            const checked = value === selectedValue ? "checked" : "";
+            return `<li><label><input type="radio" ${checked} name="${name}" value="${value}">${label}</label></li>`;
+        }).join('');
+    };
+
+    const createCurrencyOptions = (fiatInfo, selectedFiat) => {
+        return Object.keys(fiatInfo).map(symbol => {
+            const selected = symbol === selectedFiat ? "selected" : "";
+            return `<option ${selected} value="${symbol}">${symbol}</option>`;
+        }).join('');
+    };
+
+    const html = `
+        <div id="overlay"></div>
+        <div id="opt_popup" class="popup">
+            <form id="opt_form">
+                <ul id="option_list">
+                    <li>
+                        Your currency:
+                        <select id="opt_fiat" name="opt_fiat">
+                            ${createCurrencyOptions(fiat_info, fiat)}
+                        </select>
+                        <div class="opt_note">
+                            Note: this will only affect your currency and exchange rates. Tax forms are still going to be in the US format, but all values will be in the new currency.
+                        </div>
+                    </li>
+                    <li>
+                        <div class="opt_left">
+                            Your transaction costs are treated as part of your cost basis when the transaction involves a taxable event. How should they be treated if it doesn't? 
+                            For example, when you approve a contract, or when you stake something without getting anything back?
+                        </div>
+                        <div class="opt_right">
+                            <ul class="opt_radio_list">
+                                ${createOptionList(
+        [['sell', 'Sale (not tax-deductible)'], ['expense', 'Business expense'], ['loss', 'Capital loss']],
+        global_options["opt_tx_costs"],
+        "opt_tx_costs"
+    )}
+                            </ul>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="opt_left">
+                            If you deposited something to a vault, and later withdrew more than you deposited, how should we treat this extra money?
+                        </div>
+                        <div class="opt_right">
+                            <ul class="opt_radio_list">
+                                ${createOptionList(
+        [['income', 'Income (taxable immediately as income)'], ['gain', 'Free acquisition (taxable as capital gain when sold)']],
+        global_options["opt_vault_gain"],
+        "opt_vault_gain"
+    )}
+                            </ul>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="opt_left">
+                            If you deposited something to a vault, but later exited the vault with a loss, how should we treat this loss?
+                        </div>
+                        <div class="opt_right">
+                            <ul class="opt_radio_list">
+                                ${createOptionList(
+        [['sell', 'Sale (not tax-deductible)'], ['expense', 'Business expense'], ['loss', 'Capital loss']],
+        global_options["opt_vault_loss"],
+        "opt_vault_loss"
+    )}
+                            </ul>
+                        </div>
+                    </li>
+                </ul>
+            </form>
+            <div class="sim_buttons">
+                <div id="opt_process">Save changes</div>
+                <div id="opt_cancel">Cancel</div>
+            </div>
+        </div>
+    `;
+
     $('#content').append(html);
 });
 
 $('body').on('change', '#opt_fiat', function () {
-    let new_fiat = $(this).val();
-    if (new_fiat != fiat) {
-        if ($('#opt_fiat_update_custom').length == 0) {
-            html = "<div id='opt_fiat_update_custom'><label>Adjust your custom rates to the new currency? <input type=checkbox checked name='opt_fiat_update_custom'></label></div>"
-            $('#opt_fiat').after(html)
+    const newFiat = $(this).val();
+    const customRatesHtml = `
+        <div id='opt_fiat_update_custom'>
+            <label>Adjust your custom rates to the new currency?
+                <input type='checkbox' checked name='opt_fiat_update_custom'>
+            </label>
+        </div>
+    `;
+
+    if (newFiat !== fiat) {
+        if (!$('#opt_fiat_update_custom').length) {
+            $('#opt_fiat').after(customRatesHtml);
         }
     } else {
-        $('#opt_fiat_update_custom').remove()
+        $('#opt_fiat_update_custom').remove();
     }
 });
 
@@ -682,4 +699,253 @@ $('body').on('click', '#opt_process', function () {
             $('#overlay').remove();
         }
     });
+});
+
+$('body').on('click', '#bittytax_export', function () {
+    const config = {
+        transfer_in_known: (userConfig !== null && userConfig.transfer_in_known !== undefined) ? userConfig.transfer_in_known : 0,
+        transfer_in_unknown: (userConfig !== null && userConfig.transfer_in_unknown !== undefined) ? userConfig.transfer_in_unknown : 0,
+        transfer_out_known: (userConfig !== null && userConfig.transfer_out_known !== undefined) ? userConfig.transfer_out_known : 0,
+        transfer_out_unknown: (userConfig !== null && userConfig.transfer_out_unknown !== undefined) ? userConfig.transfer_out_unknown : 0,
+        currency: (userConfig !== null && userConfig.currency) ? userConfig.currency : 'USD'
+    };
+
+    const html = `
+        <div id="overlay"></div>
+        <div id="bittytax_popup" class="popup">
+            <div class="header">BittyTax export options</div>
+            <form id="bittytax-config-form">
+                <div class="config-section">
+                    <label>Currency:</label>
+                    <select name="currency" required>
+                        <option value="USD" ${config.currency === 'USD' ? 'selected' : ''}>USD</option>
+                        <option value="GBP" ${config.currency === 'GBP' ? 'selected' : ''}>GBP</option>
+                        <option value="EUR" ${config.currency === 'EUR' ? 'selected' : ''}>EUR</option>
+                        <option value="CAD" ${config.currency === 'CAD' ? 'selected' : ''}>CAD</option>
+                        <option value="AUD" ${config.currency === 'AUD' ? 'selected' : ''}>AUD</option>
+                    </select>
+                </div>
+
+                <div class="config-section">
+                    <table class="bittytax-config-table">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Counterparty: KNOWN</th>
+                                <th>Counterparty: unknown</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="row-header">TRANSFER IN:</td>
+                                <td>
+                                    <select name="transfer_in_known" required>
+                                        <option value="0" ${config.transfer_in_known == 0 ? 'selected' : ''}>Transfer (Deposit)</option>
+                                        <option value="1" ${config.transfer_in_known == 1 ? 'selected' : ''}>Trade (Buy)</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="transfer_in_unknown" required>
+                                        <option value="0" ${config.transfer_in_unknown == 0 ? 'selected' : ''}>Transfer (Deposit)</option>
+                                        <option value="1" ${config.transfer_in_unknown == 1 ? 'selected' : ''}>Trade (Buy)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="row-header">TRANSFER OUT:</td>
+                                <td>
+                                    <select name="transfer_out_known" required>
+                                        <option value="0" ${config.transfer_out_known == 0 ? 'selected' : ''}>Transfer (Withdrawal)</option>
+                                        <option value="1" ${config.transfer_out_known == 1 ? 'selected' : ''}>Trade (Sell)</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="transfer_out_unknown" required>
+                                        <option value="0" ${config.transfer_out_unknown == 0 ? 'selected' : ''}>Transfer (Withdrawal)</option>
+                                        <option value="1" ${config.transfer_out_unknown == 1 ? 'selected' : ''}>Trade (Sell)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="sim_buttons">
+                    <div id="bittytax_process">Export</div>
+                    <div id="bittytax_cancel">Cancel</div>
+                </div>
+            </form>
+        </div>
+    `;
+
+    $('#content').append(html);
+});
+
+function process_bittytax_with_config() {
+    $(document.body).css({ 'cursor': 'wait' });
+
+    // Clear any previous results
+    $('#bittytax_result').remove();
+    $('#bittytax_process').prop('disabled', true).text('Processing...');
+
+    // First save the transactions
+    const data = $.map(all_transactions, function (value, key) { return value });
+    data.sort(compare_ts);
+    const js = JSON.stringify(JSON.stringify(data));
+    $('#tax_block').find('.err_mes').remove();
+
+    $.ajax({
+        type: 'POST',
+        url: "save_js?address=" + primary,
+        data: js,
+        contentType: 'application/json',
+        success: function (resp) {
+            const responseData = JSON.parse(resp);
+            if (responseData.hasOwnProperty('error')) {
+                show_bittytax_error(responseData['error']);
+                return;
+            }
+
+            // Now process BittyTax
+            const params = new URLSearchParams({
+                address: primary,
+                currency: userConfig.currency,
+                transfer_in_known: userConfig.transfer_in_known,
+                transfer_in_unknown: userConfig.transfer_in_unknown,
+                transfer_out_known: userConfig.transfer_out_known,
+                transfer_out_unknown: userConfig.transfer_out_unknown
+            });
+
+            $.ajax({
+                type: 'POST',
+                url: `process_bittytax?${params.toString()}`,
+                success: function(resp) {
+                    const data = JSON.parse(resp);
+                    if (data.success) {
+                        show_bittytax_success(data.parse_output);
+                    } else {
+                        show_bittytax_error(data.error, data.details);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    show_bittytax_error('Error processing BittyTax file: ' + error);
+                }
+            });
+        },
+        error: function(xhr, status, error) {
+            show_bittytax_error('Error saving transactions: ' + error);
+        }
+    });
+}
+
+function show_bittytax_success(parse_output) {
+    $(document.body).css({ 'cursor': 'default' });
+
+    // Remove any existing result
+    $('#bittytax_result').remove();
+
+    // Change button to Download and enable it
+    $('#bittytax_process')
+        .prop('disabled', false)
+        .text('Download')
+        .attr('data-state', 'download');
+
+    let result_html = '<div id="bittytax_result" class="bittytax-success">';
+    result_html += '<div class="success-message">✓ BittyTax export successful!</div>';
+
+    if (parse_output) {
+        result_html += '<div class="parse-output-section">';
+        // Parse output already has HTML color spans from backend, just replace newlines
+        const html_output = parse_output.replace(/\n/g, '<br>');
+        result_html += '<div class="parse-output-content">' + html_output + '</div>';
+        result_html += '</div>';
+    }
+
+    result_html += '</div>';
+
+    // Insert before the buttons instead of after the form
+    $('.sim_buttons').before(result_html);
+}
+
+function show_bittytax_error(error, details) {
+    $(document.body).css({ 'cursor': 'default' });
+
+    // Remove any existing result
+    $('#bittytax_result').remove();
+
+    // Reset button to Export on error
+    $('#bittytax_process')
+        .prop('disabled', false)
+        .text('Export')
+        .removeAttr('data-state');
+
+    let result_html = '<div id="bittytax_result" class="bittytax-error">';
+    result_html += '<div class="error-message">✗ Error: ' + escape_html(error) + '</div>';
+
+    if (details) {
+        result_html += '<div class="error-details">' + escape_html(details) + '</div>';
+    }
+
+    result_html += '</div>';
+
+    // Insert before the buttons instead of after the form
+    $('.sim_buttons').before(result_html);
+}
+
+function escape_html(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+$('body').on('click', '#bittytax_process', function () {
+    // Check if button is in download state
+    if ($(this).attr('data-state') === 'download') {
+        // Trigger download
+        const params = new URLSearchParams({
+            address: primary,
+            type: 'bittytax_xlsx'
+        });
+
+        window.location.href = `download?${params.toString()}`;
+
+        // Close the popup after download
+        $('#bittytax_popup').remove();
+        $('#overlay').remove();
+        return;
+    }
+
+    // Otherwise, process the export
+    const formData = new FormData(document.getElementById('bittytax-config-form'));
+
+    // Initialize userConfig if it's null
+    if (userConfig === null) {
+        userConfig = {};
+    }
+
+    // Update userConfig with current form values
+    userConfig.transfer_in_known = parseInt(formData.get('transfer_in_known'));
+    userConfig.transfer_in_unknown = parseInt(formData.get('transfer_in_unknown'));
+    userConfig.transfer_out_known = parseInt(formData.get('transfer_out_known'));
+    userConfig.transfer_out_unknown = parseInt(formData.get('transfer_out_unknown'));
+    userConfig.currency = formData.get('currency');
+
+    process_bittytax_with_config();
+});
+
+$('body').on('click', '#bittytax_cancel', function () {
+    $('#bittytax_popup').remove();
+    $('#overlay').remove();
+});
+
+$('body').on('click', '#overlay', function() {
+    $('#dl_popup').remove();
+    $('#opt_popup').remove();
+    $('#bittytax_popup').remove();
+    $(this).remove();
 });
