@@ -10,7 +10,6 @@ from app import create_app
 from app.coingecko import CoinGecko
 from config import Config
 from driver import driver
-from telegram_alerts import TelegramAlertsHandler
 
 instance_path = os.environ.get("DEFITAXES_INSTANCE_PATH")
 
@@ -35,21 +34,15 @@ with application.app_context():
     rotate_handler.setFormatter(formatter)
     rotate_handler.setLevel(logging.DEBUG)
 
-    telegram_handler = TelegramAlertsHandler()
-    telegram_handler.setFormatter(formatter)
-
     logger = logging.getLogger(application.name)
     logger.addHandler(rotate_handler)
-    logger.addHandler(telegram_handler)
     logger.setLevel(logging.DEBUG)
 
     logger = logging.getLogger("apscheduler")
     logger.addHandler(rotate_handler)
-    logger.addHandler(telegram_handler)
 
     logger = logging.getLogger("werkzeug")
     logger.addHandler(rotate_handler)
-    logger.addHandler(telegram_handler)
 
     scheduler = APScheduler()
     scheduler.init_app(application)

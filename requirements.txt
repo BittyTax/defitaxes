@@ -10,5 +10,4 @@ python-dotenv==1.0.1
 redis==5.2.0
 requests==2.32.3
 sortedcontainers==2.4.0
-Telethon==1.39.0
 Werkzeug==3.1.3
