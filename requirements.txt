@@ -1,6 +1,6 @@
 base58==2.1.1
 beautifulsoup4==4.12.3
-git+https://git@github.com/BittyTax/BittyTax.git@features/defitaxes#egg=BittyTax
+git+https://git@github.com/BittyTax/BittyTax.git
 Flask==3.1.0
 Flask-APScheduler==1.13.1
 gunicorn==23.0.0
