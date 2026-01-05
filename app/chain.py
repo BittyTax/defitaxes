@@ -113,7 +113,7 @@ class Chain:
         "BSC": {
             "scanner": "bscscan.com",
             "base_asset": "BNB",
-            "api_type": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.ETHERSCAN_V2,
             "evm_chain_id": 56,
             "outbound_bridges": ["0X2170ED0880AC9A755FD29B2688956BD959F933F8"],
             "inbound_bridges": ["0X8894E0A0C962CB723C1976A4421C95949BE2D4E3"],
@@ -200,7 +200,7 @@ class Chain:
         "Avalanche": {
             "scanner": "snowscan.xyz",
             "base_asset": "AVAX",
-            "api_type": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.ETHERSCAN_V2,
             "evm_chain_id": 43114,
             "outbound_bridges": ["0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab"],
             "inbound_bridges": ["0x0000000000000000000000000000000000000000"],
@@ -216,7 +216,7 @@ class Chain:
         "Optimism": {
             "scanner": "optimistic.etherscan.io",
             "base_asset": "ETH",
-            "api_type": ChainApiType.ROUTESCAN_V2,
+            "api_type": ChainApiType.ETHERSCAN_V2,
             "evm_chain_id": 10,
             "wrapper": "0x4200000000000000000000000000000000000006",
             "coingecko_platform": "optimistic-ethereum",
