@@ -49,7 +49,7 @@ class EvmApi:
         self, rate_limit=5, timeout=30, retries=3, backoff_factor=1, tx_per_page=10000
     ) -> None:
         self.api_lock = threading.Lock()
-        self.session = requests.Session()
+        self._thread_local = threading.local()
         self.last_request_time = float(0)
 
         self.rate_limit = rate_limit
@@ -59,13 +59,19 @@ class EvmApi:
         self.tx_per_page = tx_per_page
         self.retry_after = int(180)
 
+    def _get_session(self) -> requests.Session:
+        if not hasattr(self._thread_local, "session"):
+            self._thread_local.session = requests.Session()
+        return self._thread_local.session
+
     def _request_with_retries(self, url: str, params: Dict[str, str]) -> List[Any]:
         with self.api_lock:
+            session = self._get_session()
             for attempt in range(1 + self.retries):
                 self._rate_limit()
                 try:
                     request = requests.Request(
-                        HTTPMethod.GET, url, params=params, headers=self.session.headers
+                        HTTPMethod.GET, url, params=params, headers=session.headers
                     )
                     requestp = request.prepare()
 
@@ -74,7 +80,7 @@ class EvmApi:
                         f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
                         f"url={requestp.url} timeout={self.timeout}"
                     )
-                    response = self.session.send(requestp, timeout=self.timeout)
+                    response = session.send(requestp, timeout=self.timeout)
                     if response.status_code == HTTPStatus.OK:
                         json = response.json()
                         if json.get("status"):
