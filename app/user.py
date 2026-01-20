@@ -3970,7 +3970,7 @@ class User:
         needed_token_times = self.get_needed_token_times(transactions)
 
         pb.set("Updating CoinGecko data", 50)
-        coingecko.init_from_db_2(chain_dict, needed_token_times, pb)
+        coingecko.init_from_db_2(needed_token_times, pb)
         coingecko.dump(self)
 
         _, _, input_list = self.get_contracts(transactions)
