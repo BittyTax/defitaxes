@@ -104,6 +104,7 @@ class Chain:
             "wrapper": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
             "coingecko_platform": "ethereum",
             "coingecko_id": "ethereum",
+            "debank_mapping": "eth",
             "covalent_mapping": "eth-mainnet",
             "order": 0,
             "support": 10,
