@@ -80,17 +80,18 @@ API keys can mostly be obtained for free by subscribing to the websites listed b
 
 | Name | Description |
 | --- | --- |
-| `DEFITAXES_ETHERSCAN_API_KEY` | [Etherscan](https://etherscan.io) - Ethereum (ETH) Blockchain Explorer |
+| `DEFITAXES_ETHERSCAN_API_KEY` | [Etherscan](https://etherscan.io)<sup>1</sup> - Ethereum (ETH) Blockchain Explorer |
 | `DEFITAXES_BLOCKDAEMON_API_KEY` | [Blockdaemon](https://www.blockdaemon.com) - Blockdaemon Institutional Gateway to Web3 (Solana RPC) |
-| `DEFITAXES_COINGECKO_API_KEY` | [CoinGecko](https://www.coingecko.com)<sup>1</sup> - Cryptocurrency prices |
+| `DEFITAXES_COINGECKO_API_KEY` | [CoinGecko](https://www.coingecko.com)<sup>2</sup> - Cryptocurrency prices |
 | `DEFITAXES_TWELVEDATA_API_KEY` | [Twelve Data](https://twelvedata.com) - Fiat prices |
-| `DEFITAXES_DEBANK_API_KEY` | [DeBank](https://cloud.debank.com)<sup>2</sup> - Current token balances, some protocol names |
+| `DEFITAXES_DEBANK_API_KEY` | [DeBank](https://cloud.debank.com)<sup>3</sup> - Current token balances, some protocol names |
 | `DEFITAXES_RESERVOIR_API_KEY` | [Reservoir](https://reservoir.tools) - Currently held NFTs |
-| `DEFITAXES_COVALENTHQ_API_KEY` | [CovalentHQ](https://goldrush.dev)<sup>3</sup>  - Fees on Arbitrum, errors on Fantom, some counterparty info on Ethereum |
+| `DEFITAXES_COVALENTHQ_API_KEY` | [CovalentHQ](https://goldrush.dev)<sup>4</sup>  - Fees on Arbitrum, errors on Fantom, some counterparty info on Ethereum |
 
-<sup>1</sup> - You can use either the CoinGecko "Demo" plan which is free, or the paid "Pro" plan.  
-<sup>2</sup> - DeBank is prepaid only, minimum 200 USDC.  
-<sup>3</sup> - GoldRush offer a 14-day fee trial, or paid plans start at $50/month.
+<sup>1</sup> - "Free" plan does NOT support "BNB Smart Chain", Base, Optimism or Avalanche. These require the "Lite" plan $49/month.  
+<sup>2</sup> - You can use either the CoinGecko "Demo" plan which is free, or the paid "Pro" plan.  
+<sup>3</sup> - DeBank is prepaid only, minimum 200 USDC.  
+<sup>4</sup> - GoldRush offer a 14-day fee trial, or paid plans start at $50/month.
 
 ---
 
