@@ -145,9 +145,10 @@ class Chain:
             "cp_availability": 5,
         },
         "Arbitrum Nova": {
-            "scanner": "nova.arbiscan.io",
+            "scanner": "arbitrum-nova.blockscout.com",
             "base_asset": "ETH",
-            "api_type": ChainApiType.ETHERSCAN_V2,
+            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_url": "https://arbitrum-nova.blockscout.com/api",
             "evm_chain_id": 42170,
             "wrapper": "0xf906A9c7b4d1207B38a2f18445047764763aB450",
             "coingecko_platform": "arbitrum-nova",
