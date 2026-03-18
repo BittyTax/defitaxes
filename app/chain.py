@@ -430,10 +430,9 @@ class Chain:
             "support": 3,
         },
         "Step": {
-            "scanner": "stepscan.io",
+            "scanner": "1234.snowtrace.io",
             "base_asset": "FITFI",
-            "api_type": ChainApiType.BLOCKSCOUT,
-            "api_url": "https://stepscan.io/api",
+            "api_type": ChainApiType.ROUTESCAN_V2,
             "evm_chain_id": 1234,
             "wrapper": "0xb58a9d5920af6ac1a9522b0b10f55df16686d1b6",
             "coingecko_platform": "step-network",
