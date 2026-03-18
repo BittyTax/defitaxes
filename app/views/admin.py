@@ -5,6 +5,7 @@ import traceback
 from flask import Blueprint, current_app, request
 
 from ..constants import USER_DIRNAME
+from ..redis_wrap import Redis
 from ..sqlite import SQLite
 from ..user import User
 from ..util import log, log_error, normalize_address
@@ -24,6 +25,21 @@ def wipe():
         log("EXCEPTION in wipe", traceback.format_exc())
         log_error("EXCEPTION in wipe", address, request.args)
         js = {"error": "An error has occurred while wiping transactions"}
+    data = json.dumps(js)
+    return data
+
+
+@admin.route("/reset", methods=["GET"])
+def reset():
+    address = normalize_address(request.args.get("address"))
+    try:
+        redis = Redis(address)
+        redis.wipe()
+        js = {"success": 1}
+    except:
+        log("EXCEPTION in reset", traceback.format_exc())
+        log_error("EXCEPTION in reset", address, request.args)
+        js = {"error": "An error has occurred while resetting address"}
     data = json.dumps(js)
     return data
 
