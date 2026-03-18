@@ -1,6 +1,8 @@
 import logging
 import os
-from logging.handlers import RotatingFileHandler
+import socket
+from datetime import datetime
+from logging.handlers import RotatingFileHandler, SMTPHandler
 from typing import Any
 
 from flask_apscheduler import APScheduler
@@ -8,6 +10,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
 from app.coingecko import CoinGecko
+from app.constants import APP_NAME
 from config import Config
 from driver import driver
 
@@ -15,6 +18,17 @@ instance_path = os.environ.get("DEFITAXES_INSTANCE_PATH")
 
 application = create_app(Config, instance_path)
 application.register_blueprint(driver)
+
+
+class ContextualSMTPHandler(SMTPHandler):
+    """SMTP Handler that includes level, hostname, module and timestamp in the subject."""
+
+    def getSubject(self, record):
+        """Override to add level, module and timestamp to subject."""
+        timestamp = datetime.fromtimestamp(record.created).strftime("%Y-%m-%d %H:%M:%S")
+        hostname = socket.gethostname()
+        module = f"{record.name}.{record.module}" if record.module else record.name
+        return f"{record.levelname} {APP_NAME}:{module} @ {timestamp} ({hostname})"
 
 
 def _coingecko_job():
@@ -43,6 +57,23 @@ with application.app_context():
 
     logger = logging.getLogger("werkzeug")
     logger.addHandler(rotate_handler)
+
+    if application.config.get("MAIL_FROM"):
+        mail_handler = ContextualSMTPHandler(
+            mailhost=("127.0.0.1", 25),
+            fromaddr=application.config["MAIL_FROM"],
+            toaddrs=application.config["MAIL_ADMINS"],
+            subject="",  # Will be overridden by getSubject
+            credentials=None,
+            secure=None,
+        )
+        mail_handler.setLevel(logging.ERROR)
+        mail_handler.setFormatter(formatter)
+
+        logger = logging.getLogger(application.name)
+        logger.addHandler(mail_handler)
+
+        application.logger.info("SMTP email handler configured for error logging")
 
     scheduler = APScheduler()
     scheduler.init_app(application)
