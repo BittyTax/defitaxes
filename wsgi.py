@@ -34,11 +34,11 @@ with application.app_context():
 
     rotate_handler = RotatingFileHandler(logfile, maxBytes=100 * 1024 * 1024, backupCount=5)
     rotate_handler.setFormatter(formatter)
-    rotate_handler.setLevel(logging.DEBUG)
+    rotate_handler.setLevel(application.config.get("LOG_LEVEL", logging.INFO))
 
     logger = logging.getLogger(application.name)
     logger.addHandler(rotate_handler)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(application.config.get("LOG_LEVEL", logging.INFO))
 
     logger = logging.getLogger("apscheduler")
     logger.addHandler(rotate_handler)
