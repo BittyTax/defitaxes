@@ -11,8 +11,6 @@ from app.coingecko import CoinGecko
 from config import Config
 from driver import driver
 
-os.environ["no_proxy"] = ""  # Fix SIGSEGV on MacOS
-
 instance_path = os.environ.get("DEFITAXES_INSTANCE_PATH")
 
 application = create_app(Config, instance_path)
