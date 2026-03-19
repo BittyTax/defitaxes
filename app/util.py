@@ -158,16 +158,20 @@ def log(*args: Any, **kwargs: Unpack[LogParams]) -> None:
         logger.log(*args, **kwargs)
 
 
-def log_error(*args: Any, **kwargs: Unpack[LogParams]) -> None:
-    logger = Logger(address="glob")
-    try:
-        trace = traceback.format_exc()
-        if trace is not None:
-            args = tuple(list(args) + [trace])
-    except (TypeError, ValueError, AttributeError):
-        pass
-    kwargs["filename"] = "global_error_log.txt"
-    logger.log(*args, **kwargs)
+def log_error(*args: Any) -> None:
+    """Log error messages with traceback if available."""
+    if not args:
+        return
+
+    # Convert all args to strings and join them
+    message = " ".join(str(arg) for arg in args)
+
+    # Add traceback if available
+    trace = traceback.format_exc()
+    if trace and trace != "NoneType: None\n":
+        message = f"{message}\n{trace}"
+
+    current_app.logger.error(message)
 
 
 def decustom(val: Optional[str]) -> tuple[Optional[str], bool]:
