@@ -300,7 +300,7 @@ class Chain:
             "support": 3,
         },
         "Moonbeam": {
-            "scanner": "moonscan.io",
+            "scanner": "moonbeam.moonscan.io",
             "base_asset": "GLMR",
             "api_type": ChainApiType.ETHERSCAN_V2,
             "evm_chain_id": 1284,
@@ -575,7 +575,7 @@ class Chain:
         return self.__str__()
 
     @classmethod
-    def list(cls, alphabetical: bool = False) -> List[str]:
+    def list(cls, alphabetical: bool = False, include_discontinued: bool = True) -> List[str]:
         dict_items = list(Chain.CONFIG.items())
         if alphabetical:
             dict_list = sorted(dict_items, key=lambda item: item[0].lower())
@@ -583,7 +583,8 @@ class Chain:
             dict_list = sorted(dict_items, key=lambda item: item[1]["order"])
         name_list = []
         for entry in dict_list:
-            name_list.append(entry[0])
+            if include_discontinued or entry[1].get("support", 0) > 0:
+                name_list.append(entry[0])
         return name_list
 
     @classmethod
