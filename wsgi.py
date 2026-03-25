@@ -62,7 +62,7 @@ with application.app_context():
         mail_handler = ContextualSMTPHandler(
             mailhost=("127.0.0.1", 25),
             fromaddr=application.config["MAIL_FROM"],
-            toaddrs=application.config["MAIL_ADMINS"],
+            toaddrs=application.config["MAIL_ALERTS"],
             subject="",  # Will be overridden by getSubject
             credentials=None,
             secure=None,
