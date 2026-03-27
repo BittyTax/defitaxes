@@ -7,20 +7,14 @@ dotenv.load_dotenv()
 
 
 class Config:  # pylint: disable=too-few-public-methods
-    DEBUG_LEVEL = 0
-    LOG_LEVEL = logging.DEBUG
     APP_VERSION = 1.43
-
-    REDIS_URL = "redis://localhost:6379"
-    REDIS_PREFIX = "defitaxes"
 
     ETHERSCAN_API_KEY = os.environ.get("DEFITAXES_ETHERSCAN_API_KEY", "")
     BLOCKDAEMON_API_KEY = os.environ.get("DEFITAXES_BLOCKDAEMON_API_KEY", "")  # Solana RPC
-    SOLANA_MAX_TX = 10000
 
     COINGECKO_API_KEY = os.environ.get("DEFITAXES_COINGECKO_API_KEY", "")
     COINGECKO_DOWNLOAD_PERIOD = 24  # hrs
-    COINGECKO_PRO = False
+    COINGECKO_PRO = True
 
     TWELVEDATA_API_KEY = os.environ.get("DEFITAXES_TWELVEDATA_API_KEY", "")
     DEBANK_API_KEY = os.environ.get("DEFITAXES_DEBANK_API_KEY", "")
@@ -28,6 +22,29 @@ class Config:  # pylint: disable=too-few-public-methods
     COVALENTHQ_API_KEY = os.environ.get("DEFITAXES_COVALENTHQ_API_KEY", "")
 
     MAIL_FROM = os.environ.get("DEFITAXES_MAIL_FROM", "")
-    # Parse comma-separated email addresses and strip whitespace
     _mail_alerts_raw = os.environ.get("DEFITAXES_MAIL_ALERTS", "")
     MAIL_ALERTS = [email.strip() for email in _mail_alerts_raw.split(",") if email.strip()]
+
+
+class DevelopmentConfig(Config):  # pylint: disable=too-few-public-methods
+    DEBUG_LEVEL = 1
+    LOG_LEVEL = logging.DEBUG
+
+    REDIS_URL = "redis://localhost:6379"
+    REDIS_PREFIX = "defitaxes_test"
+
+
+class ProductionConfig(Config):  # pylint: disable=too-few-public-methods
+    DEBUG_LEVEL = 0
+    LOG_LEVEL = logging.INFO
+
+    REDIS_URL = "unix:///run/redis/redis-server.sock"
+    REDIS_PREFIX = "defitaxes"
+
+
+# Config dictionary for easy access
+config = {
+    "development": DevelopmentConfig,
+    "production": ProductionConfig,
+    "default": DevelopmentConfig,
+}

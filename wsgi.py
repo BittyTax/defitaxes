@@ -11,12 +11,12 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from app import create_app
 from app.coingecko import CoinGecko
 from app.constants import APP_NAME
-from config import Config
 from driver import driver
 
 instance_path = os.environ.get("DEFITAXES_INSTANCE_PATH")
+config_name = os.environ.get("FLASK_CONFIG", "development")
 
-application = create_app(Config, instance_path)
+application = create_app(config_name, instance_path)
 application.register_blueprint(driver)
 
 
@@ -75,6 +75,8 @@ with application.app_context():
 
         application.logger.info("SMTP email handler configured for error logging")
 
+    application.logger.info("Config: %s", config_name)
+
     scheduler = APScheduler()
     scheduler.init_app(application)
     scheduler.start()
@@ -105,6 +107,7 @@ with application.app_context():
             application.wsgi_app
         )
         application.logger.info("Adding basic auth user: %s", os.environ.get("DEV_USER"))
+
 
 # Assumes Nginx is acting as a reverse proxy.
 application.wsgi_app = ProxyFix(  # type: ignore[method-assign]

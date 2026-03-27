@@ -3,7 +3,7 @@ from typing import Optional
 import redis
 from flask import Flask
 
-from config import Config
+from config import config
 
 from .views.admin import admin
 from .views.chains import chains
@@ -14,9 +14,11 @@ from .views.typing import typing
 from .views.uploads import uploads
 
 
-def create_app(config_class: type[Config], instance_path: Optional[str] = None) -> Flask:
+def create_app(config_name: str = "development", instance_path: Optional[str] = None) -> Flask:
     app = Flask(__name__, instance_path=instance_path)
-    app.config.from_object(config_class)
+
+    # Load config
+    app.config.from_object(config[config_name])
 
     # Primary Redis client with decode_responses=True for text data
     app.extensions["redis"] = redis.Redis.from_url(
