@@ -116,7 +116,7 @@ class EvmApi:
                         f"{id(self)} Bad Response "
                         f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
                         f"{requestp.url} status_code={response.status_code} "
-                        f"headers={self._format_headers(response.headers)} "
+                        f"headers={self._format_headers(dict(response.headers))} "
                         f"content={response.content.decode()}"
                     )
                     if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
@@ -136,7 +136,7 @@ class EvmApi:
                         f"{id(self)} Bad Response "
                         f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
                         f"{requestp.url} status_code={response.status_code} "
-                        f"headers={self._format_headers(response.headers)} {e}"
+                        f"headers={self._format_headers(dict(response.headers))} {e}"
                     )
                     if not self._retry(attempt):
                         raise EvmApiFailureBadResponse from e
