@@ -45,6 +45,8 @@ class EvmApi:
 
     RESULT_RATE_LIMIT = "rate limit reached"
 
+    SENSITIVE_HEADERS = {"authorization", "apikey", "api-key", "x-api-key"}
+
     def __init__(
         self, rate_limit=5, timeout=30, retries=3, backoff_factor=1, tx_per_page=10000
     ) -> None:
@@ -63,6 +65,15 @@ class EvmApi:
         if not hasattr(self._thread_local, "session"):
             self._thread_local.session = requests.Session()
         return self._thread_local.session
+
+    def _format_headers(self, headers: Dict[str, str]) -> str:
+        safe_headers = {}
+        for key, value in headers.items():
+            if key.lower() in self.SENSITIVE_HEADERS:
+                safe_headers[key] = "#" * len(value)
+            else:
+                safe_headers[key] = value
+        return str(safe_headers)
 
     def _request_with_retries(self, url: str, params: Dict[str, str]) -> List[Any]:
         with self.api_lock:
@@ -105,6 +116,7 @@ class EvmApi:
                         f"{id(self)} Bad Response "
                         f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
                         f"{requestp.url} status_code={response.status_code} "
+                        f"headers={self._format_headers(response.headers)} "
                         f"content={response.content.decode()}"
                     )
                     if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
@@ -123,7 +135,8 @@ class EvmApi:
                     current_app.logger.error(
                         f"{id(self)} Bad Response "
                         f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
-                        f"{requestp.url} status_code={response.status_code} {e}"
+                        f"{requestp.url} status_code={response.status_code} "
+                        f"headers={self._format_headers(response.headers)} {e}"
                     )
                     if not self._retry(attempt):
                         raise EvmApiFailureBadResponse from e
