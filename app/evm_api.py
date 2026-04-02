@@ -115,7 +115,7 @@ class EvmApi:
                     current_app.logger.error(
                         f"{id(self)} Bad Response "
                         f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
-                        f"{requestp.url} status_code={response.status_code} "
+                        f"{requestp.url} status_code={response.status_code} ({response.reason})"
                         f"headers={self._format_headers(dict(response.headers))} "
                         f"content={response.content.decode()}"
                     )
@@ -135,7 +135,7 @@ class EvmApi:
                     current_app.logger.error(
                         f"{id(self)} Bad Response "
                         f"{f'(retries={attempt} of {self.retries}): ' if attempt > 0 else ''}"
-                        f"{requestp.url} status_code={response.status_code} "
+                        f"{requestp.url} status_code={response.status_code} ({response.reason}) "
                         f"headers={self._format_headers(dict(response.headers))} {e}"
                     )
                     if not self._retry(attempt):
