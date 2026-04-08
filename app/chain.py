@@ -477,10 +477,10 @@ class Chain:
             "support": 3,
         },
         "SXnetwork": {
-            "scanner": "explorer.sx.technology",
+            "scanner": "explorerl2.sx.technology",
             "base_asset": "SX",
             "api_type": ChainApiType.BLOCKSCOUT,
-            "api_url": "https://explorer.sx.technology/api",
+            "api_url": "https://explorerl2.sx.technology/api",
             "evm_chain_id": 416,
             "wrapper": "0xaa99bE3356a11eE92c3f099BD7a038399633566f",
             "coingecko_platform": "sx-network",
