@@ -36,6 +36,6 @@ def create_app(config_name: str = "development", instance_path: Optional[str] = 
     app.register_blueprint(typing)
     app.register_blueprint(manual_transactions)
     app.register_blueprint(uploads)
-    app.register_blueprint(admin)
+    app.register_blueprint(admin, url_prefix="/admin")
 
     return app

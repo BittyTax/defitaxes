@@ -1,8 +1,9 @@
 import json
 import os
+import time
 import traceback
 
-from flask import Blueprint, current_app, request
+from flask import Blueprint, current_app, render_template, request
 
 from ..constants import USER_DIRNAME
 from ..redis_wrap import Redis
@@ -11,6 +12,45 @@ from ..user import User
 from ..util import log, log_error, normalize_address
 
 admin = Blueprint("admin", __name__)
+
+
+@admin.route("/")
+def admin_page():
+    return render_template("admin.html")
+
+
+@admin.route("/queue_status", methods=["GET"])
+def queue_status():
+    try:
+        R = current_app.extensions["redis"]
+        prefix = current_app.config["REDIS_PREFIX"]
+
+        queue = R.lrange(f"{prefix}:{Redis.KEY_QUEUE}", 0, -1)
+        now = int(time.time())
+
+        entries = []
+        for i, address in enumerate(queue):
+            running = R.get(f"{prefix}:{address}:{Redis.KEY_RUNNING}")
+            progress = R.get(f"{prefix}:{address}:{Redis.KEY_PROGRESS}")
+            progress_entry = R.get(f"{prefix}:{address}:{Redis.KEY_PROGRESS_ENTRY}")
+            last_update = R.get(f"{prefix}:{address}:{Redis.KEY_LAST_UPDATE}")
+
+            entries.append(
+                {
+                    "address": address,
+                    "position": i + 1,
+                    "running": bool(running),
+                    "progress": float(progress) if progress else 0.0,
+                    "progress_entry": progress_entry or "",
+                    "last_update": int(last_update) if last_update else None,
+                    "last_update_ago": now - int(last_update) if last_update else None,
+                }
+            )
+
+        return json.dumps({"queue": entries, "server_time": now})
+    except:
+        log("EXCEPTION in queue_status", traceback.format_exc())
+        return json.dumps({"error": "Failed to fetch queue status"}), 500
 
 
 @admin.route("/wipe", methods=["GET"])

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet"
+              href="{{ url_for('static', filename='css/styles.css') }}">
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <title>Admin — Redis Queue Monitor</title>
+        <style>
+            body {
+                padding: 20px;
+                text-align: left;
+            }
+
+            h1 {
+                margin-top: 0;
+            }
+
+            #status-banner {
+                display: inline-block;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+                margin-bottom: 20px;
+                font-size: 15px;
+            }
+
+            #status-banner.idle {
+                background-color: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+
+            #status-banner.busy {
+                background-color: #fff3cd;
+                color: #856404;
+                border: 1px solid #ffc107;
+            }
+
+            #status-banner.error {
+                background-color: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+
+            #queue-table {
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+                margin-top: 10px;
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            }
+
+            #queue-table col.col-pos    { width: 40px; }
+            #queue-table col.col-addr   { width: 360px; }
+            #queue-table col.col-status { width: 90px; }
+            #queue-table col.col-prog   { width: 210px; }
+            #queue-table col.col-step   { width: auto; }
+            #queue-table col.col-update { width: 110px; }
+            #queue-table col.col-action { width: 80px; }
+
+            #queue-table th {
+                background-color: #f0f0f0;
+                padding: 10px 14px;
+                text-align: left;
+                font-size: 13px;
+                color: #444;
+                border-bottom: 1px solid #ddd;
+                overflow: hidden;
+                white-space: nowrap;
+            }
+
+            #queue-table td {
+                padding: 10px 14px;
+                border-bottom: 1px solid #f0f0f0;
+                font-size: 13px;
+                vertical-align: middle;
+                overflow: hidden;
+            }
+
+            /* Only truncate text-heavy columns (Address, Current Step) */
+            #queue-table td:nth-child(2),
+            #queue-table td:nth-child(5) {
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            #queue-table tr:last-child td {
+                border-bottom: none;
+            }
+
+            .badge {
+                display: inline-block;
+                padding: 3px 9px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+
+            .badge.running {
+                background-color: #cce5ff;
+                color: #004085;
+            }
+
+            .badge.queued {
+                background-color: #e2e3e5;
+                color: #383d41;
+            }
+
+            .progress-wrap {
+                background-color: #e9ecef;
+                border-radius: 4px;
+                height: 10px;
+                width: 160px;
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 6px;
+            }
+
+            .progress-bar {
+                background-color: #007bff;
+                height: 10px;
+                border-radius: 4px;
+                transition: width 0.4s;
+            }
+
+            .btn-reset {
+                padding: 4px 12px;
+                font-size: 12px;
+                border: 1px solid #dc3545;
+                color: #dc3545;
+                background: white;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+
+            .btn-reset:hover {
+                background-color: #dc3545;
+                color: white;
+            }
+
+            .address-cell {
+                font-family: monospace;
+                font-size: 12px;
+            }
+
+            #last-updated {
+                font-size: 12px;
+                color: #888;
+                margin-top: 12px;
+            }
+
+            #refresh-indicator {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background-color: #28a745;
+                margin-right: 5px;
+                vertical-align: middle;
+            }
+
+            #refresh-indicator.stale {
+                background-color: #dc3545;
+            }
+
+            .stale-warning {
+                color: #dc3545;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>
+                <a href="{{ url_for('main.index') }}"
+                   style="text-decoration:none;
+                          color:inherit">DeFi Taxes</a> — Admin
+            </h1>
+        </div>
+        <h2>Redis Queue Monitor</h2>
+        <div id="status-banner" class="idle">&#x2705; Queue is empty</div>
+        <table id="queue-table" style="display:none">
+            <colgroup>
+                <col class="col-pos">
+                <col class="col-addr">
+                <col class="col-status">
+                <col class="col-prog">
+                <col class="col-step">
+                <col class="col-update">
+                <col class="col-action">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Address</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Current Step</th>
+                    <th>Last Update</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="queue-tbody">
+            </tbody>
+        </table>
+        <div id="last-updated">
+            <span id="refresh-indicator"></span>
+            <span id="last-updated-text">Waiting for first update…</span>
+        </div>
+        <script>
+            var urls = {
+                queueStatus: "{{ url_for('admin.queue_status') }}",
+                reset: "{{ url_for('admin.reset') }}"
+            };
+
+            var pollInterval = 2000;
+            var pollTimer = null;
+
+            function formatAgo(seconds) {
+                if (seconds === null || seconds === undefined) return "—";
+                if (seconds < 60) return seconds + "s ago";
+                return Math.floor(seconds / 60) + "m " + (seconds % 60) + "s ago";
+            }
+
+            function resetAddress(address) {
+                if (!confirm("Reset stuck transaction for " + address + "?\n\nThis will clear their Redis state and remove them from the queue.")) {
+                    return;
+                }
+                $.get(urls.reset, { address: address }, function(data) {
+                    var result = typeof data === "string" ? JSON.parse(data) : data;
+                    if (result.success) {
+                        alert("Reset successful for " + address);
+                    } else {
+                        alert("Reset failed: " + (result.error || "unknown error"));
+                    }
+                }).fail(function() {
+                    alert("Request failed — could not reset address.");
+                });
+            }
+
+            function updateQueue() {
+                $.getJSON(urls.queueStatus, function(data) {
+                    if (data.error) {
+                        $("#status-banner").removeClass("idle busy").addClass("error").html("&#x26A0; Error fetching queue status: " + data.error);
+                        $("#refresh-indicator").addClass("stale");
+                        return;
+                    }
+
+                    var queue = data.queue;
+                    var now = data.server_time;
+                    var tbody = $("#queue-tbody");
+                    tbody.empty();
+
+                    if (queue.length === 0) {
+                        $("#status-banner").removeClass("busy error").addClass("idle").html("&#x2705; Queue is empty");
+                        $("#queue-table").hide();
+                    } else {
+                        $("#status-banner").removeClass("idle error").addClass("busy").html("&#x23F3; " + queue.length + " address" + (queue.length > 1 ? "es" : "") + " in queue");
+                        $("#queue-table").show();
+
+                        $.each(queue, function(i, entry) {
+                            var badge = entry.running
+                                ? '<span class="badge running">Running</span>'
+                                : '<span class="badge queued">Queued</span>';
+
+                            var pct = Math.min(100, entry.progress || 0).toFixed(1);
+                            var progressHtml = entry.running
+                                ? '<div class="progress-wrap"><div class="progress-bar" style="width:' + pct + '%"></div></div>' + pct + '%'
+                                : "—";
+
+                            var lastUpdateAgo = entry.last_update_ago;
+                            var staleClass = (lastUpdateAgo !== null && lastUpdateAgo > 60) ? ' class="stale-warning"' : '';
+                            var lastUpdateHtml = '<span ' + staleClass + '>' + formatAgo(lastUpdateAgo) + '</span>';
+
+                            var step = entry.progress_entry ? entry.progress_entry : "—";
+
+                            var row = '<tr>' +
+                                '<td>' + entry.position + '</td>' +
+                                '<td class="address-cell">' + entry.address + '</td>' +
+                                '<td>' + badge + '</td>' +
+                                '<td>' + progressHtml + '</td>' +
+                                '<td>' + step + '</td>' +
+                                '<td>' + lastUpdateHtml + '</td>' +
+                                '<td><button class="btn-reset" onclick="resetAddress(\'' + entry.address + '\')">Reset</button></td>' +
+                                '</tr>';
+                            tbody.append(row);
+                        });
+                    }
+
+                    var d = new Date();
+                    $("#last-updated-text").text("Last updated: " + d.toLocaleTimeString());
+                    $("#refresh-indicator").removeClass("stale");
+
+                }).fail(function() {
+                    $("#status-banner").removeClass("idle busy").addClass("error").html("&#x26A0; Could not reach server");
+                    $("#refresh-indicator").addClass("stale");
+                    $("#last-updated-text").text("Poll failed at " + new Date().toLocaleTimeString());
+                });
+            }
+
+            function startPolling() {
+                updateQueue();
+                pollTimer = setInterval(updateQueue, pollInterval);
+            }
+
+            $(document).ready(function() {
+                startPolling();
+            });
+        </script>
+    </body>
+</html>
