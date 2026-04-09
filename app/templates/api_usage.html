@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet"
+              href="{{ url_for('static', filename='css/styles.css') }}">
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <title>Admin — API Usage</title>
+        <style>
+            body {
+                padding: 20px;
+                text-align: left;
+            }
+
+            h2 {
+                margin-top: 30px;
+                margin-bottom: 6px;
+            }
+
+            .cards-layout {
+            }
+
+            #card-coingecko,
+            #card-etherscan {
+                max-width: 550px;
+            }
+
+            .api-card {
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+                padding: 20px 24px;
+                margin-bottom: 20px;
+            }
+
+            .api-card h3 {
+                margin: 0 0 16px 0;
+                font-size: 16px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .api-card .error-msg {
+                color: #721c24;
+                font-size: 13px;
+            }
+
+            .stat-row {
+                display: flex;
+                justify-content: space-between;
+                font-size: 13px;
+                margin-bottom: 10px;
+                color: #444;
+            }
+
+            .stat-label {
+                flex: 0 0 200px;
+            }
+
+            .stat-value {
+                font-weight: bold;
+                text-align: right;
+                flex: 1;
+            }
+
+            .meter-wrap {
+                background-color: #e9ecef;
+                border-radius: 4px;
+                height: 12px;
+                width: 100%;
+                margin-bottom: 14px;
+                overflow: hidden;
+            }
+
+            .meter-bar {
+                height: 12px;
+                border-radius: 4px;
+                transition: width 0.4s;
+            }
+
+            .meter-bar.low    { background-color: #28a745; }
+            .meter-bar.medium { background-color: #ffc107; }
+            .meter-bar.high   { background-color: #dc3545; }
+
+            .meter-label {
+                font-size: 11px;
+                color: #888;
+                margin-bottom: 14px;
+                margin-top: -10px;
+            }
+
+            .divider {
+                border: none;
+                border-top: 1px solid #f0f0f0;
+                margin: 12px 0;
+            }
+
+            .bar-chart {
+                display: flex;
+                align-items: flex-end;
+                gap: 4px;
+                height: 140px;
+                margin-bottom: 4px;
+            }
+
+            .bar-chart-col {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-end;
+                flex: 1;
+            }
+
+            .bar-chart-bar {
+                width: 100%;
+                background-color: #007bff;
+                border-radius: 2px 2px 0 0;
+                min-height: 2px;
+                transition: height 0.3s;
+            }
+
+            .bar-chart-label {
+                font-size: 9px;
+                color: #aaa;
+                margin-top: 3px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 100%;
+                text-align: center;
+            }
+
+            .bar-chart-wrapper {
+                margin-bottom: 6px;
+            }
+
+            .bar-chart-title {
+                font-size: 11px;
+                color: #888;
+                margin-bottom: 4px;
+            }
+
+            .badge-plan {
+                display: inline-block;
+                padding: 2px 10px;
+                border-radius: 12px;
+                font-size: 11px;
+                font-weight: bold;
+                background-color: #cce5ff;
+                color: #004085;
+            }
+
+            #last-updated {
+                font-size: 12px;
+                color: #888;
+                margin-top: 16px;
+            }
+
+            #refresh-indicator {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background-color: #28a745;
+                margin-right: 5px;
+                vertical-align: middle;
+            }
+
+            #refresh-indicator.stale { background-color: #dc3545; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>
+                <a href="{{ url_for('main.index') }}"
+                   style="text-decoration:none;
+                          color:inherit">DeFi Taxes</a> — Admin
+            </h1>
+        </div>
+        <p>
+            <a href="{{ url_for('admin.admin_page') }}">&larr; Queue Monitor</a>
+        </p>
+        <h2>API Usage</h2>
+        <div class="cards-layout">
+            <div class="api-card" id="card-coingecko">
+                <h3>
+                    CoinGecko <span id="cg-plan"></span>
+                </h3>
+                <div id="cg-content">
+                    <em style="color:#888">Loading…</em>
+                </div>
+            </div>
+            <div class="api-card" id="card-etherscan">
+                <h3>Etherscan</h3>
+                <div id="es-content">
+                    <em style="color:#888">Loading…</em>
+                </div>
+            </div>
+            <div class="api-card" id="card-debank">
+                <h3>DeBank</h3>
+                <div id="db-content">
+                    <em style="color:#888">Loading…</em>
+                </div>
+            </div>
+        </div>
+        <div id="last-updated">
+            <span id="refresh-indicator"></span>
+            <span id="last-updated-text">Waiting for first update…</span>
+        </div>
+        <script>
+            var urls = {
+                apiUsageStatus: "{{ url_for('admin.api_usage_status') }}"
+            };
+
+            function fmt(n) {
+                return n !== undefined && n !== null ? Number(n).toLocaleString() : "—";
+            }
+
+            function meterClass(pct) {
+                if (pct >= 80) return "high";
+                if (pct >= 50) return "medium";
+                return "low";
+            }
+
+            function usageMeter(used, total, label) {
+                var pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+                return '<div class="meter-wrap"><div class="meter-bar ' + meterClass(pct) + '" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+                       '<div class="meter-label">' + label + '</div>';
+            }
+
+            function renderCoingecko(data) {
+                if (data.error) {
+                    $("#cg-content").html('<span class="error-msg">Error: ' + data.error + '</span>');
+                    return;
+                }
+
+                if (data.plan) {
+                    $("#cg-plan").html('<span class="badge-plan">' + data.plan + '</span>');
+                }
+
+                var used = data.current_total_monthly_calls;
+                var remaining = data.current_remaining_monthly_calls;
+                var total = data.monthly_call_credit;
+                var pct = total > 0 ? ((used / total) * 100).toFixed(1) : 0;
+
+                var html = "";
+
+                html += usageMeter(used, total, "Monthly calls: " + fmt(used) + " used of " + fmt(total) + " (" + pct + "%)");
+
+                html += '<div class="stat-row"><span class="stat-label">Remaining this month</span><span class="stat-value">' + fmt(remaining) + '</span></div>';
+                html += '<hr class="divider">';
+                html += '<div class="stat-row"><span class="stat-label">Rate limit (req/min)</span><span class="stat-value">' + fmt(data.rate_limit_request_per_minute) + '</span></div>';
+                html += '<div class="stat-row"><span class="stat-label">API key rate limit (req/min)</span><span class="stat-value">' + fmt(data.api_key_rate_limit_request_per_minute) + '</span></div>';
+
+                $("#cg-content").html(html);
+            }
+
+            function renderDebank(data) {
+                if (data.error) {
+                    $("#db-content").html('<span class="error-msg">Error: ' + data.error + '</span>');
+                    return;
+                }
+
+                var html = '';
+
+                // Balance
+                html += '<div class="stat-row"><span class="stat-label">Remaining balance (units)</span><span class="stat-value">' + fmt(data.balance) + '</span></div>';
+                html += '<hr class="divider">';
+
+                // Daily usage bar chart — stats are newest-first, reverse for chronological left-to-right display
+                if (data.stats && data.stats.length > 0) {
+                    var days = data.stats.slice().reverse();
+                    var maxUsage = Math.max.apply(null, $.map(days, function(d) { return d.usage; }));
+                    if (maxUsage === 0) maxUsage = 1;
+
+                    html += '<div class="bar-chart-wrapper">';
+                    html += '<div class="bar-chart-title">Daily usage (last ' + days.length + ' days)</div>';
+                    html += '<div class="bar-chart">';
+                    $.each(days, function(i, d) {
+                        var heightPx = Math.max(2, Math.round((d.usage / maxUsage) * 136));
+                        var shortDate = d.date.slice(5); // MM-DD
+                        html += '<div class="bar-chart-col">' +
+                            '<div class="bar-chart-bar" style="height:' + heightPx + 'px;" title="' + d.date + ': ' + fmt(d.usage) + ' units"></div>' +
+                            '<div class="bar-chart-label">' + shortDate + '</div>' +
+                            '</div>';
+                    });
+                    html += '</div>';
+                    html += '</div>';
+
+                    // Today's usage
+                    var today = data.stats[0];
+                    html += '<div class="stat-row"><span class="stat-label">Today\'s usage (' + today.date + ')</span><span class="stat-value">' + fmt(today.usage) + ' units</span></div>';
+                    html += '<div class="stat-row"><span class="stat-label">Yesterday\'s usage</span><span class="stat-value">' + fmt(data.stats[1] ? data.stats[1].usage : 0) + ' units</span></div>';
+                }
+
+                $("#db-content").html(html);
+            }
+
+            function renderEtherscan(data) {
+                if (data.error) {
+                    $("#es-content").html('<span class="error-msg">Error: ' + data.error + '</span>');
+                    return;
+                }
+                if (data.status !== "1" || !data.result) {
+                    $("#es-content").html('<span class="error-msg">Unexpected response: ' + JSON.stringify(data) + '</span>');
+                    return;
+                }
+
+                var r = data.result;
+                var used = r.creditsUsed;
+                var total = r.creditLimit;
+                var pct = total > 0 ? ((used / total) * 100).toFixed(1) : 0;
+
+                var html = usageMeter(used, total, "Daily credits: " + fmt(used) + " used of " + fmt(total) + " (" + pct + "%)");
+                html += '<div class="stat-row"><span class="stat-label">Credits remaining</span><span class="stat-value">' + fmt(r.creditsAvailable) + '</span></div>';
+                html += '<div class="stat-row"><span class="stat-label">Limit interval</span><span class="stat-value">' + (r.limitInterval || "—") + '</span></div>';
+                html += '<div class="stat-row"><span class="stat-label">Resets in</span><span class="stat-value">' + (r.intervalExpiryTimespan || "—") + '</span></div>';
+
+                $("#es-content").html(html);
+            }
+
+            function refresh() {
+                $.getJSON(urls.apiUsageStatus, function(data) {
+                    renderCoingecko(data.coingecko || { error: "No data" });
+                    renderDebank(data.debank || { error: "No data" });
+                    renderEtherscan(data.etherscan || { error: "No data" });
+
+                    $("#last-updated-text").text("Last updated: " + new Date().toLocaleTimeString());
+                    $("#refresh-indicator").removeClass("stale");
+                }).fail(function() {
+                    $("#last-updated-text").text("Poll failed at " + new Date().toLocaleTimeString());
+                    $("#refresh-indicator").addClass("stale");
+                });
+            }
+
+            $(document).ready(function() {
+                refresh();
+            });
+        </script>
+    </body>
+</html>

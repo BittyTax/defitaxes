@@ -3,6 +3,7 @@ import os
 import time
 import traceback
 
+import requests as http
 from flask import Blueprint, current_app, render_template, request
 
 from ..constants import USER_DIRNAME
@@ -17,6 +18,70 @@ admin = Blueprint("admin", __name__)
 @admin.route("/")
 def admin_page():
     return render_template("admin.html")
+
+
+@admin.route("/api_usage")
+def api_usage_page():
+    return render_template("api_usage.html")
+
+
+@admin.route("/api_usage_status", methods=["GET"])
+def api_usage_status():
+    result = {}
+
+    # CoinGecko
+    try:
+        if current_app.config.get("COINGECKO_PRO"):
+            resp = http.get(
+                "https://pro-api.coingecko.com/api/v3/key",
+                headers={"x-cg-pro-api-key": current_app.config["COINGECKO_API_KEY"]},
+                timeout=10,
+            )
+            result["coingecko"] = (
+                resp.json() if resp.status_code == 200 else {"error": resp.status_code}
+            )
+        else:
+            result["coingecko"] = {"error": "Not using Pro API"}
+    except Exception as e:
+        result["coingecko"] = {"error": str(e)}
+
+    # DeBank
+    try:
+        if current_app.config.get("DEBANK_API_KEY"):
+            resp = http.get(
+                "https://pro-openapi.debank.com/v1/account/units",
+                headers={"AccessKey": current_app.config["DEBANK_API_KEY"]},
+                timeout=10,
+            )
+            result["debank"] = (
+                resp.json() if resp.status_code == 200 else {"error": resp.status_code}
+            )
+        else:
+            result["debank"] = {"error": "No API key configured"}
+    except Exception as e:
+        result["debank"] = {"error": str(e)}
+
+    # Etherscan
+    try:
+        if current_app.config.get("ETHERSCAN_API_KEY"):
+            resp = http.get(
+                "https://api.etherscan.io/v2/api",
+                params={
+                    "apikey": current_app.config["ETHERSCAN_API_KEY"],
+                    "module": "getapilimit",
+                    "action": "getapilimit",
+                },
+                timeout=10,
+            )
+            result["etherscan"] = (
+                resp.json() if resp.status_code == 200 else {"error": resp.status_code}
+            )
+        else:
+            result["etherscan"] = {"error": "No API key configured"}
+    except Exception as e:
+        result["etherscan"] = {"error": str(e)}
+
+    return json.dumps(result)
 
 
 @admin.route("/queue_status", methods=["GET"])
