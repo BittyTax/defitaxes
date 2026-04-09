@@ -4,4 +4,4 @@ source ./.venv/bin/activate
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 export DEV_USER=testuser
 export FLASK_CONFIG=development
-gunicorn -t 300 -w 4 --access-logfile - --error-logfile - --preload wsgi:application
+gunicorn -t 300 -w 4 --access-logfile - --error-logfile - wsgi:application

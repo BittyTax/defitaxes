@@ -5,11 +5,9 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler, SMTPHandler
 from typing import Any
 
-from flask_apscheduler import APScheduler
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
-from app.coingecko import CoinGecko
 from app.constants import APP_NAME
 from driver import driver
 
@@ -31,13 +29,6 @@ class ContextualSMTPHandler(SMTPHandler):
         return f"{record.levelname} {APP_NAME}:{module} @ {timestamp} ({hostname})"
 
 
-def _coingecko_job():
-    with application.app_context():
-        application.logger.info("Starting CoinGecko symbols download job")
-        cg = CoinGecko()
-        cg.download_symbols()
-
-
 with application.app_context():
     logfile = os.path.join(application.instance_path, "flask.log")
     formatter = logging.Formatter(
@@ -51,9 +42,6 @@ with application.app_context():
     logger = logging.getLogger(application.name)
     logger.addHandler(rotate_handler)
     logger.setLevel(application.config.get("LOG_LEVEL", logging.INFO))
-
-    logger = logging.getLogger("apscheduler")
-    logger.addHandler(rotate_handler)
 
     logger = logging.getLogger("werkzeug")
     logger.addHandler(rotate_handler)
@@ -76,21 +64,6 @@ with application.app_context():
         application.logger.info("SMTP email handler configured for error logging")
 
     application.logger.info("Config: %s", config_name)
-
-    scheduler = APScheduler()
-    scheduler.init_app(application)
-    scheduler.start()
-
-    job = scheduler.add_job(
-        id="_coingecko_job",
-        func=_coingecko_job,
-        trigger="interval",
-        hours=application.config["COINGECKO_DOWNLOAD_PERIOD"],
-        misfire_grace_time=600,  # Allow job to be executed up to 10 mins late
-        coalesce=True,
-        max_instances=1,
-    )
-    application.logger.info("Scheduled job: %s", job)
 
     if os.environ.get("DEV_USER"):
 
