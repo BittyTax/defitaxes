@@ -179,6 +179,8 @@
         </div>
         <p>
             <a href="{{ url_for('admin.admin_page') }}">&larr; Queue Monitor</a>
+            &nbsp;&nbsp;
+            <a href="{{ url_for('admin.users_page') }}">Users &rarr;</a>
         </p>
         <h2>API Usage</h2>
         <div class="cards-layout">
@@ -228,6 +230,18 @@
                        '<div class="meter-label">' + label + '</div>';
             }
 
+            function timeUntilMonthReset() {
+                var now = new Date();
+                var nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+                var diff = Math.floor((nextMonth - now) / 1000);
+                var days = Math.floor(diff / 86400);
+                var hrs = Math.floor((diff % 86400) / 3600);
+                var mins = Math.floor((diff % 3600) / 60);
+                if (days > 0) return days + "d " + hrs + "h " + mins + "m";
+                if (hrs > 0) return hrs + "h " + mins + "m";
+                return mins + "m";
+            }
+
             function renderCoingecko(data) {
                 if (data.error) {
                     $("#cg-content").html('<span class="error-msg">Error: ' + data.error + '</span>');
@@ -248,6 +262,7 @@
                 html += usageMeter(used, total, "Monthly calls: " + fmt(used) + " used of " + fmt(total) + " (" + pct + "%)");
 
                 html += '<div class="stat-row"><span class="stat-label">Remaining this month</span><span class="stat-value">' + fmt(remaining) + '</span></div>';
+                html += '<div class="stat-row"><span class="stat-label">Resets in</span><span class="stat-value">' + timeUntilMonthReset() + '</span></div>';
                 html += '<hr class="divider">';
                 html += '<div class="stat-row"><span class="stat-label">Rate limit (req/min)</span><span class="stat-value">' + fmt(data.rate_limit_request_per_minute) + '</span></div>';
                 html += '<div class="stat-row"><span class="stat-label">API key rate limit (req/min)</span><span class="stat-value">' + fmt(data.api_key_rate_limit_request_per_minute) + '</span></div>';

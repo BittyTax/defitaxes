@@ -28,3 +28,30 @@ total_mb=$((total_kb / 1024))
 total_gb=$(echo "scale=2; $total_kb / 1024 / 1024" | bc)
 echo "Total: ${total_mb} MB (${total_gb} GB)"
 rm -f /tmp/oldest_folders.tmp
+
+echo ""
+echo "=== FOLDERS CONTAINING transactions.csv ==="
+echo "Folder Path"
+echo "------------------------------------------"
+found_csv=0
+find "$TARGET_DIR" -type f -name "transactions.csv" 2>/dev/null | while read f; do
+    dirname "$f"
+    found_csv=1
+done
+if [ $found_csv -eq 0 ]; then
+    echo "None found"
+fi
+
+echo ""
+echo "=== FOLDERS CONTAINING NON-STANDARD SQL FILES (not db.db) ==="
+echo "File Path"
+echo "------------------------------------------"
+found_sql=0
+find "$TARGET_DIR" -type f \( -name "*.db" \) ! -name "db.db" 2>/dev/null | while read f; do
+    size=$(du -sh "$f" 2>/dev/null | cut -f1)
+    echo "$size  $f"
+    found_sql=1
+done
+if [ $found_sql -eq 0 ]; then
+    echo "None found"
+fi

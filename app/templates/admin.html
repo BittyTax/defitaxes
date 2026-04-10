@@ -182,6 +182,8 @@
         </div>
         <p>
             <a href="{{ url_for('admin.api_usage_page') }}">API Usage &rarr;</a>
+            &nbsp;&nbsp;
+            <a href="{{ url_for('admin.users_page') }}">Users &rarr;</a>
         </p>
         <h2>Redis Queue Monitor</h2>
         <div id="status-banner" class="idle">&#x2705; Queue is empty</div>
@@ -213,10 +215,58 @@
             <span id="refresh-indicator"></span>
             <span id="last-updated-text">Waiting for first update…</span>
         </div>
+        <div id="recent-users-section" style="display:none; margin-top:30px;">
+            <h2>Recent Users</h2>
+            <table style="border-collapse:collapse;
+                          table-layout:fixed;
+                          width:520px;
+                          background:white;
+                          box-shadow:0 1px 4px rgba(0,0,0,0.08);
+                          border-radius:6px;
+                          overflow:hidden">
+                <colgroup>
+                    <col style="width:40px">
+                    <col style="width:280px">
+                    <col>
+                </colgroup>
+                <thead>
+                    <tr style="background:#f8f9fa">
+                        <th style="padding:8px 12px;
+                                   font-size:12px;
+                                   font-weight:600;
+                                   color:#555;
+                                   text-transform:uppercase;
+                                   letter-spacing:0.04em;
+                                   text-align:left">#</th>
+                        <th style="padding:8px 12px;
+                                   font-size:12px;
+                                   font-weight:600;
+                                   color:#555;
+                                   text-transform:uppercase;
+                                   letter-spacing:0.04em;
+                                   text-align:left">Address</th>
+                        <th style="padding:8px 12px;
+                                   font-size:12px;
+                                   font-weight:600;
+                                   color:#555;
+                                   text-transform:uppercase;
+                                   letter-spacing:0.04em;
+                                   text-align:left">Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-users-tbody">
+                </tbody>
+            </table>
+            <p style="margin-top:8px;font-size:12px">
+                <a href="{{ url_for('admin.users_page') }}">View all users &rarr;</a>
+            </p>
+        </div>
         <script>
             var urls = {
                 queueStatus: "{{ url_for('admin.queue_status') }}",
-                reset: "{{ url_for('admin.reset') }}"
+                reset: "{{ url_for('admin.reset') }}",
+                usersList: "{{ url_for('admin.users_list') }}",
+                mainIndex: "{{ url_for('main.index') }}"
             };
 
             var pollInterval = 2000;
@@ -309,8 +359,60 @@
                 pollTimer = setInterval(updateQueue, pollInterval);
             }
 
+            function fmtAgo(ts) {
+                if (ts === null || ts === undefined) return '<span style="color:#aaa;font-size:11px">Unknown</span>';
+                var now = Math.floor(Date.now() / 1000);
+                var diff = now - ts;
+                if (diff < 60) return "just now";
+                if (diff < 3600) return Math.floor(diff / 60) + " mins ago";
+                if (diff < 86400) return Math.floor(diff / 3600) + " hrs ago";
+                if (diff < 86400 * 30) return Math.floor(diff / 86400) + " days ago";
+                if (diff < 86400 * 365) return Math.floor(diff / (86400 * 30)) + " months ago";
+                return new Date(ts * 1000).toLocaleDateString();
+            }
+
+            function truncAddr(addr) {
+                if (!addr || addr.length <= 12) return addr;
+                return addr.slice(0, 8) + "\u2026" + addr.slice(-6);
+            }
+
+            function copyAddr(el, address) {
+                navigator.clipboard.writeText(address).then(function() {
+                    var orig = el.title;
+                    el.title = "Copied!";
+                    var origText = el.textContent;
+                    el.textContent = "Copied!";
+                    setTimeout(function() {
+                        el.textContent = origText;
+                        el.title = orig;
+                    }, 1200);
+                });
+            }
+
+            function loadRecentUsers() {
+                $.getJSON(urls.usersList, function(data) {
+                    if (data.error || !data.users) return;
+                    var top8 = data.users.slice(0, 8);
+                    var tbody = $("#recent-users-tbody");
+                    tbody.empty();
+                    $.each(top8, function(i, u) {
+                        var addrCell = '<span class="addr-text" title="Click to copy: ' + u.address + '" onclick="copyAddr(this, \'' + u.address + '\')" style="font-family:monospace;font-size:13px;cursor:pointer;text-decoration:underline dotted #aaa">' + truncAddr(u.address) + '</span>';
+                        var tdStyle = 'style="padding:8px 12px;border-bottom:1px solid #f0f0f0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"';
+                        tbody.append(
+                            '<tr>' +
+                            '<td ' + tdStyle + '>' + (i + 1) + '</td>' +
+                            '<td ' + tdStyle + '>' + addrCell + '</td>' +
+                            '<td ' + tdStyle + '>' + fmtAgo(u.last_update) + '</td>' +
+                            '</tr>'
+                        );
+                    });
+                    $("#recent-users-section").show();
+                });
+            }
+
             $(document).ready(function() {
                 startPolling();
+                loadRecentUsers();
             });
         </script>
     </body>

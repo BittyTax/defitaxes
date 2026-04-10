@@ -25,6 +25,53 @@ def api_usage_page():
     return render_template("api_usage.html")
 
 
+@admin.route("/users")
+def users_page():
+    return render_template("users.html")
+
+
+@admin.route("/users_list", methods=["GET"])
+def users_list():
+    users_dir = os.path.join(current_app.instance_path, USER_DIRNAME)
+    entries = []
+    try:
+        subdirs = [d for d in os.listdir(users_dir) if os.path.isdir(os.path.join(users_dir, d))]
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+    for address in subdirs:
+        folder_path = os.path.join(users_dir, address)
+
+        # Folder size (all files recursively)
+        folder_size = 0
+        for dirpath, _, filenames in os.walk(folder_path):
+            for fname in filenames:
+                try:
+                    folder_size += os.path.getsize(os.path.join(dirpath, fname))
+                except OSError:
+                    pass
+
+        # last_update from DB
+        last_update = None
+        try:
+            user_db = SQLite(f"users/{address}/db", read_only=True)
+            rows = user_db.select(
+                "SELECT max(last_update) FROM user_addresses WHERE address='" + address + "'"
+            )
+            user_db.disconnect()
+            if rows and rows[0][0] is not None:
+                last_update = int(rows[0][0])
+        except Exception:
+            pass
+
+        entries.append({"address": address, "last_update": last_update, "folder_size": folder_size})
+
+    entries.sort(
+        key=lambda x: x["last_update"] if x["last_update"] is not None else -1, reverse=True
+    )
+    return json.dumps({"users": entries})
+
+
 @admin.route("/api_usage_status", methods=["GET"])
 def api_usage_status():
     result = {}
