@@ -1,57 +1,45 @@
 #!/bin/bash
 
-# Configure the folder to analyze and number of items to show
+# Configure the folder to analyze
 TARGET_DIR="../instance/users"
-NUM_ITEMS="${1:-10}"
 
-echo "=== TOP $NUM_ITEMS LARGEST FOLDERS in $TARGET_DIR ==="
-echo "Size | Folder Path"
-echo "-----+------------------------------------------"
-du -h -d 1 "$TARGET_DIR" 2>/dev/null | sort -hr | head -$NUM_ITEMS
-
-echo ""
-echo "=== TOP $NUM_ITEMS OLDEST UNCHANGED FOLDERS in $TARGET_DIR ==="
-echo "Last Modified | Size | Folder Path"
-echo "--------------+------+------------------------------------------"
-total_kb=0
-find "$TARGET_DIR" -type d -mindepth 1 -maxdepth 1 2>/dev/null | while read dir; do
-    size=$(du -sh "$dir" 2>/dev/null | cut -f1)
-    size_kb=$(du -sk "$dir" 2>/dev/null | cut -f1)
-    modified=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$dir")
-    echo "$modified|$size|$dir|$size_kb"
-done | sort | head -$NUM_ITEMS | tee /tmp/oldest_folders.tmp | column -t -s '|' | cut -d'|' -f1-3
-
-echo ""
-echo "=== TOTAL SIZE OF TOP $NUM_ITEMS OLDEST FOLDERS ==="
-total_kb=$(awk -F'|' '{sum += $4} END {print sum}' /tmp/oldest_folders.tmp)
-total_mb=$((total_kb / 1024))
-total_gb=$(echo "scale=2; $total_kb / 1024 / 1024" | bc)
-echo "Total: ${total_mb} MB (${total_gb} GB)"
-rm -f /tmp/oldest_folders.tmp
-
-echo ""
-echo "=== FOLDERS CONTAINING transactions.csv ==="
-echo "Folder Path"
-echo "------------------------------------------"
-found_csv=0
-find "$TARGET_DIR" -type f -name "transactions.csv" 2>/dev/null | while read f; do
-    dirname "$f"
-    found_csv=1
-done
-if [ $found_csv -eq 0 ]; then
-    echo "None found"
+# Detect OS for stat command compatibility
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    get_modified() { stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$1"; }
+else
+    get_modified() { stat -c "%y" "$1" | cut -d'.' -f1 | cut -d' ' -f1,2 | sed 's/ /T/' | cut -c1-16 | sed 's/T/ /'; }
 fi
 
 echo ""
-echo "=== FOLDERS CONTAINING NON-STANDARD SQL FILES (not db.db) ==="
-echo "File Path"
+echo "=== TEMPORARY / CACHE FILES (excluding db.db) ==="
+echo "Last Modified | Size | File Path"
 echo "------------------------------------------"
-found_sql=0
-find "$TARGET_DIR" -type f \( -name "*.db" \) ! -name "db.db" 2>/dev/null | while read f; do
+
+all_found=0
+total_kb=0
+while IFS= read -r f; do
+    all_found=$((all_found + 1))
     size=$(du -sh "$f" 2>/dev/null | cut -f1)
-    echo "$size  $f"
-    found_sql=1
-done
-if [ $found_sql -eq 0 ]; then
+    size_kb=$(du -sk "$f" 2>/dev/null | cut -f1)
+    total_kb=$((total_kb + size_kb))
+    modified=$(get_modified "$f")
+    echo "$modified | $size | $f"
+done < <(find "$TARGET_DIR" -type f ! -name "db.db" 2>/dev/null)
+
+if [ "$all_found" -eq 0 ]; then
     echo "None found"
+else
+    total_mb=$(echo "scale=2; $total_kb / 1024" | bc)
+    total_gb=$(echo "scale=2; $total_kb / 1024 / 1024" | bc)
+    echo ""
+    echo "  Total: $all_found file(s) — ${total_mb} MB (${total_gb} GB)"
+    echo ""
+    echo -n "  Delete ALL $all_found file(s)? [y/N]: "
+    read -r choice < /dev/tty
+    if [[ "$choice" =~ ^[yY]$ ]]; then
+        find "$TARGET_DIR" -type f ! -name "db.db" -delete
+        echo "  Done. Deleted $all_found file(s), freed ${total_mb} MB."
+    else
+        echo "  Skipped."
+    fi
 fi
