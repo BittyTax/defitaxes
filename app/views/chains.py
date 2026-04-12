@@ -31,7 +31,7 @@ def chain_support() -> str:
             balance_nft_support = "Available"
 
         cp_availability = conf.get("cp_availability", 3)
-        if conf.get("api_type") is ChainApiType.BLOCKSCOUT:
+        if conf.get("api_type") is ChainApiType.BLOCKSCOUT_V1:
             cp_availability = 0
 
         if chain_name == "Solana":

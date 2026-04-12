@@ -10,6 +10,7 @@ class Config:  # pylint: disable=too-few-public-methods
     APP_VERSION = 1.43
 
     ETHERSCAN_API_KEY = os.environ.get("DEFITAXES_ETHERSCAN_API_KEY", "")
+    BLOCKSCOUT_API_KEY = os.environ.get("DEFITAXES_BLOCKSCOUT_API_KEY", "")
     BLOCKDAEMON_API_KEY = os.environ.get("DEFITAXES_BLOCKDAEMON_API_KEY", "")  # Solana RPC
 
     COINGECKO_API_KEY = os.environ.get("DEFITAXES_COINGECKO_API_KEY", "")

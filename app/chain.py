@@ -14,7 +14,8 @@ import requests
 from flask import current_app
 
 from .evm_api import (
-    BlockscoutApi,
+    BlockscoutV1Api,
+    BlockscoutV2Api,
     EtherscanV1Api,
     EtherscanV2Api,
     EvmAccountAction,
@@ -32,7 +33,8 @@ class ChainApiType(Enum):
     ETHERSCAN_V1 = "Etherscan v1 API"
     ETHERSCAN_V2 = "Etherscan v2 API"
     ROUTESCAN_V2 = "Routescan v2 API"
-    BLOCKSCOUT = "Blockscout API"
+    BLOCKSCOUT_V1 = "Blockscout v1 API"
+    BLOCKSCOUT_V2 = "Blockscout v2 API"
     JSON_RPC = "JSON RPC API"
 
 
@@ -147,7 +149,7 @@ class Chain:
         "Arbitrum Nova": {
             "scanner": "arbitrum-nova.blockscout.com",
             "base_asset": "ETH",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://arbitrum-nova.blockscout.com/api",
             "evm_chain_id": 42170,
             "wrapper": "0xf906A9c7b4d1207B38a2f18445047764763aB450",
@@ -257,9 +259,9 @@ class Chain:
             "cp_availability": 10,
         },
         "Cronos": {
-            "scanner": "cronoscan.com",
+            "scanner": "explorer.cronos.org",
             "base_asset": "CRO",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://cronos.org/explorer/api",
             "evm_chain_id": 25,
             "wrapper": "0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23",
@@ -281,7 +283,7 @@ class Chain:
         "Kava": {
             "scanner": "explorer.kava.io",
             "base_asset": "KAVA",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://explorer.kava.io/api",
             "evm_chain_id": 2222,
             "wrapper": "0xc86c7c0efbd6a49b35e8714c5f59d99de09a225b",
@@ -312,7 +314,7 @@ class Chain:
         "Canto": {
             "scanner": "explorer.plexnode.wtf",
             "base_asset": "CANTO",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://explorer.plexnode.wtf/api",
             "evm_chain_id": 7700,
             "wrapper": "0x826551890dc65655a0aceca109ab11abdbd7a07b",
@@ -323,7 +325,7 @@ class Chain:
         "Aurora": {
             "scanner": "explorer.mainnet.aurora.dev",
             "base_asset": "ETH",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://explorer.mainnet.aurora.dev/api",
             "evm_chain_id": 1313161554,
             "debank_mapping": "aurora",
@@ -362,7 +364,7 @@ class Chain:
         "KCC": {
             "scanner": "scan.kcc.io",
             "base_asset": "KCS",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://scan.kcc.io/api",
             "evm_chain_id": 321,
             "coingecko_platform": "kucoin-community-chain",
@@ -382,9 +384,9 @@ class Chain:
             "support": 3,
         },
         "Metis": {
-            "scanner": "explorer.metis.io",
+            "scanner": "andromeda-explorer.metis.io",
             "base_asset": "METIS",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://andromeda-explorer.metis.io/api",
             "evm_chain_id": 1088,
             "wrapper": "0x75cb093e4d61d2a2e65d8e0bbb01de8d89b53481",
@@ -397,7 +399,7 @@ class Chain:
         "Oasis": {
             "scanner": "explorer.emerald.oasis.dev",
             "base_asset": "ROSE",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://explorer.emerald.oasis.dev/api",
             "evm_chain_id": 42262,
             "wrapper": "0x21c718c22d52d0f3a789b752d4c2fd5908a8a733",
@@ -409,7 +411,7 @@ class Chain:
         "Songbird": {
             "scanner": "songbird-explorer.flare.network",
             "base_asset": "SGB",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://songbird-explorer.flare.network/api",
             "evm_chain_id": 19,
             "wrapper": "0x02f0826ef6ad107cfc861152b32b52fd11bab9ed",
@@ -419,7 +421,7 @@ class Chain:
         "Flare": {
             "scanner": "flare-explorer.flare.network",
             "base_asset": "FLR",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://flare-explorer.flare.network/api",
             "evm_chain_id": 14,
             "wrapper": "0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d",
@@ -444,7 +446,7 @@ class Chain:
         "Doge": {
             "scanner": "explorer.dogechain.dog",
             "base_asset": "DOGE",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://explorer.dogechain.dog/api",
             "evm_chain_id": 2000,
             "wrapper": "0xb7ddc6414bf4f5515b52d8bdd69973ae205ff101",
@@ -457,7 +459,7 @@ class Chain:
         "Velas": {
             "scanner": "evmexplorer.velas.com",
             "base_asset": "VLX",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://evmexplorer.velas.com/api",
             "evm_chain_id": 106,
             "wrapper": "0xb58a9d5920af6ac1a9522b0b10f55df16686d1b6",
@@ -479,7 +481,7 @@ class Chain:
         "SXnetwork": {
             "scanner": "explorerl2.sx.technology",
             "base_asset": "SX",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://explorerl2.sx.technology/api",
             "evm_chain_id": 416,
             "wrapper": "0xaa99bE3356a11eE92c3f099BD7a038399633566f",
@@ -492,7 +494,7 @@ class Chain:
         "smartBCH": {
             "scanner": "sonar.cash",
             "base_asset": "BCH",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://sonar.cash/api",
             "evm_chain_id": 10000,
             "wrapper": "0x3743ec0673453e5009310c727ba4eaf7b3a1cc04",
@@ -504,7 +506,7 @@ class Chain:
         "EVMOS": {
             "scanner": "blockscout.evmos.org",
             "base_asset": "EVMOS",
-            "api_type": ChainApiType.BLOCKSCOUT,
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
             "api_url": "https://blockscout.evmos.org/api",
             "evm_chain_id": 9001,
             "wrapper": "0xd4949664cd82660aae99bedc034a0dea8a0bd517",
@@ -512,10 +514,10 @@ class Chain:
             "support": 0,
         },
         "ETC": {
-            "scanner": "blockscout.com",
+            "scanner": "etc.blockscout.com",
             "base_asset": "ETC",
-            "api_type": ChainApiType.BLOCKSCOUT,
-            "api_url": "https://blockscout.com/etc/mainnet/api",
+            "api_type": ChainApiType.BLOCKSCOUT_V1,
+            "api_url": "https://etc.blockscout.com/api",
             "evm_chain_id": 61,
             "wrapper": "0x1953cab0E5bFa6D4a9BaD6E05fD46C1CC6527a5a",
             "coingecko_platform": "ethereum-classic",
@@ -615,8 +617,10 @@ class Chain:
             api = EtherscanV2Api(conf["evm_chain_id"])
         elif conf["api_type"] is ChainApiType.ROUTESCAN_V2:
             api = RoutescanV2Api(conf["evm_chain_id"])
-        elif conf["api_type"] is ChainApiType.BLOCKSCOUT:
-            api = BlockscoutApi(conf["api_url"])
+        elif conf["api_type"] is ChainApiType.BLOCKSCOUT_V1:
+            api = BlockscoutV1Api(conf["api_url"])
+        elif conf["api_type"] is ChainApiType.BLOCKSCOUT_V2:
+            api = BlockscoutV2Api(conf["evm_chain_id"])
         else:
             raise RuntimeError("Unexpected ChainApiType")
 
@@ -658,7 +662,7 @@ class Chain:
     def init_addresses(self, address_db, contract_list=None):
         log("init_addresses", self.name, filename="address_lookups.txt")
         t = time.time()
-        if self.addresses_initialized or isinstance(self.api, BlockscoutApi):
+        if self.addresses_initialized or isinstance(self.api, BlockscoutV1Api):
             return
 
         try:
@@ -767,7 +771,7 @@ class Chain:
             return {}
 
         rq_cnt = 2
-        if not isinstance(self.api, BlockscoutApi):
+        if not isinstance(self.api, BlockscoutV1Api):
             rq_cnt += 1
         if self.name in [
             "ETH",
@@ -879,7 +883,7 @@ class Chain:
                 continue
 
             if self.name != "HECO":
-                if isinstance(self.api, BlockscoutApi):
+                if isinstance(self.api, (BlockscoutV1Api, BlockscoutV2Api)):
                     hash = entry["transactionHash"]
                 else:
                     hash = entry["hash"]
@@ -947,8 +951,8 @@ class Chain:
             block = entry["blockNumber"]
             type = Transfer.ERC20
 
-            # blockscout sticks NFT transactions together with tokens
-            if isinstance(self.api, BlockscoutApi) and "tokenID" in entry:
+            # Blockscout v1 sticks NFT transactions together with tokens
+            if isinstance(self.api, BlockscoutV1Api) and "tokenID" in entry:
                 token_nft_id = str(entry["tokenID"])
                 val = 1
                 token = entry["tokenSymbol"]
@@ -1016,7 +1020,7 @@ class Chain:
             ]
             transactions[hash].append(type, row)
 
-        if not isinstance(self.api, BlockscoutApi):
+        if not isinstance(self.api, BlockscoutV1Api):
             self.update_pb("Retrieving NFT transactions for " + address, per_type_alloc)
             data = self.get_all_transaction_from_api(address, EvmAccountAction.TOKEN_NFT_TX)
             for entry in data:
@@ -1177,7 +1181,7 @@ class Chain:
                     total_fee += base_fee
 
             # wrap/unwrap missing a transfer?
-            if wrap and self.name != "Fantom" and not isinstance(self.api, BlockscoutApi):
+            if wrap and self.name != "Fantom" and not isinstance(self.api, BlockscoutV1Api):
                 if (
                     self.name == "Arbitrum"
                 ):  # remove duplicate internal transfer on wrap, but not on unwrap
@@ -1896,7 +1900,7 @@ class Chain:
 
     def update_progenitors(self, counterparty_list, pb_alloc):
         all_db_writes = []
-        if isinstance(self.api, BlockscoutApi):
+        if isinstance(self.api, BlockscoutV1Api):
             return None
 
         if len(counterparty_list) == 0:

@@ -35,8 +35,9 @@ class EvmApi:
     ACTION_GET_CONTRACT_CREATION = "getcontractcreation"
     SORT_ASCENDING = "asc"
 
-    STATUS_OK = "1"
     STATUS_NOT_OK = "0"
+    STATUS_OK = "1"
+    STATUS_INCOMPLETE = "2"
 
     MESSAGE_NO_TRANSACTIONS = "No transactions found"
     MESSAGE_NO_INTERNAL_TRANSACTIONS = "No internal transactions found"
@@ -95,7 +96,7 @@ class EvmApi:
                     if response.status_code == HTTPStatus.OK:
                         json = response.json()
                         if json.get("status"):
-                            if json["status"] == self.STATUS_OK:
+                            if json["status"] in (self.STATUS_OK, self.STATUS_INCOMPLETE):
                                 if "result" in json and isinstance(json["result"], list):
                                     return json["result"]
 
@@ -282,7 +283,7 @@ class RoutescanV2Api:
         return RoutescanV2Api.api_instance.contract_query(self.api_url, {}, addresses)
 
 
-class BlockscoutApi:
+class BlockscoutV1Api:
     def __init__(self, api_url: str) -> None:
         self.api_instance = EvmApi(rate_limit=10)
         self.api_url = api_url
@@ -295,3 +296,25 @@ class BlockscoutApi:
 
     def contract_query(self, addresses: List[str]) -> List[Any]:
         return self.api_instance.contract_query(self.api_url, {}, addresses)
+
+
+class BlockscoutV2Api:
+    api_instance = EvmApi(tx_per_page=1000)  # Multi-chain API, use singleton to control throughput
+
+    def __init__(self, evm_chain_id: int) -> None:
+        self.api_url = "https://api.blockscout.com/v2/api"
+        self.params = {
+            "chain_id": str(evm_chain_id),
+            "apikey": current_app.config["BLOCKSCOUT_API_KEY"],
+        }
+
+    def presence_query(self, address: str) -> List[Any]:
+        return BlockscoutV2Api.api_instance.presence_query(self.api_url, self.params, address)
+
+    def account_query(self, action: EvmAccountAction, address: str) -> List[Any]:
+        return BlockscoutV2Api.api_instance.account_query(
+            self.api_url, self.params, action, address
+        )
+
+    def contract_query(self, addresses: List[str]) -> List[Any]:
+        return BlockscoutV2Api.api_instance.contract_query(self.api_url, self.params, addresses)
