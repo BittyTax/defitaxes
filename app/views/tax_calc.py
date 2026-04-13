@@ -207,7 +207,9 @@ def process_bittytax():
         user.done()
 
         bi = io.BytesIO()
-        output_excel = OutputExcel("BittyTax", [data_file], stream=bi)
+        user_agent = request.headers.get("User-Agent", "").lower()
+        is_macos = "mac os x" in user_agent or "macintosh" in user_agent
+        output_excel = OutputExcel("BittyTax", [data_file], is_macos=is_macos, stream=bi)
         output_excel.write_excel()
         bi.seek(0)
 
