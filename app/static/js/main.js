@@ -31,8 +31,23 @@ global_options = {
 //dc_fix_shutup = false;
 //matchups_visible = true;
 
+function is_ethereum(address) {
+    if (!address || address.length !== 42) return false;
+    if (address[0] !== '0' || (address[1] !== 'x' && address[1] !== 'X')) return false;
+    return /^[0-9a-fA-F]+$/.test(address.slice(2));
+}
+
+function is_solana(address) {
+    if (!address || address.length < 32 || address.length > 44) return false;
+    return /^[1-9A-HJ-NP-Za-km-z]+$/.test(address);
+}
+
+function is_valid_address(address) {
+    return is_ethereum(address) || is_solana(address);
+}
+
 function normalize_address(address) {
-    if (address.length == 42 && address[0] == '0' && address[1] == 'x')
+    if (is_ethereum(address))
         return address.toLowerCase();
     return address;
 }
@@ -269,22 +284,8 @@ $(document).ready(function () {
     });
 });
 
-function isAlphaNumeric(str) {
-    var code, i, len;
-
-    for (i = 0, len = str.length; i < len; i++) {
-        code = str.charCodeAt(i);
-        if (!(code > 47 && code < 58) && // numeric (0-9)
-            !(code > 64 && code < 91) && // upper alpha (A-Z)
-            !(code > 96 && code < 123)) { // lower alpha (a-z)
-            return false;
-        }
-    }
-    return true;
-};
-
 function get_last_update(address) {
-    if (address.length < 32 || address.length > 44 || !isAlphaNumeric(address))
+    if (!is_valid_address(address))
         return
     $.get("last_update?address=" + address, function (js) {
         var data = JSON.parse(js);
@@ -1142,11 +1143,12 @@ $(function () {
             console.log('main')
             e.preventDefault();
             primary = $('#your_address').val().trim();
+            $('.address_selector_error').remove();
 
             if ($('#demo').length || primary == '0x032b7d93aeed91127baa55ad570d88fd2f15d589')
                 demo = true
 
-            if (primary.length < 32 || primary.length > 44 || !isAlphaNumeric(primary)) {
+            if (!is_valid_address(primary)) {
                 $('#your_address').after('<div class=address_selector_error>Not a valid address</div>');
                 return
             }
@@ -1203,7 +1205,7 @@ $('body').on('click', '#aa_add', function () {
     let aa = $('#aa_input').val().trim();
     $('#aa_popup .error').remove();
 
-    if (aa.length < 32 || aa.length > 44 || !aa.match(/^[0-9a-z]+$/i)) {
+    if (!is_valid_address(aa)) {
         $('#aa_input').after("<div class='error'>Not a valid address</div>");
         return
     }
@@ -1264,7 +1266,7 @@ $('body').on('click', '#bulk_add', function () {
     let addresses = input.split(/\s+/).map(a => a.trim()).filter(a => a);
 
     addresses.forEach(function (aa) {
-        if (aa.length < 32 || aa.length > 44 || !aa.match(/^[0-9a-z]+$/i)) {
+        if (!is_valid_address(aa)) {
             return;
         }
         if (aa.toLowerCase() in all_address_info || aa in all_address_info) {
