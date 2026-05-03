@@ -9,6 +9,8 @@ dotenv.load_dotenv()
 class Config:  # pylint: disable=too-few-public-methods
     APP_VERSION = 1.43
 
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
     ETHERSCAN_API_KEY = os.environ.get("DEFITAXES_ETHERSCAN_API_KEY", "")
     BLOCKSCOUT_API_KEY = os.environ.get("DEFITAXES_BLOCKSCOUT_API_KEY", "")
     BLOCKDAEMON_API_KEY = os.environ.get("DEFITAXES_BLOCKDAEMON_API_KEY", "")  # Solana RPC
@@ -22,8 +24,8 @@ class Config:  # pylint: disable=too-few-public-methods
     RESERVOIR_API_KEY = os.environ.get("DEFITAXES_RESERVOIR_API_KEY")
     COVALENTHQ_API_KEY = os.environ.get("DEFITAXES_COVALENTHQ_API_KEY", "")
 
-    MAIL_FROM = os.environ.get("DEFITAXES_MAIL_FROM", "")
-    _mail_alerts_raw = os.environ.get("DEFITAXES_MAIL_ALERTS", "")
+    MAIL_FROM = os.environ.get("MAIL_FROM", "")
+    _mail_alerts_raw = os.environ.get("MAIL_ALERTS", "")
     MAIL_ALERTS = [email.strip() for email in _mail_alerts_raw.split(",") if email.strip()]
 
 
@@ -31,7 +33,6 @@ class DevelopmentConfig(Config):  # pylint: disable=too-few-public-methods
     DEBUG_LEVEL = 1
     LOG_LEVEL = logging.DEBUG
 
-    REDIS_URL = "redis://localhost:6379"
     REDIS_PREFIX = "defitaxes_test"
 
 
@@ -39,7 +40,6 @@ class ProductionConfig(Config):  # pylint: disable=too-few-public-methods
     DEBUG_LEVEL = 0
     LOG_LEVEL = logging.INFO
 
-    REDIS_URL = "unix:///run/redis/redis-server.sock"
     REDIS_PREFIX = "defitaxes"
 
 
