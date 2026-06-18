@@ -31,9 +31,9 @@ class SQLite:
 
         db_path = os.path.join(current_app.instance_path, f"{db}.db")
         if read_only:
-            self.conn = sqlite3.connect(f"file:{db_path}?mode=ro", timeout=5, uri=True)
+            self.conn = sqlite3.connect(f"file:{db_path}?mode=ro", timeout=30, uri=True)
         else:
-            self.conn = sqlite3.connect(db_path, timeout=5)
+            self.conn = sqlite3.connect(db_path, timeout=30)
         self.conn.row_factory = sqlite3.Row
 
     def _execute_and_log(

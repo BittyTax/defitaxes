@@ -35,6 +35,10 @@ def init_database(drop=False, download=False):
     cg = CoinGecko()
     cg.create_tables(drop=drop)
     UserConfig.create_table(drop=drop)
+    db = SQLite("db")
+    db.conn.execute("PRAGMA journal_mode=WAL")
+    db.disconnect()
+    print("WAL journal mode enabled on db.db")
 
     if download:
         print("Downloading coin data from CoinGecko...")
