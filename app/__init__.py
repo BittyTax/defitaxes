@@ -7,6 +7,7 @@ from config import config
 
 from .views.admin import admin
 from .views.chains import chains
+from .views.export_job import export_job
 from .views.main import main
 from .views.manual import manual_transactions
 from .views.tax_calc import tax_calc
@@ -37,5 +38,6 @@ def create_app(config_name: str = "development", instance_path: Optional[str] = 
     app.register_blueprint(manual_transactions)
     app.register_blueprint(uploads)
     app.register_blueprint(admin, url_prefix="/admin")
+    app.register_blueprint(export_job)
 
     return app

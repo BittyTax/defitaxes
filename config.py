@@ -24,6 +24,8 @@ class Config:  # pylint: disable=too-few-public-methods
     RESERVOIR_API_KEY = os.environ.get("DEFITAXES_RESERVOIR_API_KEY")
     COVALENTHQ_API_KEY = os.environ.get("DEFITAXES_COVALENTHQ_API_KEY", "")
 
+    EXPORT_API_KEY = os.environ.get("DEFITAXES_EXPORT_API_KEY", "")
+
     MAIL_FROM = os.environ.get("MAIL_FROM", "")
     _mail_alerts_raw = os.environ.get("MAIL_ALERTS", "")
     MAIL_ALERTS = [email.strip() for email in _mail_alerts_raw.split(",") if email.strip()]

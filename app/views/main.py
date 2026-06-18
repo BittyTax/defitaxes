@@ -127,11 +127,17 @@ def process_data():
 
 def _do_process(primary, import_addresses, ac_str, redis, app_context):
     app_context.push()
-    redis.start()
 
     active_address = None
     pb = None
+    user = None
     try:
+        # Enqueue before marking as running so the address is visible in the
+        # queue immediately and wait_queue() in other jobs sees it atomically.
+        redis.enq()
+        redis.wait_queue()
+        redis.start()
+
         user = User(primary, do_logging=False)
         all_previous_addresses = list(user.all_addresses.keys())
         log("all_previous_addresses 1", all_previous_addresses)
@@ -229,9 +235,6 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
         if import_new:
             user.set_info("data_version", user.version)
             user.start_import(all_chains)
-
-            redis.enq()
-            redis.wait_queue()
 
             pb.update("Updating FIAT rates", 0.1)
             user.fiat_rates.download_all_rates()
@@ -653,8 +656,7 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
         current_tokens = user.load_current_tokens(cg)
         log("loaded current tokens", current_tokens)
 
-        if import_new:
-            redis.deq()
+        redis.deq()
 
         log("coingecko initialized", cg.initialized)
         pb.set("Classifying transactions", 80)
@@ -755,6 +757,8 @@ def _do_process(primary, import_addresses, ac_str, redis, app_context):
     except:
         log("EXCEPTION in process", primary, active_address, traceback.format_exc())
         log_error("EXCEPTION in process", primary, active_address)
+        if user is not None:
+            user.done()
         data = {
             "error": "An error has occurred while processing transactions. "
             "Please let us know on Discord if you received this message."

@@ -132,3 +132,196 @@ This database contains:
 3. EVM signature mappings from [4Byte](https://www.4byte.directory)
 
 I will add Flask commands to initialise and create these tables.
+
+---
+
+## BittyTax Export API
+
+A job-style REST API that automates the BittyTax export workflow: add wallet addresses, process all supported blockchains, generate a combined BittyTax Records XLSX file, and download it.
+
+Because on-chain processing can take several minutes, the API uses a three-step pattern:
+
+1. **Submit** — send your wallets and export options, receive a `job_id` immediately.
+2. **Status** — poll until the job is `complete` or `failed`.
+3. **Result** — download the XLSX file (allowed multiple times within 24 hours).
+
+### Tunable constants
+
+Two constants at the top of `app/views/export_job.py` control the limits:
+
+| Constant | Default | Description |
+| --- | --- | --- |
+| `MAX_WALLETS` | `100` | Maximum number of wallet addresses per job |
+| `JOB_RESULT_TTL_SECONDS` | `86400` | How long the result XLSX is retained (24 hours) |
+
+---
+
+### Authentication
+
+All three endpoints require a Bearer token matching the `DEFITAXES_EXPORT_API_KEY` environment variable:
+
+```
+Authorization: Bearer <your-key>
+```
+
+Set the key in your `.env` file:
+
+```
+DEFITAXES_EXPORT_API_KEY=your-secret-key-here
+```
+
+If the key is absent or wrong the API returns `401`. If `DEFITAXES_EXPORT_API_KEY` is not set in the environment, all requests are rejected.
+
+---
+
+### POST `/api/export/submit`
+
+Validates input synchronously and, if valid, starts processing in the background.
+
+**Request body (JSON):**
+
+```json
+{
+    "wallets": ["0xPrimaryAddress", "0xSecondaryAddress"],
+    "currency": "USD",
+    "is_macos": false,
+    "export_options": {
+        "transfer_in_known":    0,
+        "transfer_in_unknown":  0,
+        "transfer_out_known":   0,
+        "transfer_out_unknown": 0
+    }
+}
+```
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `wallets` | Yes | Array of wallet addresses. **First entry is the primary wallet.** Must contain 1–`MAX_WALLETS` unique, valid addresses (EVM `0x…` or Solana base58). |
+| `currency` | No | Fiat currency for the report. Default `"USD"`. Supported: `USD`, `GBP`, `EUR`, `AUD`, `CAD`, `JPY`, `CHF`, `NZD`. |
+| `is_macos` | No | Set to `true` when the XLSX will be opened on macOS. Default `false`. |
+| `export_options` | No | BittyTax transfer mapping settings (same as the webpage export dialog). All fields default to `0`. |
+
+**Transfer mapping values:**
+
+| Value | Meaning for inbound | Meaning for outbound |
+| --- | --- | --- |
+| `0` | `Deposit` | `Withdrawal` |
+| `1` | `Buy` | `Sell` |
+
+**Response `200`:**
+
+```json
+{ "job_id": "550e8400-e29b-41d4-a716-446655440000" }
+```
+
+**Response `400`** (validation failure):
+
+```json
+{ "error": "Duplicate wallet addresses are not allowed" }
+```
+
+**Response `401`** (missing or wrong API key):
+
+```json
+{ "error": "Invalid or missing API key" }
+```
+
+**Response `409`** (primary address already processing):
+
+```json
+{ "error": "A job is already running for this address. Poll its status or wait before submitting a new one." }
+```
+
+---
+
+### GET `/api/export/status?job_id=…&address=…`
+
+Poll the job state.
+
+| Query param | Description |
+| --- | --- |
+| `job_id` | ID returned by `/api/export/submit` |
+| `address` | Primary wallet address (must match the address used at submit) |
+
+**Response `200`:**
+
+```json
+{ "status": "processing" }
+```
+
+```json
+{ "status": "complete" }
+```
+
+```json
+{ "status": "failed", "error": "…detail…" }
+```
+
+| Status | Meaning |
+| --- | --- |
+| `processing` | Job is running — keep polling |
+| `complete` | XLSX is ready to download |
+| `failed` | Processing failed — see `error` field |
+
+**Response `401`:** invalid or missing API key.  
+**Response `403`:** address does not match the job's primary wallet.  
+**Response `404`:** job not found or expired.
+
+---
+
+### GET `/api/export/result?job_id=…&address=…`
+
+Download the generated BittyTax Records XLSX.
+
+| Query param | Description |
+| --- | --- |
+| `job_id` | ID returned by `/api/export/submit` |
+| `address` | Primary wallet address (must match the address used at submit) |
+
+**Response `200`:** XLSX file attachment (`BittyTax_Records_{job_id}.xlsx`).
+
+The file can be downloaded multiple times within the `JOB_RESULT_TTL_SECONDS` window (24 hours by default).
+
+**Response `400`:** job not yet complete, or job failed.  
+**Response `401`:** invalid or missing API key.  
+**Response `403`:** address does not match the job's primary wallet.  
+**Response `404`:** job not found or expired.  
+**Response `410`:** job completed but the result file has since expired.
+
+---
+
+### Example workflow
+
+```bash
+# 1. Submit
+curl -s -X POST http://localhost:5000/api/export/submit \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key-here" \
+  -d '{
+    "wallets": ["0xabc1234...", "0xdef5678..."],
+    "currency": "GBP",
+    "export_options": { "transfer_in_known": 1, "transfer_out_known": 1 }
+  }'
+# → {"job_id":"550e8400-e29b-41d4-a716-446655440000"}
+
+# 2. Poll until complete
+curl -s \
+  -H "Authorization: Bearer your-secret-key-here" \
+  "http://localhost:5000/api/export/status?job_id=550e8400-e29b-41d4-a716-446655440000&address=0xabc1234..."
+# → {"status":"processing"}   (repeat until…)
+# → {"status":"complete"}
+
+# 3. Download
+curl -OJ \
+  -H "Authorization: Bearer your-secret-key-here" \
+  "http://localhost:5000/api/export/result?job_id=550e8400-e29b-41d4-a716-446655440000&address=0xabc1234..."
+# → saves BittyTax_Records_550e8400-e29b-41d4-a716-446655440000.xlsx
+```
+
+---
+
+### Notes
+
+- All submitted wallets are processed together in a single pass across all supported blockchains — the same behaviour as using the web interface.
+- The combined XLSX contains transactions for all submitted wallets; all years are included (no tax-year filtering).
+- Jobs older than `JOB_RESULT_TTL_SECONDS` are automatically expired by Redis (24 hours by default).
