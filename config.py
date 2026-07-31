@@ -23,6 +23,7 @@ class Config:  # pylint: disable=too-few-public-methods
     DEBANK_API_KEY = os.environ.get("DEFITAXES_DEBANK_API_KEY", "")
     RESERVOIR_API_KEY = os.environ.get("DEFITAXES_RESERVOIR_API_KEY")
     COVALENTHQ_API_KEY = os.environ.get("DEFITAXES_COVALENTHQ_API_KEY", "")
+    COVALENTHQ_SERVICE_KEY = os.environ.get("DEFITAXES_COVALENTHQ_SERVICE_KEY", "")
 
     EXPORT_API_KEY = os.environ.get("DEFITAXES_EXPORT_API_KEY", "")
 

@@ -128,6 +128,23 @@ def api_usage_status():
     except Exception as e:
         result["etherscan"] = {"error": str(e)}
 
+    # CovalentHQ GoldRush Platform Usage
+    try:
+        if current_app.config.get("COVALENTHQ_SERVICE_KEY"):
+            resp = http.get(
+                "https://api.covalenthq.com/platform/usage/",
+                headers={"Authorization": f"Bearer {current_app.config['COVALENTHQ_SERVICE_KEY']}"},
+                params={"duration": 1},
+                timeout=10,
+            )
+            result["covalenthq"] = (
+                resp.json() if resp.status_code == 200 else {"error": resp.status_code}
+            )
+        else:
+            result["covalenthq"] = {"error": "No Service Key configured"}
+    except Exception as e:
+        result["covalenthq"] = {"error": str(e)}
+
     return json.dumps(result)
 
 

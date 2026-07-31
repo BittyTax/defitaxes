@@ -20,7 +20,8 @@
             }
 
             #card-coingecko,
-            #card-etherscan {
+            #card-etherscan,
+            #card-covalent {
                 max-width: 550px;
             }
 
@@ -198,6 +199,12 @@
                     <em style="color:#888">Loading…</em>
                 </div>
             </div>
+            <div class="api-card" id="card-covalent">
+                <h3>CovalentHQ</h3>
+                <div id="cv-content">
+                    <em style="color:#888">Loading…</em>
+                </div>
+            </div>
             <div class="api-card" id="card-debank">
                 <h3>DeBank</h3>
                 <div id="db-content">
@@ -230,21 +237,98 @@
                        '<div class="meter-label">' + label + '</div>';
             }
 
-            function timeUntilMonthReset() {
-                var now = new Date();
-                var nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
-                var diff = Math.floor((nextMonth - now) / 1000);
-                var days = Math.floor(diff / 86400);
-                var hrs = Math.floor((diff % 86400) / 3600);
-                var mins = Math.floor((diff % 3600) / 60);
+            function showError(targetSelector, message) {
+                $(targetSelector).html('<span class="error-msg">Error: ' + message + '</span>');
+            }
+
+            function statRow(label, value) {
+                return '<div class="stat-row"><span class="stat-label">' + label + '</span><span class="stat-value">' + value + '</span></div>';
+            }
+
+            function divider() {
+                return '<hr class="divider">';
+            }
+
+            function usageSummary(used, total, prefix) {
+                var safeUsed = Number(used || 0);
+                var safeTotal = Number(total || 0);
+                var pct = safeTotal > 0 ? ((safeUsed / safeTotal) * 100).toFixed(1) : 0;
+                return usageMeter(
+                    safeUsed,
+                    safeTotal,
+                    prefix + fmt(safeUsed) + ' used of ' + fmt(safeTotal) + ' (' + pct + '%)'
+                );
+            }
+
+            function formatCountdown(seconds) {
+                if (seconds <= 0) return "now";
+                var days = Math.floor(seconds / 86400);
+                var hrs = Math.floor((seconds % 86400) / 3600);
+                var mins = Math.floor((seconds % 3600) / 60);
                 if (days > 0) return days + "d " + hrs + "h " + mins + "m";
                 if (hrs > 0) return hrs + "h " + mins + "m";
                 return mins + "m";
             }
 
+            function secondsUntil(targetDate) {
+                return Math.floor((targetDate - new Date()) / 1000);
+            }
+
+            function timeUntilNextUtcMidnight() {
+                var now = new Date();
+                var nextMidnight = new Date(
+                    Date.UTC(
+                        now.getUTCFullYear(),
+                        now.getUTCMonth(),
+                        now.getUTCDate() + 1,
+                        0,
+                        0,
+                        0,
+                        0
+                    )
+                );
+                return formatCountdown(secondsUntil(nextMidnight));
+            }
+
+            function timeUntilMonthReset() {
+                var now = new Date();
+                var nextMonth = new Date(
+                    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0)
+                );
+                return formatCountdown(secondsUntil(nextMonth));
+            }
+
+            function timeUntilDate(targetDate) {
+                return formatCountdown(secondsUntil(targetDate));
+            }
+
+            function parseApiDate(s) {
+                if (!s) return null;
+                var parsed = new Date(s);
+                if (!isNaN(parsed.getTime())) return parsed;
+                if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+                    return new Date(s + "T00:00:00Z");
+                }
+                return null;
+            }
+
+            function addMonthsUtc(dateObj, months) {
+                return new Date(
+                    Date.UTC(
+                        dateObj.getUTCFullYear(),
+                        dateObj.getUTCMonth() + months,
+                        dateObj.getUTCDate(),
+                        dateObj.getUTCHours(),
+                        dateObj.getUTCMinutes(),
+                        dateObj.getUTCSeconds(),
+                        dateObj.getUTCMilliseconds()
+                    )
+                );
+            }
+
             function renderCoingecko(data) {
                 if (data.error) {
-                    $("#cg-content").html('<span class="error-msg">Error: ' + data.error + '</span>');
+                    showError("#cg-content", data.error);
                     return;
                 }
 
@@ -253,34 +337,27 @@
                 }
 
                 var used = data.current_total_monthly_calls;
-                var remaining = data.current_remaining_monthly_calls;
                 var total = data.monthly_call_credit;
-                var pct = total > 0 ? ((used / total) * 100).toFixed(1) : 0;
 
                 var html = "";
 
-                html += usageMeter(used, total, "Monthly calls: " + fmt(used) + " used of " + fmt(total) + " (" + pct + "%)");
-
-                html += '<div class="stat-row"><span class="stat-label">Remaining this month</span><span class="stat-value">' + fmt(remaining) + '</span></div>';
-                html += '<div class="stat-row"><span class="stat-label">Resets in</span><span class="stat-value">' + timeUntilMonthReset() + '</span></div>';
-                html += '<hr class="divider">';
-                html += '<div class="stat-row"><span class="stat-label">Rate limit (req/min)</span><span class="stat-value">' + fmt(data.rate_limit_request_per_minute) + '</span></div>';
-                html += '<div class="stat-row"><span class="stat-label">API key rate limit (req/min)</span><span class="stat-value">' + fmt(data.api_key_rate_limit_request_per_minute) + '</span></div>';
+                html += usageSummary(used, total, "Monthly calls: ");
+                html += statRow("Resets in", timeUntilMonthReset());
 
                 $("#cg-content").html(html);
             }
 
             function renderDebank(data) {
                 if (data.error) {
-                    $("#db-content").html('<span class="error-msg">Error: ' + data.error + '</span>');
+                    showError("#db-content", data.error);
                     return;
                 }
 
                 var html = '';
 
                 // Balance
-                html += '<div class="stat-row"><span class="stat-label">Remaining balance (units)</span><span class="stat-value">' + fmt(data.balance) + '</span></div>';
-                html += '<hr class="divider">';
+                html += statRow("Remaining balance (units)", fmt(data.balance));
+                html += divider();
 
                 // Daily usage bar chart — stats are newest-first, reverse for chronological left-to-right display
                 if (data.stats && data.stats.length > 0) {
@@ -304,8 +381,11 @@
 
                     // Today's usage
                     var today = data.stats[0];
-                    html += '<div class="stat-row"><span class="stat-label">Today\'s usage (' + today.date + ')</span><span class="stat-value">' + fmt(today.usage) + ' units</span></div>';
-                    html += '<div class="stat-row"><span class="stat-label">Yesterday\'s usage</span><span class="stat-value">' + fmt(data.stats[1] ? data.stats[1].usage : 0) + ' units</span></div>';
+                    html += statRow("Today's usage (" + today.date + ")", fmt(today.usage) + " units");
+                    html += statRow(
+                        "Yesterday's usage",
+                        fmt(data.stats[1] ? data.stats[1].usage : 0) + " units"
+                    );
                 }
 
                 $("#db-content").html(html);
@@ -313,25 +393,61 @@
 
             function renderEtherscan(data) {
                 if (data.error) {
-                    $("#es-content").html('<span class="error-msg">Error: ' + data.error + '</span>');
+                    showError("#es-content", data.error);
                     return;
                 }
                 if (data.status !== "1" || !data.result) {
-                    $("#es-content").html('<span class="error-msg">Unexpected response: ' + JSON.stringify(data) + '</span>');
+                    showError("#es-content", "Unexpected response: " + JSON.stringify(data));
                     return;
                 }
 
                 var r = data.result;
                 var used = r.creditsUsed;
                 var total = r.creditLimit;
-                var pct = total > 0 ? ((used / total) * 100).toFixed(1) : 0;
 
-                var html = usageMeter(used, total, "Daily credits: " + fmt(used) + " used of " + fmt(total) + " (" + pct + "%)");
-                html += '<div class="stat-row"><span class="stat-label">Credits remaining</span><span class="stat-value">' + fmt(r.creditsAvailable) + '</span></div>';
-                html += '<div class="stat-row"><span class="stat-label">Limit interval</span><span class="stat-value">' + (r.limitInterval || "—") + '</span></div>';
-                html += '<div class="stat-row"><span class="stat-label">Resets in</span><span class="stat-value">' + (r.intervalExpiryTimespan || "—") + '</span></div>';
+                var html = usageSummary(used, total, "Daily credits: ");
+                html += statRow("Resets in", timeUntilNextUtcMidnight());
 
                 $("#es-content").html(html);
+            }
+
+            function renderCovalent(data) {
+                if (data.error) {
+                    showError("#cv-content", data.error);
+                    return;
+                }
+
+                var payload = data.data || {};
+                var aggregate = payload.aggregate || {};
+
+                var consumed = Number(aggregate.credits_consumed || 0);
+                var maxCredits = Number(aggregate.max_credits || 0);
+
+                var resetText = null;
+                var period = payload.period || {};
+                var periodFromRaw = period.from ? String(period.from) : "";
+                var periodFrom = parseApiDate(periodFromRaw);
+                var periodToRaw = period.to ? String(period.to) : "";
+                var periodTo = parseApiDate(periodToRaw);
+                var durationMonths = Number(period.duration_months || 0);
+                if (periodFrom && durationMonths > 0) {
+                    var cycleResetAt = addMonthsUtc(periodFrom, durationMonths);
+                    resetText = timeUntilDate(cycleResetAt);
+                } else if (periodTo) {
+                    // Fallback when cycle metadata is not present.
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(periodToRaw)) {
+                        periodTo = new Date(periodTo.getTime() + 24 * 60 * 60 * 1000);
+                    }
+                    resetText = timeUntilDate(periodTo);
+                } else {
+                    resetText = timeUntilMonthReset();
+                }
+
+                var html = "";
+                html += usageSummary(consumed, maxCredits, "Monthly credits: ");
+                html += statRow("Resets in", resetText);
+
+                $("#cv-content").html(html);
             }
 
             function refresh() {
@@ -339,6 +455,7 @@
                     renderCoingecko(data.coingecko || { error: "No data" });
                     renderDebank(data.debank || { error: "No data" });
                     renderEtherscan(data.etherscan || { error: "No data" });
+                    renderCovalent(data.covalenthq || { error: "No data" });
 
                     $("#last-updated-text").text("Last updated: " + new Date().toLocaleTimeString());
                     $("#refresh-indicator").removeClass("stale");
